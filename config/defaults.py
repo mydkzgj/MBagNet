@@ -49,6 +49,8 @@ _C.DATA.DATALOADER.IMS_PER_BATCH = _C.DATA.DATALOADER.CATEGORIES_PER_BATCH * _C.
 _C.DATA.TRANSFORM = CN()
 # Size of the image during training
 _C.DATA.TRANSFORM.SIZE = [384, 128]
+# 掩膜缩放比例
+_C.DATA.TRANSFORM.MASK_SIZE_RATIO = 4
 # Values to be used for image normalization
 _C.DATA.TRANSFORM.PIXEL_MEAN = [0.485, 0.456, 0.406]
 # Values to be used for image normalization
@@ -70,11 +72,11 @@ _C.MODEL.DEVICE = "cuda"
 _C.MODEL.DEVICE_ID = '0'
 # Name of backbone
 ###  se_resnext50 , se_resnet50 , resnet50 ,resnet34, mobilenetv3,resnet50_ibn_a,resnet50_ibn_a_old
-_C.MODEL.NAME = 'resnet50_ibn_a'
-# If train with STN, options: 'yes' or 'no'
-_C.MODEL.STN = 'no'
-# Last stride of backbone
-_C.MODEL.LAST_STRIDE = 1
+_C.MODEL.NAME = 'multi_bagnet'
+# If block is pre_activated, options: 1 or 0
+_C.MODEL.PRE_ACTIVATION = 1
+# how block output fuse, options: "concat", "add", "none"
+_C.MODEL.FUSION_TYPE = "concat"
 
 
 # -----------------------------------------------------------------------------

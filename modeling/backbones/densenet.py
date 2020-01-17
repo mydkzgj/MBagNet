@@ -13,7 +13,7 @@ from ..plagins.context_block import ContextBlock
 from torch.nn import Conv2d
 
 
-__all__ = ['DenseNet', 'densenet121', 'densenet169', 'densenet201', 'densenet161']
+__all__ = ['DenseNet', 'densenetS224', 'densenet121', 'densenet169', 'densenet201', 'densenet161']
 
 model_urls = {
     'densenet121': 'https://download.pytorch.org/models/densenet121-a639ec97.pth',
@@ -122,8 +122,8 @@ class DenseNet(nn.Module):
 
         # First convolution
         self.features = nn.Sequential(OrderedDict([
-            ('conv0', Conv2d(3, num_init_features, kernel_size=3, stride=2,
-                                padding=1, bias=False)),
+            ('conv0', Conv2d(3, num_init_features, kernel_size=7, stride=2,
+                                padding=3, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
             ('relu0', nn.ReLU(inplace=True)),
             ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
@@ -167,6 +167,36 @@ class DenseNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 
+        self.calculateRF()
+
+    def calculateRF(self):
+        # 记录下每个感受野的size，stride等参数
+        self.receptive_field_list = []
+        rf_size = 1
+        rf_stride = 1
+        rf_padding = 0
+        modules = self.named_modules()
+        for name, module in modules:
+            if isinstance(module, nn.Conv2d):
+                if "conv0" in name or "conv2" in name:
+                    kernel_size = module.kernel_size[0]
+                    stride = module.stride[0]
+                    padding = module.padding[0]
+                    rf_size = kernel_size * rf_stride + rf_size - rf_stride
+                    rf_padding = padding * rf_stride + rf_padding
+                    rf_stride = stride * rf_stride
+                    self.receptive_field_list.append({"rf_size": rf_size, "rf_stride": rf_stride, "padding": rf_padding})
+                    #print(name)
+                    #print({"rf_size": rf_size, "rf_stride": rf_stride, "padding": rf_padding})
+            if isinstance(module, nn.AvgPool2d) or isinstance(module, nn.MaxPool2d):
+                kernel_size = module.kernel_size
+                stride = module.stride
+                padding = module.padding
+                rf_size = kernel_size * rf_stride + rf_size - rf_stride
+                rf_padding = padding * rf_stride + rf_padding
+                rf_stride = stride * rf_stride
+        #print(self.receptive_field_list)
+
     def forward(self, x):
         features = self.features(x)
         #out = F.relu(features, inplace=True)
@@ -200,6 +230,20 @@ def _densenet(arch, growth_rate, block_config, num_init_features, pretrained, pr
     if pretrained:
         _load_state_dict(model, model_urls[arch], progress)
     return model
+
+# for 224*224的图像 为了和MBagnet对比
+def densenetS224(pretrained=False, progress=True, **kwargs):
+    r"""Densenet-121 model from
+    `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+        memory_efficient (bool) - If True, uses checkpointing. Much more memory efficient,
+          but slower. Default: *False*. See `"paper" <https://arxiv.org/pdf/1707.06990.pdf>`_
+    """
+    return _densenet('densenetS224', 32, (4, 4, 4), 32, pretrained, progress,
+                    **kwargs)
 
 
 def densenet121(pretrained=False, progress=True, **kwargs):

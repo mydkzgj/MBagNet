@@ -4,14 +4,14 @@
 @contact: sherlockliao01@gmail.com
 """
 
-from .dataset_loader import ImageDataset
+from .dataset_loader import ImageDataset, SegmentationDataset
 
 from data.datasets.lib.cuhk03 import CUHK03
 from data.datasets.lib.dukemtmcreid import DukeMTMCreID
 from data.datasets.lib.market1501 import Market1501
 from data.datasets.lib.msmt17 import MSMT17
 from data.datasets.lib.fundusTR import FundusTR
-from data.datasets.lib.ddr_DRgrading import DDR_DRgrading
+from data.datasets.lib.ddr_DRgrading import DDR_DRgrading, DDR_DRgrading_WeakSupervision
 
 __factory = {
     'market1501': Market1501,
@@ -20,6 +20,7 @@ __factory = {
     'msmt17': MSMT17,
     'fundusTR': FundusTR,
     'ddr_DRgrading' : DDR_DRgrading,
+    'ddr_DRgrading_WeakSupervision' :  DDR_DRgrading_WeakSupervision
 }
 
 

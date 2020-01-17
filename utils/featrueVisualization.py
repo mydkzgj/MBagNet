@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 
+save_img_index = 0
+
 def map_visualization(map_tensor):
     map = map_tensor.cpu().detach().numpy()
     show = map
@@ -322,31 +324,10 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
     #img_r = cv.cvtColor(img, cv.COLOR_RGB2BGR)
     r, g, b = cv.split(img)
     img_bgr = cv.merge([b, g, r])
-    cv.imshow("img", img_bgr)
-    cv.waitKey(0)
+    #cv.imshow("img", img_bgr)
+    #cv.waitKey(0)
 
-    # 将最大logits的几个框显示出来
-    MaxPadding = rank_logits_dict[0][0]["max_padding"]
-    color = [[1,0,0],[0,1,0],[0,0,1],[0,1,1],[1,1,0],[1,0,1],[1,1,1]]   #蓝，绿，红，黄，浅蓝，粉，白
-    img_padding = cv.copyMakeBorder(img_bgr, MaxPadding, MaxPadding, MaxPadding, MaxPadding, cv.BORDER_CONSTANT,value=[0,0,0])
-    for i in range(num_class):
-        #r = random.randint(0, 255)/255.0
-        #g = random.randint(0, 255)/255.0
-        #b = random.randint(0, 255)/255.0
-        #color = [b, g, r]
-        #print(color)
-        if i!=3:
-            continue
-        for rank_logits_inf in rank_logits_dict[i]:
-            center_x = rank_logits_inf["center_x"]
-            center_y = rank_logits_inf["center_y"]
-            half_rf_size = rank_logits_inf["rf_size"]//2
-            LTpoint = (center_x-half_rf_size+MaxPadding, center_y-half_rf_size+MaxPadding)
-            RDpoint = (center_x+half_rf_size+MaxPadding, center_y+half_rf_size+MaxPadding)
-            cv.rectangle(img_padding, LTpoint, RDpoint, color=color[i], thickness=1,)
 
-    cv.imshow("imgP", img_padding)
-    cv.waitKey(0)
 
     #2.将标签显示
     labels = rf_score_maps.pop(0)
@@ -360,11 +341,48 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
         else:
             label_dict[i] = np.zeros((1,1))
 
+    if isinstance(labels[2], torch.Tensor):
+        mask_label = labels[2].squeeze(0).cpu().detach().numpy()
+
+    # 将最大logits的几个框显示出来
+    MaxPadding = rank_logits_dict[0][0]["max_padding"]
+    color = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1], [1, 1, 0], [1, 0, 1], [1, 1, 1]]  # 蓝，绿，红，黄，浅蓝，粉，白
+    img_padding = cv.copyMakeBorder(img_bgr, MaxPadding, MaxPadding, MaxPadding, MaxPadding, cv.BORDER_CONSTANT,
+                                    value=[0, 0, 0])
+    for i in range(num_class):
+        # r = random.randint(0, 255)/255.0
+        # g = random.randint(0, 255)/255.0
+        # b = random.randint(0, 255)/255.0
+        # color = [b, g, r]
+        # print(color)
+        if i != label and i != p_label:
+            continue
+        for rank_logits_inf in rank_logits_dict[i]:
+            center_x = rank_logits_inf["center_x"]
+            center_y = rank_logits_inf["center_y"]
+            half_rf_size = rank_logits_inf["rf_size"] // 2
+            LTpoint = (center_x - half_rf_size + MaxPadding, center_y - half_rf_size + MaxPadding)
+            RDpoint = (center_x + half_rf_size + MaxPadding, center_y + half_rf_size + MaxPadding)
+            cv.rectangle(img_padding, LTpoint, RDpoint, color=color[i], thickness=1, )
+            cv.circle(img_padding, (center_x+MaxPadding, center_y+MaxPadding), 1, (0,0,255), -1)
+            # cv.imshow("imgP", img_padding)
+            # cv.waitKey(0)
+
+    # cv.imshow("imgP", img_padding)
+    # cv.waitKey(0)
+    global save_img_index
+    cv.imwrite(
+        "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_0' + '.png',
+        img_bgr * 255)
+    cv.imwrite(
+        "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_1' + '.png',
+        img_padding * 255)
+
     #3.显示感受野的权重
     rfs_weight_max = 0
     rfs_weight_min = 100000
     rfs_weight = rf_score_maps.pop(0).cpu().detach().numpy()
-    for index in range(len(rf_score_maps)):
+    for index in range(len(rf_score_maps)-1):
         map = rfs_weight[0][index]
         temp_max = np.max(map)
         temp_min = np.min(map)
@@ -433,8 +451,8 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
 
     # 如果求全局最大呢？
     overall_max = 0
-    for key in max_rf.keys():
-        if max_rf[key]>overall_max:
+    for key in range(len(max_rf)):
+        if max_rf[key] > overall_max:
             overall_max = max_rf[key]
 
 
@@ -466,21 +484,45 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
         ax.imshow(label_dict[i], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
         plt.axis('off')
 
+    if isinstance(labels[2], torch.Tensor):  # 显示masklabel
+        ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1)
+        plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+        ax.imshow(mask_label[0]|mask_label[1]|mask_label[2]|mask_label[3], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+        ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1 - 1)
+        plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+        ax.imshow(mask_label[0], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+        ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1 - 2)
+        plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+        ax.imshow(mask_label[1], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+        ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1 - 3)
+        plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+        ax.imshow(mask_label[2], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+        ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1 - 4)
+        plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+        ax.imshow(mask_label[3], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+        plt.axis('off')
+
     #5-3.显示rf_score per class
     for i in range(len(map_dict)):
         #print(i+1+(num_rf+1)+i//num_rf+1)
         ax = plt.subplot(num_classes+1, num_rf+1, i+1+(num_rf+1)+i//num_rf+1)
         plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-        #max = max_rf[i%num_rf]#np.percentile(np.abs(map_dict[i]), percentile)   #可以调整最大值是overall，还是rf内，还是unit
-        max = overall_max
+        max = max_rf[i%num_rf]#np.percentile(np.abs(map_dict[i]), percentile)   #可以调整最大值是overall，还是rf内，还是unit
+        #max = overall_max
         if max == 0:
             max = 1
         ax.imshow(map_dict[i], interpolation='none', cmap='RdBu_r', vmin=-max, vmax=max)  #extent=[0,100,0,100],
         plt.axis('off')
     #plt.show()
 
+    plt.savefig(
+        "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_2' + '.png',
+        bbox_inches='tight', pad_inches=0, dpi=150)
+
     if AvgFlag == 1:
-        fig2 = plt.figure(2, figsize=(num_rf + 1, num_classes + 1), dpi=120)
+        fig2 = plt.figure(1, figsize=(num_rf + 1, num_classes + 1), dpi=120)
+
+        # 5-0 显示图片
         ax = plt.subplot(num_classes + 1, num_rf + 1, 1)
         plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
         ax.imshow(img)  # extent=[0,100,0,100],
@@ -503,6 +545,59 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
             ax.imshow(label_dict[i], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
             plt.axis('off')
 
+        if isinstance(labels[2], torch.Tensor):  #显示masklabel
+            ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1)
+            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+            ax.imshow(mask_label, interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+            plt.axis('off')
+
+
+        # 5-3.显示rf_score per class
+        for i in range(len(map_dict)):
+            # print(i+1+(num_rf+1)+i//num_rf+1)
+            ax = plt.subplot(num_classes + 1, num_rf + 1, i + 1 + (num_rf + 1) + i // num_rf + 1)
+            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+            #max = max_rf[i % num_rf]  # np.percentile(np.abs(map_dict[i]), percentile)   #可以调整最大值是overall，还是rf内，还是unit
+            max = overall_max
+            if max == 0:
+                max = 1
+            ax.imshow(map_dict[i], interpolation='none', cmap='RdBu_r', vmin=-max, vmax=max)  # extent=[0,100,0,100],
+            plt.axis('off')
+        # plt.show()
+
+        plt.savefig(
+            "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_3' + '.png',
+            bbox_inches='tight', pad_inches=0, dpi=150)
+
+    if AvgFlag == 1:
+        fig3 = plt.figure(2, figsize=(num_rf + 1, num_classes + 1), dpi=120)
+        ax = plt.subplot(num_classes + 1, num_rf + 1, 1)
+        plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+        ax.imshow(img)  # extent=[0,100,0,100],
+        plt.axis('off')
+
+        # 5-1.显示rfs_weight
+        for i in range(len(rfs_weight_dict)):
+            # print(i+1+1)
+            ax = plt.subplot(num_classes + 1, num_rf + 1, i + 1 + 1)
+            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+            ax.imshow(rfs_weight_dict[i], interpolation='none', cmap='RdBu_r', vmin=rfs_weight_min,
+                      vmax=rfs_weight_max)  # extent=[0,100,0,100],
+            plt.axis('off')
+
+        # 5-2.显示label
+        for i in range(1, num_classes + 1):
+            # print(i*(num_rf+1) + 1)
+            ax = plt.subplot(num_classes + 1, num_rf + 1, i * (num_rf + 1) + 1)
+            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+            ax.imshow(label_dict[i], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+            plt.axis('off')
+        if isinstance(labels[2], torch.Tensor):  #显示masklabel
+            ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1)
+            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+            ax.imshow(mask_label, interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+            plt.axis('off')
+
         # 5-3.显示rf_score per class
         mean_max = 0
         for i in range(len(mean_rf_dict)):
@@ -513,11 +608,16 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
             # print(i+1+(num_rf+1)+i//num_rf+1)
             ax = plt.subplot(num_classes + 1, num_rf + 1, i + 1 + (num_rf + 1) + i // num_rf + 1)
             plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-            # max = max_rf[i%num_rf]#np.percentile(np.abs(map_dict[i]), percentile)   #可以调整最大值是overall，还是rf内，还是unit
+            #max = max_rf[i%num_rf]#np.percentile(np.abs(map_dict[i]), percentile)   #可以调整最大值是overall，还是rf内，还是unit
             ax.imshow(mean_rf_dict[i], interpolation='none', cmap='RdBu_r', vmin=-mean_max, vmax=mean_max)  # extent=[0,100,0,100],
             #print(mean_rf_dict[i])
             plt.axis('off')
-        plt.show()
+        #plt.show()
+
+
+        plt.savefig(
+            "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_4' + '.png',
+            bbox_inches='tight', pad_inches=0, dpi=150)
 
         # 为了验证是否显示准确
         """
@@ -529,7 +629,10 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
             if i%23 == 22:
                 print(sum)
         """
-    #"""
+    save_img_index = save_img_index + 1
+
+
+
 
 
 

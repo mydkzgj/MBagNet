@@ -15,6 +15,7 @@ from torch.nn import KLDivLoss
 from .margin_loss import MarginLoss
 from .cross_entropy_label_smooth import CrossEntropyLabelSmooth
 from .cross_entropy_multilabel import CrossEntropyMultiLabel
+from .mask_loss import MaskLoss
 
 
 
@@ -62,6 +63,9 @@ def make_D_loss(cfg, num_classes):
         elif lossName == "cross_entropy_multilabel_loss":
             cross_entropy_multilabel_loss = CrossEntropyMultiLabel()
             lossClasses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss
+        elif lossName == "mask_loss":
+            mask_loss = MaskLoss()
+            lossClasses["mask_loss"] = mask_loss
 
         else:
             raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
@@ -74,11 +78,11 @@ def make_D_loss(cfg, num_classes):
     """
 
     #计算loss的函数
-    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None):
+    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, seg_mask=None, label_mask=None, seg_label=None):
         losses = {}
         for lossName in lossKeys:
             if lossName == "similarity_loss":
-                losses["similarity_loss"] = similarity_loss(feat_attention, similarity_label)#(similarity, similarity_label)
+                losses["similarity_loss"] = similarity_loss(feat_attention, label, multilabel)#(similarity, similarity_label)
             elif lossName == "ranked_loss":
                 losses["ranked_loss"] = ranked_loss(feat, label, normalize_feature=True)  # ranked_loss
             elif lossName == "cranked_loss":
@@ -97,6 +101,8 @@ def make_D_loss(cfg, num_classes):
                 losses["margin_loss"] = margin_loss(logit, similarity_label)
             elif lossName == "cross_entropy_multilabel_loss":
                 losses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss(logit, multilabel)
+            elif lossName == "mask_loss":
+                losses["mask_loss"] = mask_loss(seg_mask, label_mask, seg_label)
             else:
                 raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                                 'but got {}'.format(cfg.LOSS.TYPE))

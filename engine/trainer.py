@@ -99,7 +99,7 @@ def label2multilabel(label):
 
 
 
-def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None):
+def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,):
     """
     Factory function for creating a trainer for supervised models
 
@@ -137,17 +137,33 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None):
         engine.state.epochs_traverse_optimizers = epochs_traverse_optimizers
         engine.state.losstype = op2loss[engine.state.optimizer_index]
 
-        imgs, labels = batch   #这个格式应该跟collate_fn的处理方式对应
-        multilabels = label2multilabel(labels)
+        imgs, labels, seg_imgs, masks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
+        masks = torch.gt(masks, 0).float()
+        grad_num = imgs.shape[0]
+        seg_num = masks.shape[0]
+        input_imgs = torch.cat([imgs, seg_imgs], dim=0)
+        input_labels = torch.cat([labels, seg_labels], dim=0)
+        #multilabels = label2multilabel(labels)
         #将label转为one-hot
         #one_hot_labels = torch.nn.functional.one_hot(labels, scores.shape[1]).float()
         #one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
 
-        imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
+        #imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
+        input_imgs = input_imgs.to(device) if torch.cuda.device_count() >= 1 else input_imgs
+        input_labels = input_labels.to(device) if torch.cuda.device_count() >= 1 else input_labels
         labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-        multilabels = multilabels.to(device) if torch.cuda.device_count() >= 1 else multilabels
+        seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
+        masks = masks.to(device) if torch.cuda.device_count() >= 1 else masks
+        #multilabels = multilabels.to(device) if torch.cuda.device_count() >= 1 else multilabels
 
-        feats, logits = model(imgs)
+        feats, logits, seg_masks = model(input_imgs)
+        #logits = logits[0:grad_num]
+        seg_masks = seg_masks[grad_num:grad_num+seg_num]
+
+
+        #seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+
+        #seg_feats, seg_logits, seg_masks = model(seg_imgs)
 
         #计算多标签对应的label
         #log_probs = F.log_softmax(RF_logits, dim=1)
@@ -155,9 +171,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None):
         #rf_loss = (- targets * log_probs).sum(dim=1).mean(0)
 
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](feat=feats, logit=logits, label=labels, multilabel=multilabels)    #损失词典
+        losses = loss_fn[engine.state.losstype](feat=feats, logit=logits, label=input_labels, multilabel=model.rf_pos_weight, seg_mask=seg_masks, label_mask=masks, seg_label = seg_labels)    #损失词典
 
-        weight = {"cluster_loss":1, "cross_entropy_loss":1, "ranked_loss":1, "attention_loss":1, 'class_predict_loss':1, 'kld_loss':1, 'similarity_loss':1, 'margin_loss':0, 'cross_entropy_multilabel_loss':1}
+        weight = {"cluster_loss":1, "cross_entropy_loss":1, "ranked_loss":1,  'kld_loss':1, 'similarity_loss':1, 'margin_loss':0, 'cross_entropy_multilabel_loss':1, "mask_loss":1, "attention_loss":1, 'class_predict_loss':1,}
         loss = 0
         for lossKey in losses.keys():
             if lossKey == "cluster_loss":
@@ -175,7 +191,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None):
 
         # compute acc
         #acc = (scores.max(1)[1] == labels).float().mean()
-        return {"scores": logits, "labels": labels, "losses": losses, "multilabels": multilabels, #"rf_loss":rf_loss,
+        logits = logits[0:grad_num]
+        return {"scores": logits, "labels": labels, "losses": losses, #"multilabels": multilabels, #"rf_loss":rf_loss,
                 "total_loss": loss.item()}
     engine = Engine(_update)
 
@@ -194,7 +211,7 @@ def do_train(
         optimizers,
         schedulers,
         loss_fn,
-        start_epoch
+        start_epoch,
 ):
     #1.先把cfg中的参数导出
     epochs = cfg.SOLVER.MAX_EPOCHS
@@ -269,12 +286,15 @@ def do_train(
         elif lossName == "cross_entropy_multilabel_loss":
             metrics_train["AVG-" + "cross_entropy_multilabel_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["cross_entropy_multilabel_loss"])
+        elif lossName == "mask_loss":
+            metrics_train["AVG-" + "mask_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["mask_loss"])
         else:
             raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                             'but got {}'.format(cfg.LOSS.TYPE))
 
 
-    trainer = create_supervised_trainer(model, optimizers, metrics_train, loss_fn, device=device)
+    trainer = create_supervised_trainer(model, optimizers, metrics_train, loss_fn, device=device,)
 
     #CJY  at 2019.9.26
     def output_transform(output):
@@ -286,7 +306,8 @@ def do_train(
     metrics_eval = {"overall_accuracy": Accuracy(output_transform=output_transform),
                     "precision": Precision(output_transform=output_transform)}
 
-    checkpointer = ModelCheckpoint(output_dir, cfg.MODEL.NAME, checkpoint_period, n_saved=100, require_empty=False, start_step=start_epoch)
+    checkpointer = ModelCheckpoint(output_dir, cfg.MODEL.NAME, checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch)
+    checkpointer_save_graph = ModelCheckpoint(output_dir, cfg.MODEL.NAME+"_graph", checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch, save_as_state_dict=False)
     timer = Timer(average=True)
 
     #3.将模块与engine联系起来attach
@@ -294,8 +315,9 @@ def do_train(
     trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'model': model,
                                                                      'optimizer': optimizers[0]})
 
-    #trainer.add_event_handler(Events.STARTED, checkpointer, {'model': model,
-    #                                                                'optimizer': optimizers[0]})
+    #trainer.add_event_handler(Events.STARTED, checkpointer_save_graph, {'model': model,
+    #                                                                 'optimizer': optimizers[0]})
+    #torch.save(model, output_dir + "/" + cfg.MODEL.NAME+"_graph.pkl")
 
     timer.attach(trainer, start=Events.EPOCH_STARTED, resume=Events.ITERATION_STARTED,
                  pause=Events.ITERATION_COMPLETED, step=Events.ITERATION_COMPLETED)
@@ -306,6 +328,14 @@ def do_train(
     def start_training(engine):
         engine.state.epoch = start_epoch
         engine.state.iteration = engine.state.iteration + start_epoch * len(train_loader)
+
+        logger.info("Model:{}".format(model))
+        logger.info("Model:{}".format(model.count_param()))
+        logger.info("Model:{}".format(model.count_param2()))
+        #print(model)
+        #print(model.count_param())
+        #print(model.count_param2())
+
         """
         metrics = do_inference(cfg, model, val_loader, classes_list, loss_fn, plotFlag=False)
 

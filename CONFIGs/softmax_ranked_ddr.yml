@@ -6,18 +6,19 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('ddr_DRgrading')#('cifa10')#('ddr_DRgrading')##('ddr_DRgrading')#('cifa10')#('ddr_DRgrading')
+  NAMES: ('ddr_DRgrading')#('cifa10')#('ddr_DRgrading')#('imagenet')
   ROOT_DIR: ('./data')
 
  DATALOADER:
-  NUM_WORKERS: 1
+  NUM_WORKERS: 4
   SAMPLER: 'softmax_rank'#'ranked_loss'#
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 2
   IMS_PER_BATCH: 24
 
  TRANSFORM:
-  SIZE: [224, 224]#[640,640]#[224, 224]#[512, 512]
+  SIZE: [224, 224]#[736, 736]#[640,640]#[224, 224]#[512, 512]
+  MASK_SIZE_RATIO: 4
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
   PADDING: 10
@@ -30,9 +31,9 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'multi_bagnet'#'densenet121'#'resnet50'##'resnet50'#_ibn_a'
- STN: 'no'
- LAST_STRIDE: 1
+ NAME: 'mbagnet121'#'mbagnet121'#'multi_bagnet'#'densenetS224'#'bagnet'#'densenet121'#'resnet50'##'resnet50'#_ibn_a'
+ PRE_ACTIVATION: 1
+ FUSION_TYPE: 'concat'
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -40,7 +41,7 @@ MODEL:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 LOSS:
- TYPE: 'cross_entropy_loss'# 'cross_entropy_multilabel_loss'#'cross_entropy_loss'# margin_loss similarity_loss'#'cross_entropy_loss similarity_loss'#'cross_entropy_loss attention_loss'# 'attention_loss'#'ranked_loss cross_entropy_loss'#'cluster_loss cross_entropy_loss'#'cross_entropy_loss'
+ TYPE: 'cross_entropy_loss mask_loss'# 'cross_entropy_multilabel_loss'#'cross_entropy_loss'# margin_loss similarity_loss'#'cross_entropy_loss similarity_loss'#'cross_entropy_loss attention_loss'# 'attention_loss'#'ranked_loss cross_entropy_loss'#'cluster_loss cross_entropy_loss'#'cross_entropy_loss'
  MARGIN_RANK: 1.3 ### R: ALPHA - MARGIN_RANK
  ALPHA: 2.0
  TVAL: 1.0
@@ -53,7 +54,7 @@ LOSS:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 SOLVER:
- MAX_EPOCHS: 200
+ MAX_EPOCHS: 100
  EVAL_PERIOD: 1
  CHECKPOINT_PERIOD: 1
  LOG_PERIOD: 50
@@ -61,7 +62,7 @@ SOLVER:
 
  # OPTIMIZER configuration
  OPTIMIZER:
-  NAME: "Adam"#"SGD"#"Adam"
+  NAME: "Adam"#"SGD"#
   MOMENTUM: 0.9
   WEIGHT_DECAY: 0.0005
   WEIGHT_DECAY_BIAS: 0.
@@ -71,7 +72,7 @@ SOLVER:
   BASE_LR: 0.0001#0.001#0.00001#0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [40, 50, 60]#[3, 6, 9]#
+  STEPS: [10, 20, 60]#[10, 15, 20]#[3, 6, 9]# [50, 75, 100] #[50, 100, 150]#
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
@@ -101,9 +102,9 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: 'D:\Research\MIP\Experiment\MBagNet\work_space\densenet121_model_1.pth'#densenet121-a639ec97.pth'#'D:\Research\MIP\Experiment\RLL\modeling\resnet50_ibn_a.pth.tar'#r'D:\Research\MIP\Experiment\RLL\work_space\back\resnet50_model_2.pth'#r'C:\Users\admin\.cache\torch\checkpoints\resnet50-19c8e357.pth'#'D:\Research\MIP\Experiment\RLL\modeling\resnet50_ibn_a.pth.tar'#'D:/Research/MIP/Experiment/RLL/work_space/pre/resnet50_ibn_a_model_30.pth'  
+  PRETRAIN_PATH: 'D:\Research\MIP\Experiment\MBagNet\work_space\pre\densenet121-a639ec97.pth'#multi_bagnet_model_0.pth'#densenet121-a639ec97.pth'#'D:\Research\MIP\Experiment\RLL\modeling\resnet50_ibn_a.pth.tar'#r'D:\Research\MIP\Experiment\RLL\work_space\back\resnet50_model_2.pth'#r'C:\Users\admin\.cache\torch\checkpoints\resnet50-19c8e357.pth'#'D:\Research\MIP\Experiment\RLL\modeling\resnet50_ibn_a.pth.tar'#'D:/Research/MIP/Experiment/RLL/work_space/pre/resnet50_ibn_a_model_30.pth'  
   IF_LABELSMOOTH: 'off'#'on'
-  PRETRAINED: 0
+  PRETRAINED: 1
 
 
 # -----------------------------------------------------------------------------
@@ -128,7 +129,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/Research/MIP/Experiment/MBagNet/work_space/multi_bagnet_model_1.pth"
+ WEIGHT: "D:/Research/MIP/Experiment/MBagNet/work_space/mbagnet121_model_37.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

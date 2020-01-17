@@ -102,95 +102,89 @@ class CommonLoss(object):
 """
 
 
-class SimilarityLoss(object):
+class MaskLoss(object):
     "Ranked_List_Loss_for_Deep_Metric_Learning_CVPR_2019_paper"
-
     def __init__(self):
-
         pass
 
-
-    def __call__(self, similarities, similiarity_labels, multilabel):
-
-        #计算每一维特征之间的关系  1024维
-        s1 = similarities.unsqueeze(2).expand(similarities.shape[0], similarities.shape[1], similarities.shape[1], similarities.shape[2])
-        s2 = s1.permute(0, 2, 1, 3)
-        loss = torch.nn.functional.cosine_similarity(s1, s2, dim=-1, eps=1e-12)
-
-
-
-        #loss = torch.tril(loss)
-        eyeMat = torch.eye(loss.shape[1], loss.shape[2]).unsqueeze(0).expand_as(loss).bool()
-        loss[eyeMat] = 0
-
-        loss_mean = torch.mean(torch.abs(loss), dim=-1)
-
-        loss_max = torch.max(torch.abs(loss), dim=-1)
+    def __call__(self, seg_mask, label_mask, seg_label):
+        #seg_mask = torch.abs(seg_mask)  #abs
 
         """
-        import seaborn as sns
-        import matplotlib.pyplot as plt
-        lossAbs = torch.abs(loss)
-        for i in range(loss.shape[0]):
-            data = lossAbs[i].cpu().detach().numpy()
-            heatmap = sns.heatmap(data)
-            plt.show()
-        #"""
+        N = seg_label.shape[0]
+        csmlist = []
+        for i in range(N):
+            #class_seg_mask_score = seg_mask[i, 0:5]   #取前几维
+            templist = []
+            for j in range(5):
+                if j == seg_label[i].item():
+                    class_seg_mask_score = seg_mask[i, j].unsqueeze(0).unsqueeze(0)
+                else:
+                    class_seg_mask_score = -seg_mask[i, j].unsqueeze(0).unsqueeze(0)
+                templist.append(class_seg_mask_score)
 
-        total_loss = torch.max(torch.abs(loss))
+            #class_seg_mask_score = seg_mask[i,seg_label[i]].unsqueeze(0).unsqueeze(0)
+            #class_seg_mask_normal = -seg_mask[i, 0].unsqueeze(0).unsqueeze(0)
+            class_seg_mask_score = torch.cat(templist, dim=1)
+            csmlist.append(class_seg_mask_score)
 
-        #mean_loss = torch.nn.functional.adaptive_max_pool2d(abs(loss), (1, loss.shape[3]))
+        csm = torch.cat(csmlist, dim=0)
+        csm_score = torch.tanh(csm)
 
-        #CJY 计算每个rf的cross-entropy-loss并求均值。
+        label_mask = label_mask.expand(label_mask.shape[0], label_mask.shape[1]*5, label_mask.shape[2], label_mask.shape[3])
         """
-        #batch = similarities.shape[0]
-        labels = similiarity_labels.unsqueeze(-1).expand(similarities.shape[0], similarities.shape[2])
-        loss = F.cross_entropy(similarities, labels, reduction="none")
-        #loss_score = torch.softmax(loss, dim=-1)
-        loss = loss * multilabel
-        total_loss = torch.mean(loss)
-
-        #"""
-
-        #CJY 计算每对rf特征之间的相关性
         """
-        #s0 = similarities.unsqueeze(2)
-        s1 = similarities.unsqueeze(2).expand(similarities.shape[0], similarities.shape[1], similarities.shape[2], similarities.shape[2], similarities.shape[3])
-        s2 = s1.permute(0, 1, 3, 2, 4)
-        loss = torch.nn.functional.cosine_similarity(s1, s2, dim=-1, eps=1e-12)
+        # 依据label_mask对像素进行分组
+        groudtruth_pos_map = label_mask.bool()
+        csm_gpos = csm[groudtruth_pos_map]
+        csm_gneg = csm[groudtruth_pos_map]
 
-        loss = torch.tril(loss)
-        eyeMat = torch.eye(loss.shape[2], loss.shape[3]).unsqueeze(0).unsqueeze(0).expand_as(loss).bool()
-        loss[eyeMat] = 0
+        #应该正的值中小于1的值
+        csm_gpos_neg1_index = torch.lt(csm_gpos, 0)
+        csm_gpos_neg1 = csm_gpos[csm_gpos_neg1_index]
+        loss_pos = 1 - csm_gpos_neg1
 
-        mean_loss = torch.nn.functional.adaptive_max_pool2d(abs(loss), (1, loss.shape[3]))
-        #"""
+        #应该负的值中大于0的值
+        csm_gneg_pos0_index = torch.gt(csm_gneg, 0)
+        csm_gneg_pos0 = csm_gpos[csm_gneg_pos0_index]
+        loss_neg = csm_gneg_pos0
         """
-        import seaborn as sns
-        import matplotlib.pyplot as plt
-        for i in range(loss.shape[1]):
-            data = loss[0][i].cpu().detach().numpy()
-            heatmap = sns.heatmap(data)
-            plt.show()
-        total_loss = torch.mean(mean_loss)
+
+        #loss = F.binary_cross_entropy(csm_score, label_mask, reduction="none")
+
+        csm_score = torch.sigmoid(seg_mask) #torch.tanh(torch.relu(seg_mask))
+        loss = F.binary_cross_entropy(csm_score, label_mask, reduction="none")
+
+        loss_with_pos_weight = loss * (label_mask * 9 + 1)
+
         """
-        #"""
+
+        #predict_pos_map = torch.gt(csm, 0)
+        groudtruth_pos_map = label_mask.bool()
+        #neg_mask = (~groudtruth_pos_map) & predict_pos_map
+
+        loss_pos = loss[groudtruth_pos_map]
+        #loss_neg = loss[neg_mask]
+        #loss_neg = loss[~groudtruth_pos_map]
+
+        loss_neg = csm_score[~groudtruth_pos_map]
+
+        if loss_pos.shape[0] != 0:
+            loss_pos_mean = torch.mean(loss_pos)
+        else:
+            #print("loss_pos:", loss_pos)
+            loss_pos_mean = 0
+
+        if loss_neg.shape[0] != 0:
+            loss_neg_mean = torch.mean(loss_neg)
+        else:
+            #print("loss_neg:", loss_neg)
+            loss_neg_mean = 0
 
 
-        #CJY 计算。
+        total_loss = loss_pos_mean + loss_neg_mean
         """
-        s = torch.sum(torch.abs(similarities), dim=1)
-        s1 = s/torch.sum(s, dim=-1, keepdim=True)
-
-        labels = similiarity_labels.unsqueeze(-1).expand(similarities.shape[0], similarities.shape[2])
-        l = F.cross_entropy(similarities, labels, reduction="none")
-
-        loss = torch.sum(s1 * multilabel * l, dim=-1)
-        total_loss = torch.mean(loss)
-        #"""
-
-        #直接将
-        #total_loss = similarities
+        total_loss = torch.mean(loss_with_pos_weight)
 
         return total_loss
 
