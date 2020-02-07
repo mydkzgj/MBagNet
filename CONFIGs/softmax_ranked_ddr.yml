@@ -102,7 +102,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: 'D:\Research\MIP\Experiment\MBagNet\work_space\pre\densenet121-a639ec97.pth'#multi_bagnet_model_0.pth'#densenet121-a639ec97.pth'#'D:\Research\MIP\Experiment\RLL\modeling\resnet50_ibn_a.pth.tar'#r'D:\Research\MIP\Experiment\RLL\work_space\back\resnet50_model_2.pth'#r'C:\Users\admin\.cache\torch\checkpoints\resnet50-19c8e357.pth'#'D:\Research\MIP\Experiment\RLL\modeling\resnet50_ibn_a.pth.tar'#'D:/Research/MIP/Experiment/RLL/work_space/pre/resnet50_ibn_a_model_30.pth'  
+  PRETRAIN_PATH: '.\work_space\pre\densenet121-a639ec97.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
@@ -129,7 +129,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/Research/MIP/Experiment/MBagNet/work_space/mbagnet121_model_37.pth"
+ WEIGHT: "./work_space/mbagnet121_model_37.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

@@ -165,18 +165,18 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
 
     def __init__(self, root='/home/haoluo/data', verbose=True, **kwargs):
         super(DDR_DRgrading_WeakSupervision, self).__init__()
-        self.dataset_grading_dir = osp.join(root, self.dataset_dir, "grading")
+        #self.dataset_grading_dir = osp.join(root, self.dataset_dir, "grading")
         self.dataset_segmentation_dir = osp.join(root, self.dataset_dir, "regroup_lesion_segmentation")
 
-        self.train_dir = osp.join(self.dataset_grading_dir, 'train')
-        self.val_dir = osp.join(self.dataset_grading_dir, 'valid')
-        self.test_dir = osp.join(self.dataset_grading_dir, 'test')
+        #self.train_dir = osp.join(self.dataset_grading_dir, 'train')
+        #self.val_dir = osp.join(self.dataset_grading_dir, 'valid')
+        #self.test_dir = osp.join(self.dataset_grading_dir, 'test')
 
         #self.train_dir = osp.join(self.dataset_dir, 'bounding_box_train')
         #self.query_dir = osp.join(self.dataset_dir, 'query')
         #self.gallery_dir = osp.join(self.dataset_dir, 'bounding_box_test')
 
-        self._check_before_run()
+
 
         """
         train, train_statistics, train_c2l, train_l2c = self._process_grading_dir(self.train_dir, relabel=True)
@@ -227,6 +227,8 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
         self.seg_val = self._process_segmentation_dir(self.seg_val_dir)
         self.seg_test = self._process_segmentation_dir(self.seg_test_dir)
 
+        self._check_before_run()
+
         """
         self.num_train_pids, self.num_train_imgs, self.num_train_cams = self.get_imagedata_info(self.train)
         self.num_query_pids, self.num_query_imgs, self.num_query_cams = self.get_imagedata_info(self.query)
@@ -235,14 +237,14 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
 
     def _check_before_run(self):
         """Check if all files are available before going deeper"""
-        if not osp.exists(self.dataset_grading_dir):
-            raise RuntimeError("'{}' is not available".format(self.dataset_grading_dir))
-        if not osp.exists(self.train_dir):
-            raise RuntimeError("'{}' is not available".format(self.train_dir))
-        if not osp.exists(self.val_dir):
-            raise RuntimeError("'{}' is not available".format(self.val_dir))
-        if not osp.exists(self.test_dir):
-            raise RuntimeError("'{}' is not available".format(self.test_dir))
+        if not osp.exists(self.dataset_segmentation_dir):
+            raise RuntimeError("'{}' is not available".format(self.dataset_segmentation_dir))
+        if not osp.exists(self.seg_train_dir):
+            raise RuntimeError("'{}' is not available".format(self.seg_train_dir))
+        if not osp.exists(self.seg_val_dir):
+            raise RuntimeError("'{}' is not available".format(self.seg_val_dir))
+        if not osp.exists(self.seg_test_dir):
+            raise RuntimeError("'{}' is not available".format(self.seg_test_dir))
 
     #把图片名字都给解析了，其实医学图像也应该如此，不过先不管了
     def _process_grading_dir(self, dir_path, relabel=False):
