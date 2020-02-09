@@ -173,7 +173,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
         losses = loss_fn[engine.state.losstype](feat=feats, logit=logits, label=input_labels, multilabel=model.rf_pos_weight, seg_mask=seg_masks, label_mask=masks, seg_label = seg_labels)    #损失词典
 
-        weight = {"cluster_loss":1, "cross_entropy_loss":1, "ranked_loss":1,  'kld_loss':1, 'similarity_loss':1, 'margin_loss':0, 'cross_entropy_multilabel_loss':1, "mask_loss":1, "attention_loss":1, 'class_predict_loss':1,}
+        weight = {"cluster_loss":1, "cross_entropy_loss":1, "ranked_loss":1,  'kld_loss':1, 'similarity_loss':1, 'margin_loss':0, 'cross_entropy_multilabel_loss':1, "mask_loss":0, "attention_loss":1, 'class_predict_loss':1,}
         loss = 0
         for lossKey in losses.keys():
             if lossKey == "cluster_loss":
