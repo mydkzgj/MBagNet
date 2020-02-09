@@ -76,7 +76,8 @@ class Baseline(nn.Module):
             self.in_planes = self.base.num_output_features
         elif base_name == "mbagnet121":
             self.rf_logits_hook = 1
-            self.base = mbagnet121(preAct=preAct, fusionType=fusionType, reduction=1, rf_logits_hook=self.rf_logits_hook, num_classes=4, complexity=0)   #class采用4， 为的是找到病灶种类
+            self.base_out_channels = 5
+            self.base = mbagnet121(preAct=preAct, fusionType=fusionType, reduction=1, rf_logits_hook=self.rf_logits_hook, num_classes=self.base_out_channels, complexity=0)   #class采用4， 为的是找到病灶种类
             self.rf_pos_weight = torch.tensor([self.base.receptive_field_list[i]["rf_size"] for i in range(len(self.base.receptive_field_list))]).float()
             self.rf_pos_weight = self.rf_pos_weight/224#self.rf_pos_weight[-1]
             self.rf_pos_weight = self.rf_pos_weight.cuda()
@@ -97,7 +98,7 @@ class Baseline(nn.Module):
             self.classifier = nn.Linear(self.in_planes, self.num_classes)
             self.classifier.apply(weights_init_classifier)
         else:
-            self.finalClassifier = nn.Linear(4, self.num_classes)
+            self.finalClassifier = nn.Linear(self.base_out_channels, self.num_classes)
             self.finalClassifier.apply(weights_init_classifier)
             print("Backbone with classifier itself.")
 
