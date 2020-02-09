@@ -75,7 +75,7 @@ class Baseline(nn.Module):
             self.base = densenetS224()
             self.in_planes = self.base.num_output_features
         elif base_name == "mbagnet121":
-            self.rf_logits_hook = 1
+            self.rf_logits_hook = 0
             self.base_out_channels = 5
             self.base = mbagnet121(preAct=preAct, fusionType=fusionType, reduction=1, rf_logits_hook=self.rf_logits_hook, num_classes=self.base_out_channels, complexity=0)   #class采用4， 为的是找到病灶种类
             self.rf_pos_weight = torch.tensor([self.base.receptive_field_list[i]["rf_size"] for i in range(len(self.base.receptive_field_list))]).float()
@@ -232,9 +232,9 @@ class Baseline(nn.Module):
                 self.p_label = torch.argmax(final_logits, dim=1)  # predict_label
                 self.showRFlogitMap(x, self.label, self.p_label, self.base.rf_logits_reserve)
 
-            r =self.base.rf_logits_reserve[-1]
+            #r =self.base.rf_logits_reserve[-1]
 
-        return final_logits, final_logits, r#rf_loss
+        return final_logits, final_logits, final_logits#rf_loss
 
 
 
