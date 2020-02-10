@@ -187,7 +187,7 @@ class MaskLoss(object):
         #total_loss = torch.mean(loss_with_pos_weight)
 
         loss = torch.pow(seg_mask[:, 0:4] - label_mask, 2)
-        loss_with_pos_weight = loss * (label_mask * 9 + 1)
+        loss_with_pos_weight = loss * (label_mask * 99 + 1)
         total_loss = torch.mean(loss_with_pos_weight)
 
         return total_loss
