@@ -1,6 +1,7 @@
 ##ignore these files##
 IGNORE
 data/DATABASE
+pretrained
 work_space
 .idea
 *.pyc
