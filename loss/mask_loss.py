@@ -152,10 +152,10 @@ class MaskLoss(object):
 
         #loss = F.binary_cross_entropy(csm_score, label_mask, reduction="none")
 
-        csm_score = torch.sigmoid(seg_mask) #torch.tanh(torch.relu(seg_mask))
-        loss = F.binary_cross_entropy(csm_score, label_mask, reduction="none")
+        #csm_score = torch.sigmoid(seg_mask) #torch.tanh(torch.relu(seg_mask))
+        #loss = F.binary_cross_entropy(csm_score, label_mask, reduction="none")
 
-        loss_with_pos_weight = loss * (label_mask * 9 + 1)
+        #loss_with_pos_weight = loss * (label_mask * 9 + 1)
 
         """
 
@@ -184,6 +184,10 @@ class MaskLoss(object):
 
         total_loss = loss_pos_mean + loss_neg_mean
         """
+        #total_loss = torch.mean(loss_with_pos_weight)
+
+        loss = torch.pow(seg_mask[:, 0:4] - label_mask, 2)
+        loss_with_pos_weight = loss * (label_mask * 9 + 1)
         total_loss = torch.mean(loss_with_pos_weight)
 
         return total_loss
