@@ -57,10 +57,10 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
 
         data, labels, seg_imgs, masks, seg_labels  = batch
 
-        data = seg_imgs
-        labels = seg_labels
-        masks = torch.gt(masks, 0).long()   #torch.sum(masks, dim=1)
-        model.transmitMaskLabel(masks)
+        #data = seg_imgs
+        #labels = seg_labels
+        #masks = torch.gt(masks, 0).long()   #torch.sum(masks, dim=1)
+        #model.transmitMaskLabel(masks)
 
         data = data.to(device) if torch.cuda.device_count() >= 1 else data
 
