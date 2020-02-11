@@ -98,7 +98,7 @@ TRAIN:
  # Train Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1#2
+  INSTANCES_PER_CATEGORY_IN_BATCH: 4#2
 
  # Train Trick
  TRICK:
@@ -120,7 +120,7 @@ VAL:
  # Val Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1#1
+  INSTANCES_PER_CATEGORY_IN_BATCH: 4#1
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -135,4 +135,4 @@ TEST:
  # Test Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1#3
+  INSTANCES_PER_CATEGORY_IN_BATCH: 4#3
