@@ -69,6 +69,8 @@ class SegmentationDataset(Dataset):
         self.resizeW = cfg.DATA.TRANSFORM.SIZE[1]
         self.mask_resizeH = self.resizeH // self.ratio
         self.mask_resizeW = self.resizeW // self.ratio
+        self.MaxPool = torch.nn.AdaptiveMaxPool2d((self.mask_resizeH, self.mask_resizeW))
+        self.MaskPad = torch.nn.ZeroPad2d(cfg.DATA.TRANSFORM.PADDING)
 
 
     def __len__(self):
@@ -89,14 +91,20 @@ class SegmentationDataset(Dataset):
             mask_list.append(mask)
         mask = torch.cat(mask_list)
 
+        #上面让mask读入的为原图尺寸标签
+        mask = self.MaxPool(mask)
+        mask = self.MaskPad(mask)
+
+
+        # 随机剪切（不过像素级标签剪切平移是不是没什么用）
+        #"""
         randH = random.randint(0, self.padding)
         randW = random.randint(0, self.padding)
-
         mask_randH = randH//self.ratio
         mask_randW = randW//self.ratio
-
         img = img[:, randH:randH + self.resizeH, randW:randW + self.resizeW]
         mask = mask[:, mask_randH:mask_randH + self.mask_resizeH, mask_randW:mask_randW + self.mask_resizeW]
+        #"""
 
         return img, mask, img_label  # 返回的是图片
 

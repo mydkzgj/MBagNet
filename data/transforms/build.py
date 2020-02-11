@@ -52,8 +52,8 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
         ])
     elif type == "mask":
         transform = T.Compose([
-            T.Resize(mask_size), #interpolation=Image.ANTIALIAS),#,Image.NEAREST),   #对于掩膜标签 应该不改变标签值，使用最邻近插值
-            T.Pad(cfg.DATA.TRANSFORM.PADDING),
+            #T.Resize(mask_size), #interpolation=Image.ANTIALIAS),#,Image.NEAREST),   #对于掩膜标签 应该不改变标签值，使用最邻近插值
+            #T.Pad(cfg.DATA.TRANSFORM.PADDING),
             T.ToTensor(),
         ])
 

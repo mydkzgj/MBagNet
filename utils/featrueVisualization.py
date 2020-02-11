@@ -303,6 +303,7 @@ def showWeight(model):
 
 #CJY 显示不同感受野的特征 版本1  最终采用非线性分类器
 def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
+    savePath = "D:/MIP/Experiment/MBagNet/work_space/heatmap/"
     size = (60, 60)
     percentile = 99
 
@@ -372,10 +373,10 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
     # cv.waitKey(0)
     global save_img_index
     cv.imwrite(
-        "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_0' + '.png',
+        savePath + "heatmap_" + str(save_img_index) + '_0' + '.png',
         img_bgr * 255)
     cv.imwrite(
-        "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_1' + '.png',
+        savePath + "heatmap_" + str(save_img_index) + '_1' + '.png',
         img_padding * 255)
 
     #3.显示感受野的权重
@@ -516,7 +517,7 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
     #plt.show()
 
     plt.savefig(
-        "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_2' + '.png',
+        savePath + "heatmap_" + str(save_img_index) + '_2' + '.png',
         bbox_inches='tight', pad_inches=0, dpi=150)
 
     if AvgFlag == 1:
@@ -545,13 +546,6 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
             ax.imshow(label_dict[i], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
             plt.axis('off')
 
-        if isinstance(labels[2], torch.Tensor):  #显示masklabel
-            ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1)
-            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-            ax.imshow(mask_label, interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
-            plt.axis('off')
-
-
         # 5-3.显示rf_score per class
         for i in range(len(map_dict)):
             # print(i+1+(num_rf+1)+i//num_rf+1)
@@ -566,7 +560,7 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
         # plt.show()
 
         plt.savefig(
-            "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_3' + '.png',
+            savePath + "heatmap_" + str(save_img_index) + '_3' + '.png',
             bbox_inches='tight', pad_inches=0, dpi=150)
 
     if AvgFlag == 1:
@@ -592,11 +586,7 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
             plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
             ax.imshow(label_dict[i], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
             plt.axis('off')
-        if isinstance(labels[2], torch.Tensor):  #显示masklabel
-            ax = plt.subplot(num_classes + 1, num_rf + 1, num_rf + 1)
-            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-            ax.imshow(mask_label, interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
-            plt.axis('off')
+
 
         # 5-3.显示rf_score per class
         mean_max = 0
@@ -616,7 +606,7 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, AvgFlag=1):
 
 
         plt.savefig(
-            "D:/Research/MIP/Experiment/MBagNet/work_space/heatmap/" + "heatmap_" + str(save_img_index) + '_4' + '.png',
+            savePath + "heatmap_" + str(save_img_index) + '_4' + '.png',
             bbox_inches='tight', pad_inches=0, dpi=150)
 
         # 为了验证是否显示准确

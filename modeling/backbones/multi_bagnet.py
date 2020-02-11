@@ -489,7 +489,7 @@ class MultiBagNet(nn.Module):
                      "max_padding": self.receptive_field_list[-1]["padding"]})
 
         # 2. 可视化
-        fV.showrfFeatureMap(show_maps, self.num_classes, pick_logits_dict, AvgFlag=0)
+        fV.showrfFeatureMap(show_maps, self.num_classes, pick_logits_dict, AvgFlag=1)
 
     def forward(self, x):
         self.currentBlockIndex = 0
@@ -515,7 +515,10 @@ class MultiBagNet(nn.Module):
                     rf_list.append(rlr_scale.unsqueeze(0))
                     r = torch.cat(rf_list, dim=0)
                 overall_rf_logits = torch.sum(r, dim=0)
-                #r1= torch.mean(torch.mean(rsum, dim=-1), dim=-1)  #+ self.classifier.bias
+                #r1= torch.mean(torch.mean(overall_rf_logits, dim=-1), dim=-1)# + self.classifier.bias
+
+                #注：此处用sigmoid函数将输出logits map 的值变为【0，1】之间
+                overall_rf_logits = torch.sigmoid(overall_rf_logits)
 
                 self.rf_logits_reserve.append(overall_rf_logits)
                 #self.rf_logits_reserve2.append(overall_rf_logits)

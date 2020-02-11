@@ -155,15 +155,14 @@ class Baseline(nn.Module):
         self.base.generateScoreMap(show_maps, rank_num_per_class=10)
 
     def forward(self, x):
-
+        # 分为两种情况：1.base自带分类器 2.base只提供特征
         if self.classifier_type == "normal":   #当base只提供特征时
             base_out = self.base(x)
             global_feat = self.gap(base_out)  # (b, ?, 1, 1)
             feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
             final_logits = self.classifier(feat)
-        else:  #mbagnet专属
+        elif self.classifier_type == "none":  #mbagnet专属
             logits = self.base(x)
-
             final_logits = self.finalClassifier(logits)
 
             """

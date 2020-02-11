@@ -315,6 +315,8 @@ def do_train(
     trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'model': model,
                                                                      'optimizer': optimizers[0]})
 
+    #trainer.add_event_handler(Events.STARTED, checkpointer, {'model': model,
+    #                                                                 'optimizer': optimizers[0]})
     #trainer.add_event_handler(Events.STARTED, checkpointer_save_graph, {'model': model,
     #                                                                 'optimizer': optimizers[0]})
     #torch.save(model, output_dir + "/" + cfg.MODEL.NAME+"_graph.pkl")
