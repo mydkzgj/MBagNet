@@ -515,17 +515,18 @@ class MultiBagNet(nn.Module):
                     rf_list.append(rlr_scale.unsqueeze(0))
                     r = torch.cat(rf_list, dim=0)
                 overall_rf_logits = torch.sum(r, dim=0)
-                #r1= torch.mean(torch.mean(overall_rf_logits, dim=-1), dim=-1)# + self.classifier.bias
+                r1= torch.mean(torch.mean(overall_rf_logits, dim=-1), dim=-1)# + self.classifier.bias
 
                 #注：此处用sigmoid函数将输出logits map 的值变为【0，1】之间
                 overall_rf_logits = torch.sigmoid(overall_rf_logits)
 
                 self.rf_logits_reserve.append(overall_rf_logits)
                 #self.rf_logits_reserve2.append(overall_rf_logits)
-            global_feat = self.gap(features)  # (b, ?, 1, 1)
-            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-            final_logits = self.classifier(feat)
-            return final_logits
+                
+            #global_feat = self.gap(features)  # (b, ?, 1, 1)
+            #feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+            #final_logits = self.classifier(feat)
+            return r1#final_logits
 
 
 
