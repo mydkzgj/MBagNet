@@ -60,7 +60,7 @@ global ITER
 ITER = 0
 
 global accumulation_steps
-accumulation_steps = 4
+accumulation_steps = 2
 
 global epochs_traverse_optimizers
 epochs_traverse_optimizers = 0
