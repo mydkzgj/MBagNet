@@ -503,7 +503,7 @@ class MultiBagNet(nn.Module):
             return features
         elif self.classifierType == "normal":  #包含分类器，输出logits
             if self.rf_logits_hook == True:
-                overall_rf_logits = F.conv2d(features, self.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                #overall_rf_logits = F.conv2d(features, self.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                 #overall_rf_logits = torch.zeros_like(overall_rf_logits)
 
                 # CJY at 2020.1.7   将上述的图进行（上采样）融合
@@ -515,19 +515,17 @@ class MultiBagNet(nn.Module):
                     rf_list.append(rlr_scale.unsqueeze(0))
                     r = torch.cat(rf_list, dim=0)
                 overall_rf_logits = torch.sum(r, dim=0)
-                #r1= torch.mean(torch.mean(overall_rf_logits, dim=-1), dim=-1)# + self.classifier.bias
+                r1= torch.mean(torch.mean(torch.relu(overall_rf_logits), dim=-1), dim=-1)# + self.classifier.bias
 
-                #注：此处用sigmoid函数将输出logits map 的值变为【0，1】之间
-                overall_rf_logits = torch.sigmoid(overall_rf_logits)
-
+                self.rf_logits_reserve.clear()
                 self.rf_logits_reserve.append(overall_rf_logits)
                 #self.rf_logits_reserve2.append(overall_rf_logits)
                 #final_logits = self.gap(overall_rf_logits)
 
-            global_feat = self.gap(features)  # (b, ?, 1, 1)
-            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-            final_logits = self.classifier(feat)
-            return final_logits
+            #global_feat = self.gap(features)  # (b, ?, 1, 1)
+            #feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+            #final_logits = self.classifier(feat)
+            return r1#final_logits
 
 
 
