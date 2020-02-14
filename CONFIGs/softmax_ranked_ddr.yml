@@ -31,7 +31,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'mbagnet121'#'mbagnet121'#'multi_bagnet'#'densenetS224'#'bagnet'#'densenet121'#'resnet50'##'resnet50'#_ibn_a'
+ NAME: 'densenet121'#'mbagnet121'#'mbagnet121'#'multi_bagnet'#'densenetS224'#'densenet121'#'resnet50'##_ibn_a'
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'
 
@@ -41,7 +41,7 @@ MODEL:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 LOSS:
- TYPE: 'cross_entropy_loss mask_loss'# 'cross_entropy_multilabel_loss'#'cross_entropy_loss'# margin_loss similarity_loss'#'cross_entropy_loss similarity_loss'#'cross_entropy_loss attention_loss'# 'attention_loss'#'ranked_loss cross_entropy_loss'#'cluster_loss cross_entropy_loss'#'cross_entropy_loss'
+ TYPE: 'cross_entropy_loss'# mask_loss'# 'cross_entropy_multilabel_loss'#'cross_entropy_loss'# margin_loss similarity_loss'#'cross_entropy_loss similarity_loss'#'cross_entropy_loss attention_loss'# 'attention_loss'#'ranked_loss cross_entropy_loss'#'cluster_loss cross_entropy_loss'#'cross_entropy_loss'
  MARGIN_RANK: 1.3 ### R: ALPHA - MARGIN_RANK
  ALPHA: 2.0
  TVAL: 1.0
