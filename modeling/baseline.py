@@ -231,9 +231,9 @@ class Baseline(nn.Module):
                 self.p_label = torch.argmax(final_logits, dim=1)  # predict_label
                 self.showRFlogitMap(x, self.label, self.p_label, self.base.rf_logits_reserve)
 
-            r =self.base.rf_logits_reserve[-1]
+            #r =self.base.rf_logits_reserve[-1]
 
-        return final_logits, final_logits, r#rf_loss
+        return final_logits, final_logits, final_logits#rf_loss
 
 
 
