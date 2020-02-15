@@ -72,7 +72,7 @@ SOLVER:
   BASE_LR: 0.0001#0.0001#0.001#0.00001#0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [20, 30, 40]#[10, 15, 20]#[3, 6, 9]# [50, 75, 100] #[50, 100, 150]#
+  STEPS: [30, 40, 50]#[10, 15, 20]#[3, 6, 9]# [50, 75, 100] #[50, 100, 150]#
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
@@ -102,7 +102,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: "./work_space/mbagnet121_model_10.pth"#'./pretrained/densenet121-a639ec97.pth'
+  PRETRAIN_PATH: "./work_space/mbagnet121_model_20.pth"#'./pretrained/densenet121-a639ec97.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
