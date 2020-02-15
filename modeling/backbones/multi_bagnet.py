@@ -509,7 +509,9 @@ class MultiBagNet(nn.Module):
                 # CJY at 2020.1.7   将上述的图进行（上采样）融合
                 rf_list = []
                 Max_FeatureMap_Scale = (self.rf_logits_reserve[0].shape[2], self.rf_logits_reserve[0].shape[3])  #(56, 56)
-                for rlr in self.rf_logits_reserve:
+                for index, rlr in enumerate(self.rf_logits_reserve):
+                    if index > self.num_layers[0]:
+                        break
                     #alpha = Max_FeatureMap_Scale[0]//rlr.shape[-1]
                     rlr_scale = torch.nn.functional.upsample_nearest(rlr, size=Max_FeatureMap_Scale, )#/(alpha*alpha)  #scale_factor=2
                     rf_list.append(rlr_scale.unsqueeze(0))
