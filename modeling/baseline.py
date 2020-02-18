@@ -48,6 +48,8 @@ class Baseline(nn.Module):
         self.base_name = base_name
         self.classifier_type = "normal"   #默认是一层线性分类器
 
+        self.GradCAM = True
+
         # 1.Backbone
         if base_name == 'resnet18':
             self.in_planes = 512
@@ -102,10 +104,28 @@ class Baseline(nn.Module):
             self.finalClassifier.apply(weights_init_classifier)
             print("Backbone with classifier itself.")
 
+        # GradCAM
+        if self.GradCAM == 1:
+            self.inter_output = None
+            self.inter_gradient = None
+            for module_name, module in self.base.features.named_modules():
+                if isinstance(module, torch.nn.Conv2d):
+                    print(module_name)
+                    if module_name == "transition1.conv":
+                        module.register_backward_hook(self.forward_hook_fn)
+                        module.register_backward_hook(self.backward_hook_fn)
+                        break
 
+        #print(1)
         #print(self.base)
         #print(self.count_param())
         #print(self.count_param2())
+
+    def forward_hook_fn(self, module, input, output):
+        self.inter_output = output[0]  #将输入图像的梯度获取
+
+    def backward_hook_fn(self, module, grad_in, grad_out):
+        self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
 
     def count_param2(model):
         with torch.cuda.device(0):
@@ -164,6 +184,8 @@ class Baseline(nn.Module):
         elif self.classifier_type == "none":  #mbagnet专属
             logits = self.base(x)
             final_logits = self.finalClassifier(logits)
+
+            # 对rf大小进行惩罚，正则化
 
             """
             if self.rf_logits_hook == 1:
@@ -232,6 +254,9 @@ class Baseline(nn.Module):
                 self.showRFlogitMap(x, self.label, self.p_label, self.base.rf_logits_reserve)
 
             r =self.base.rf_logits_reserve[-1]
+
+
+
 
         return final_logits, final_logits, r#rf_loss
 

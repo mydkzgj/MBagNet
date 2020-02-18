@@ -160,6 +160,24 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #logits = logits[0:grad_num]
         seg_masks = seg_masks[grad_num:grad_num+seg_num]
 
+        # CJY 利用Grad-CAM生成关注map
+        if model.GradCAM == True:  # 此处取第一个block生成的特征，此时特征图分辨率还很高
+            #将label转为one - hot
+            one_hot_labels = torch.nn.functional.one_hot(input_labels, logits.shape[1]).float()
+            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
+
+            # 回传one-hot向量
+            logits.backward(gradient=one_hot_labels, retain_graph=True)
+
+            # 生成CAM
+            gcam = torch.relu(torch.sum(model.inter_gradient * model.inter_output, dim=1, keepdim=True))
+            seg_gcam = gcam[grad_num:grad_num+seg_num]
+
+            for op in optimizers:
+                op.zero_grad()
+            ## 计算loss
+            #mask_loss = torch.mean(torch.pow(seg_gcam-seg_labels, 2))
+
 
         #seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
 
@@ -171,7 +189,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #rf_loss = (- targets * log_probs).sum(dim=1).mean(0)
 
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](feat=feats, logit=logits, label=input_labels, seg_mask=seg_masks, label_mask=masks, seg_label = seg_labels)    #损失词典
+        losses = loss_fn[engine.state.losstype](feat=feats, logit=logits, label=input_labels, seg_mask=seg_gcam, label_mask=masks, seg_label = seg_labels)    #损失词典
 
         weight = {"cluster_loss":1, "cross_entropy_loss":1, "ranked_loss":1,  'kld_loss':1, 'similarity_loss':1, 'margin_loss':0, 'cross_entropy_multilabel_loss':1, "mask_loss":1, "attention_loss":1, 'class_predict_loss':1,}
         loss = 0
@@ -181,8 +199,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             else:
                 loss += losses[lossKey] * weight[lossKey]
 
+
         loss = loss/accumulation_steps
         loss.backward()
+
+
 
         if engine.state.iteration % accumulation_steps == 0:  # 此处要注意
             optimizers[engine.state.optimizer_index].step()

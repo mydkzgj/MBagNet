@@ -185,9 +185,9 @@ class MaskLoss(object):
         total_loss = loss_pos_mean + loss_neg_mean
         """
         #total_loss = torch.mean(loss_with_pos_weight)
-
+        #"""
         #loss = torch.pow(seg_mask[:, 0:4] - label_mask, 2)
-        loss = F.binary_cross_entropy(torch.sigmoid(seg_mask[:, 0:4]), label_mask, reduction="none")
+        loss = F.binary_cross_entropy(torch.sigmoid(seg_mask), label_mask, reduction="none")
 
         #loss_pos = torch.sum(loss * label_mask) / torch.sum(label_mask)
         #loss_neg = torch.sum(loss * (1-label_mask)) / torch.sum(1-label_mask)
@@ -200,6 +200,10 @@ class MaskLoss(object):
         loss_weight = label_mask/(torch.sum(label_mask)) + (1-label_mask)/(torch.sum(1-label_mask))
         loss = loss * loss_weight
         total_loss = torch.sum(loss)
+        #"""
+        #loss_weight = label_mask / (torch.sum(label_mask)) + (1 - label_mask) / (torch.sum(1 - label_mask))
+        #loss = torch.pow(seg_mask - label_mask, 2)
+        #total_loss = torch.sum(loss)
 
         return total_loss
 

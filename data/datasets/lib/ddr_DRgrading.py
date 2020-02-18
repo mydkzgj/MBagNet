@@ -219,7 +219,7 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
         #"""
 
         #CJY 加入segmentation信息
-        self.lesion = ["EX", "HE", "MA", "SE"]  #self.lesion = ["FUSION"]
+        self.lesion = ["FUSION"]#["EX", "HE", "MA", "SE"]  #self.lesion = ["FUSION"]
         self.seg_train_dir = osp.join(self.dataset_segmentation_dir, 'train')
         self.seg_val_dir = osp.join(self.dataset_segmentation_dir, 'valid')
         self.seg_test_dir = osp.join(self.dataset_segmentation_dir, 'test')

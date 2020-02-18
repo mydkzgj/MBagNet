@@ -524,10 +524,10 @@ class MultiBagNet(nn.Module):
                 #self.rf_logits_reserve2.append(overall_rf_logits)
                 #final_logits = self.gap(overall_rf_logits)
 
-            #global_feat = self.gap(features)  # (b, ?, 1, 1)
-            #feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-            #final_logits = self.classifier(feat)
-            return r1#final_logits
+            global_feat = self.gap(features)  # (b, ?, 1, 1)
+            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+            final_logits = self.classifier(feat)
+            return final_logits
 
 
 
