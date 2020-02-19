@@ -517,7 +517,7 @@ class MultiBagNet(nn.Module):
                     rf_list.append(rlr_scale.unsqueeze(0))
                     r = torch.cat(rf_list, dim=0)
                 overall_rf_logits = torch.sum(r, dim=0)
-                r1= torch.mean(torch.mean(torch.relu(overall_rf_logits), dim=-1), dim=-1)# + self.classifier.bias
+                #r1= torch.mean(torch.mean(torch.relu(overall_rf_logits), dim=-1), dim=-1)# + self.classifier.bias
 
                 self.rf_logits_reserve.clear()
                 self.rf_logits_reserve.append(overall_rf_logits)
