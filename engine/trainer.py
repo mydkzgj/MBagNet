@@ -162,6 +162,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # CJY 利用Grad-CAM生成关注map
         if model.GradCAM == True:  # 此处取第一个block生成的特征，此时特征图分辨率还很高
+
             #将label转为one - hot
             one_hot_labels = torch.nn.functional.one_hot(input_labels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
@@ -170,7 +171,17 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             logits.backward(gradient=one_hot_labels, retain_graph=True)
 
             # 生成CAM
-            gcam = torch.relu(torch.sum(model.inter_gradient * model.inter_output, dim=1, keepdim=True))
+            #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
+            #inter_gradient = model.GradCAM_BN(model.inter_output)
+            #inter_output = model.GradCAM_BN(model.inter_output)
+
+            inter_mul = model.inter_gradient * model.inter_output
+            #inter_mul = model.GradCAM_BN(inter_mul)
+
+            gcam = torch.sum(inter_mul, dim=1, keepdim=True)
+
+            #gcam = model.GradCAM_BN(gcam)
+
             seg_gcam = gcam[grad_num:grad_num+seg_num]
 
             for op in optimizers:

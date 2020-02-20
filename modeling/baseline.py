@@ -112,17 +112,21 @@ class Baseline(nn.Module):
                 if isinstance(module, torch.nn.Conv2d):
                     print(module_name)
                     if module_name == "transition1.conv":
-                        module.register_backward_hook(self.forward_hook_fn)
+                        self.GradCAM_BN = torch.nn.BatchNorm2d(1)
+
+                        module.register_forward_hook(self.forward_hook_fn)
                         module.register_backward_hook(self.backward_hook_fn)
                         break
 
-        #print(1)
+
+
+        print(1)
         #print(self.base)
         #print(self.count_param())
         #print(self.count_param2())
 
     def forward_hook_fn(self, module, input, output):
-        self.inter_output = output[0]  #将输入图像的梯度获取
+        self.inter_output = output  #将输入图像的梯度获取
 
     def backward_hook_fn(self, module, grad_in, grad_out):
         self.inter_gradient = grad_out[0]  #将输入图像的梯度获取

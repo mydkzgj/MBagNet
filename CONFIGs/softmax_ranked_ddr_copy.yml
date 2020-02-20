@@ -31,7 +31,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'mbagnet121'#'mbagnet121'#'multi_bagnet'#'densenetS224'#'bagnet'#'densenet121'#'resnet50'##'resnet50'#_ibn_a'
+ NAME: 'densenet121'#'mbagnet121'#'mbagnet121'#'multi_bagnet'#'densenetS224'#'bagnet'#'densenet121'#'resnet50'##'resnet50'#_ibn_a'
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'
 
@@ -97,8 +97,8 @@ TRAIN:
 
  # Train Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1#2
+  CATEGORIES_PER_BATCH: 4
+  INSTANCES_PER_CATEGORY_IN_BATCH: 2#2
 
  # Train Trick
  TRICK:

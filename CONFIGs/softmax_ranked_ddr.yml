@@ -31,7 +31,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'mbagnet121'#'mbagnet121'#'multi_bagnet'#'densenetS224'#'densenet121'#'resnet50'##_ibn_a'
+ NAME: 'densenet121'#'mbagnet121'#'mbagnet121'#'multi_bagnet'#'densenetS224'#'densenet121'#'resnet50'##_ibn_a'
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'
 
