@@ -111,7 +111,7 @@ class Baseline(nn.Module):
             for module_name, module in self.base.features.named_modules():
                 if isinstance(module, torch.nn.Conv2d):
                     print(module_name)
-                    if module_name == "transition1.conv":
+                    if module_name == "transition3.conv":
                         self.GradCAM_BN = torch.nn.BatchNorm2d(1)
 
                         module.register_forward_hook(self.forward_hook_fn)
