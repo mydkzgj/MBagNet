@@ -55,30 +55,20 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
 
-        data, labels, seg_imgs, masks, seg_labels  = batch
+        imgs, labels, seg_imgs, seg_masks, seg_labels  = batch
 
-        #data = seg_imgs
-        #labels = seg_labels
-        #masks = torch.gt(masks, 0).long()   #torch.sum(masks, dim=1)
-        #model.transmitMaskLabel(masks)
+        #如果想要看有pixel-label的图片的可视化就 将showMap置为1
+        showMask = 0
 
-        data = data.to(device) if torch.cuda.device_count() >= 1 else data
+        if showMask == 1 and model.heatmapFlag == 1:
+            imgs = seg_imgs
+            labels = seg_labels
 
-        if labels.shape[0] > 1:
-            index1 = torch.arange(0, labels.shape[0] - 1)
-            labels1 = torch.index_select(labels, 0, index1, out=None)
-            index2 = torch.arange(1, labels.shape[0])
-            labels2 = torch.index_select(labels, 0, index2, out=None)
-            similarity_labels = torch.eq(labels1, labels2).float()
-            index3 = torch.arange(0, similarity_labels.shape[0], 2)
-            similarity_labels = torch.index_select(similarity_labels, 0, index3, out=None).unsqueeze(1)
-            similarity_labels = similarity_labels.to(device) if torch.cuda.device_count() >= 1 else similarity_labels
-
-        # 注：此处labels也要放入cuda，才能做下面的acc计算
+        imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-        model.transmitLabel(labels)
 
         """
+        # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
         # visualization
         from utils.visualisation.gradcam import GradCam
         from utils.visualisation.misc_functions import save_class_activation_images
@@ -87,11 +77,11 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
         # Grad cam
         grad_cam = GradCam(model, target_layer="denseblock2.denselayer12.conv2")#"transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
         # Generate cam mask
-        cam = grad_cam.generate_cam(data[0].unsqueeze(0), labels[0])
+        cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
         # original_image
         mean = np.array([0.4914, 0.4822, 0.4465])
         var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
-        img = data[0].cpu().detach().numpy()
+        img = imgs[0].cpu().detach().numpy()
         img = np.transpose(img, (1, 2, 0))
         img = (img * var + mean) *255  # 去标准化
         img = Image.fromarray(img.astype('uint8')).convert('RGB')
@@ -103,23 +93,20 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
         # """
 
         with torch.no_grad():
-            feats, logits, rfloss = model(data)
-            #losses = loss_fn["D"](feat=feats, logit=logits, label=labels,  multilabel=model.rf_pos_weight, feat_attention=rfloss, )
+            logits = model(imgs)
 
             #bagnet 可视化
             #from utils import bagnet_utils as bu
-            #bu.show(model, data[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
+            #bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
-            #pre_labels = score.max(1)[1]
-            #acc = (logits.max(1)[1] == labels).float().mean()
-            #loss = loss_fn["G"](feats, logits, labels)#, similarities, similarity_labels)
+            if model.heatmapFlag == 1:
+                p_labels = torch.argmax(logits, dim=1)  # predict_label
+                if showMask == 1:
+                    model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, masklabels=seg_masks,)
+                else:
+                    model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels,)
 
-            """
-            loss = loss_fn["D"](feats, logits, labels, feats_attention)  # , similarities, similarity_labels)
-            a = feats_attention.cpu().detach().numpy()
-            b = feats.cpu().detach().numpy()
-            #"""
-            return {"logits": logits, "labels": labels, "feat": feats,}# "loss": loss[0].item()}
+            return {"logits": logits, "labels": labels}
 
     engine = Engine(_inference)
 

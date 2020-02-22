@@ -44,7 +44,7 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
         transform = T.Compose([
             T.Resize(cfg.DATA.TRANSFORM.SIZE),
             #T.RandomHorizontalFlip(p=cfg.TRAIN.TRANSFORM.PROB),
-            T.Pad(cfg.DATA.TRANSFORM.PADDING*ratio),
+            #T.Pad(cfg.DATA.TRANSFORM.PADDING),  #暂时先去掉padding，因为有可能让mask中的病灶全部被剪切去
             #T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
             T.ToTensor(),
             normalize_transform,

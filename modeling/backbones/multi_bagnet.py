@@ -38,7 +38,7 @@ def _bn_function_factory(norm, relu, conv, preAct=True):
     else:
         def bn_function(*inputs):
             concated_features = torch.cat(inputs, 1)
-            bottleneck_output = relu(norm(conv(concated_features)))#conv(relu(norm(concated_features)))
+            bottleneck_output = relu(norm(conv(concated_features)))
             return bottleneck_output
 
     return bn_function
@@ -281,6 +281,7 @@ class MultiBagNet(nn.Module):
 
         # Linear layer
         #self.classifier = nn.Linear(num_features, num_classes)
+        # 设置3种不同的classifier层
         if self.classifierType == "normal":
             self.gap = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Linear(self.num_features, self.num_classes, bias=False)
@@ -293,13 +294,6 @@ class MultiBagNet(nn.Module):
         elif self.classifierType == "none":
             print("Just pass features! No classifier")
 
-        self.calculateRF()
-
-        if rf_logits_hook == True:
-            self.setHook(self.GenerateRFlogitMap)
-        self.rf_logits_reserve = []
-        self.rf_logits_reserve2 = []
-
         # Official init from torch repo.
         for name, m in self.named_modules():
             if isinstance(m, Conv2d):
@@ -311,10 +305,58 @@ class MultiBagNet(nn.Module):
                 nn.init.normal_(m.weight, std=0.001)
                 #nn.init.constant_(m.bias, 0)
 
+        # 计算各模块感受野大小情况，记录到self.receptive_field_list中
+        self.receptive_field_list = self.calculateRF()
 
+        # 设置hook
+        # 为rf设置forward-hook
+        if rf_logits_hook == True:
+            self.rf_logits_reserve = []
+            self.setHook(self.generateRFlogitMap)
+
+
+    def forward(self, x):
+        self.currentBlockIndex = 0
+        self.currentLayerIndex = 0
+        self.rf_logits_reserve.clear()
+        #self.rf_logits_reserve2.clear()
+        #求最后的特征输出
+        features = self.features(x)
+        #求最后的logits
+        if self.classifierType == "none":  #不包含分类器，输出特征
+            return features
+        elif self.classifierType == "normal":  #包含分类器，输出logits
+            if self.rf_logits_hook == True:
+                #overall_rf_logits = F.conv2d(features, self.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                #overall_rf_logits = torch.zeros_like(overall_rf_logits)
+
+                # CJY at 2020.1.7   将上述的图进行（上采样）融合
+                rf_list = []
+                Max_FeatureMap_Scale = (self.rf_logits_reserve[0].shape[2], self.rf_logits_reserve[0].shape[3])  #(56, 56)
+                for index, rlr in enumerate(self.rf_logits_reserve):
+                    if index > self.num_layers[0]:
+                        break
+                    #alpha = Max_FeatureMap_Scale[0]//rlr.shape[-1]
+                    rlr_scale = torch.nn.functional.upsample_nearest(rlr, size=Max_FeatureMap_Scale, )#/(alpha*alpha)  #scale_factor=2
+                    rf_list.append(rlr_scale.unsqueeze(0))
+                    r = torch.cat(rf_list, dim=0)
+                overall_rf_logits = torch.sum(r, dim=0)
+                #r1= torch.mean(torch.mean(torch.relu(overall_rf_logits), dim=-1), dim=-1)# + self.classifier.bias
+
+                #self.rf_logits_reserve.clear()
+                self.rf_logits_reserve.append(overall_rf_logits)
+                #self.rf_logits_reserve2.append(overall_rf_logits)
+                #final_logits = self.gap(overall_rf_logits)
+
+            global_feat = self.gap(features)  # (b, ?, 1, 1)
+            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+            final_logits = self.classifier(feat)
+            return final_logits
+
+    # 计算网络每一层的感受野情况
     def calculateRF(self):
         # 记录下每个感受野的size，stride等参数
-        self.receptive_field_list = []
+        receptive_field_list = []
         rf_size = 1
         rf_stride = 1
         rf_padding = 0
@@ -328,9 +370,8 @@ class MultiBagNet(nn.Module):
                     rf_size = kernel_size * rf_stride + rf_size - rf_stride
                     rf_padding = padding * rf_stride + rf_padding
                     rf_stride = stride * rf_stride
-                    self.receptive_field_list.append({"rf_size": rf_size, "rf_stride": rf_stride, "padding": rf_padding})
-                    #print(name)
-                    #print({"rf_size": rf_size, "rf_stride": rf_stride, "padding": rf_padding})
+                    receptive_field_list.append({"rf_size": rf_size, "rf_stride": rf_stride, "padding": rf_padding})
+
             if isinstance(module, nn.MaxPool2d):
                 kernel_size = module.kernel_size
                 stride = module.stride
@@ -338,7 +379,7 @@ class MultiBagNet(nn.Module):
                 rf_size = kernel_size * rf_stride + rf_size - rf_stride
                 rf_padding = padding * rf_stride + rf_padding
                 rf_stride = stride * rf_stride
-                self.receptive_field_list[-1] = {"rf_size": rf_size, "rf_stride": rf_stride, "padding": rf_padding}  #MaxPool 要修改感受野大小
+                receptive_field_list[-1] = {"rf_size": rf_size, "rf_stride": rf_stride, "padding": rf_padding}  #MaxPool 要修改感受野大小
 
             if isinstance(module, nn.AvgPool2d):
                 kernel_size = module.kernel_size
@@ -347,34 +388,23 @@ class MultiBagNet(nn.Module):
                 rf_size = kernel_size * rf_stride + rf_size - rf_stride
                 rf_padding = padding * rf_stride + rf_padding
                 rf_stride = stride * rf_stride
-        #print(self.receptive_field_list)
 
-    #'''
-    def GenerateRFlogitMap(self, module, input, output):
-        #CJY 保存原始输出特征
-        """
-        self.hookType = "original_feature"
-        if self.hookType == "original_feature":
-            rf_logits = nn.functional.adaptive_avg_pool2d(output, 7)
-            rf_logits = rf_logits.view(rf_logits.shape[0], rf_logits.shape[1], -1)
-            #a = torch.norm(rf_logits, p=2, dim=-1, keepdim=True).expand_as(rf_logits)
-            rf_logits = rf_logits/(torch.norm(rf_logits, p=2, dim=-1, keepdim=True).expand_as(rf_logits) + 1e-12)
-            rf_logits = torch.mean(rf_logits, dim=1, keepdim=True)
-            self.rf_logits_reserve2.append(rf_logits)
-        #"""
+        return receptive_field_list
 
-        #"""
+    # forward hook function : 依据每一个layer的输出，依据后续经过的transition线性层计算出最终的logit值
+    def generateRFlogitMap(self, module, input, output):
+        # 获取各block中layer的分布
         layer_config = self.num_layers.copy()
-        layer_config[0] = layer_config[0] + 1   #将conv0,maxpooling层合并，相当于只以transition层分割
+        layer_config[0] = layer_config[0] + 1      # 将conv0,maxpooling层合并，相当于只以transition层分割
 
+        # 计算当前模块后续经过Transition层，将需要用到的weight放入List中
         transitionLayerWeightList = []
         BlockStartPos = [0]
         for name, parameters in self.features.named_parameters():
             if "transition" in name and "conv" in name and "weight" in name:
-                #print(name)
                 transitionLayerWeightList.append(parameters)
                 BlockStartPos.append(parameters.shape[0])
-        if self.classifierType == "normal":  #将最终的线性层也归入到transitionLayer中，其实本质确是相同的
+        if self.classifierType == "normal":        # 将最终的线性层也归入到transitionLayer中，其实本质确是相同的
             transitionLayerWeightList.append(self.classifier.weight.unsqueeze(-1).unsqueeze(-1))
             BlockStartPos.append(self.classifier.weight.shape[0])
 
@@ -382,6 +412,7 @@ class MultiBagNet(nn.Module):
         #print(self.currentBlockIndex)
         #print(self.currentLayerIndex)
 
+        # 由于并非group-conv，所以需要确定该模块对应后续的transition层的哪块儿位置
         if self.currentBlockIndex == 0:
             if self.currentLayerIndex == 0:
                 weight_start_pos = BlockStartPos[self.currentBlockIndex]
@@ -396,7 +427,7 @@ class MultiBagNet(nn.Module):
         #print(weight_start_pos)
         #print(weight_end_pos)
 
-        #计算经过transition层的映射
+        # 计算经过transition层的映射
         transitionLayerNum = len(self.num_layers)
         for i in range(transitionLayerNum):
             if i >= self.currentBlockIndex:
@@ -405,38 +436,21 @@ class MultiBagNet(nn.Module):
                 weight_start_pos = 0
                 weight_end_pos = transitionLayerWeight.shape[0]
 
-        #计算经过
-        # CJY at 2020.1.2  只取正值
-        #output = torch.relu(output)
+        # 将结果置于rf_logits_reserve中
         self.rf_logits_reserve.append(output)
-        
 
-
+        # 将模块的位置信息指向下一个
         self.currentLayerIndex = self.currentLayerIndex + 1
         if self.currentLayerIndex == layer_config[self.currentBlockIndex]:
             self.currentBlockIndex = self.currentBlockIndex + 1
             self.currentLayerIndex = 0
-        #"""
 
-
-
-
-    def setHook(self, hook_fn_forward):
-        modules = self.named_modules()
-        for name, module in modules:
-            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Identity):
-                if "reduction0" in name:
-                    module.register_forward_hook(hook_fn_forward)
-                if "reduction1" in name:
-                    module.register_forward_hook(hook_fn_forward)
-
-
-    # CJY
-    def generateScoreMap(self, show_maps, rank_num_per_class=10):
+    # 对不同rf的logits进行排序
+    def rankEvidence(self, show_maps, rank_num_per_class=10):
         # CJY at 2019.12.5  计算不同感受野的图像的特征
         # 1.找到logits最大的几个evidence
         # (1)将特征logits拉平连接在一起
-        for i in range(3, len(show_maps)-1):
+        for i in range(3, len(show_maps) - 1):
             rf_intra_logit = show_maps[i]
             if i == 3:
                 rf_intra_logit_flatten = rf_intra_logit.view(rf_intra_logit.shape[0], rf_intra_logit.shape[1], -1)
@@ -488,47 +502,49 @@ class MultiBagNet(nn.Module):
                      "center_y": center_y, "logit": pick_logits[i][j].item(),
                      "max_padding": self.receptive_field_list[-1]["padding"]})
 
-        # 2. 可视化
+        return pick_logits_dict
+
+    # 可视化 rf-logits的热点图
+    def showRFlogitMap(self, rf_logits_reserve, imgs, labels, p_labels, masklabels=None, sample_index=0):  # sample_index=0 选择显示的样本的索引
+        show_maps = []
+        # 1.存入样本
+        show_maps.insert(0, imgs[sample_index])
+        # 2.存入标签
+        if isinstance(masklabels, torch.Tensor):
+            show_maps.insert(1, [labels[sample_index], p_labels[sample_index], masklabels[sample_index]])
+        else:
+            show_maps.insert(1, [labels[sample_index], p_labels[sample_index]])
+        # 3.存入感受野的weight
+        if True: #self.classifierType == "rfmode":
+            weight_instead = torch.zeros((1, len(rf_logits_reserve), 1, 1))
+            pos = 1
+            weight_instead[0][pos][0][0] = 1
+            for i in range(len(self.num_layers)):
+                pos = pos + self.num_layers[i]
+                weight_instead[0][pos][0][0] = 1
+            show_maps.append(weight_instead)
+
+        # 4.存入rf_logits   n个感受野+1个总和
+        for i in range(len(rf_logits_reserve)):
+            show_maps.append(rf_logits_reserve[i][sample_index].unsqueeze(0))
+
+        #至此，完成show_map的配置，其成分如下：0.img 1.[label,predict_label] 2.n+1 个rf_logits
+
+        # 5. 对不同rf的logits进行排序
+        pick_logits_dict = self.rankEvidence(show_maps, rank_num_per_class=10)
+
+        # 6. 可视化
         fV.showrfFeatureMap(show_maps, self.num_classes, pick_logits_dict, AvgFlag=1)
 
-    def forward(self, x):
-        self.currentBlockIndex = 0
-        self.currentLayerIndex = 0
-        self.rf_logits_reserve.clear()
-        #self.rf_logits_reserve2.clear()
-        #求最后的特征输出
-        features = self.features(x)
-        #求最后的logits
-        if self.classifierType == "none":  #不包含分类器，输出特征
-            return features
-        elif self.classifierType == "normal":  #包含分类器，输出logits
-            if self.rf_logits_hook == True:
-                #overall_rf_logits = F.conv2d(features, self.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-                #overall_rf_logits = torch.zeros_like(overall_rf_logits)
-
-                # CJY at 2020.1.7   将上述的图进行（上采样）融合
-                rf_list = []
-                Max_FeatureMap_Scale = (self.rf_logits_reserve[0].shape[2], self.rf_logits_reserve[0].shape[3])  #(56, 56)
-                for index, rlr in enumerate(self.rf_logits_reserve):
-                    if index > self.num_layers[0]:
-                        break
-                    #alpha = Max_FeatureMap_Scale[0]//rlr.shape[-1]
-                    rlr_scale = torch.nn.functional.upsample_nearest(rlr, size=Max_FeatureMap_Scale, )#/(alpha*alpha)  #scale_factor=2
-                    rf_list.append(rlr_scale.unsqueeze(0))
-                    r = torch.cat(rf_list, dim=0)
-                overall_rf_logits = torch.sum(r, dim=0)
-                #r1= torch.mean(torch.mean(torch.relu(overall_rf_logits), dim=-1), dim=-1)# + self.classifier.bias
-
-                self.rf_logits_reserve.clear()
-                self.rf_logits_reserve.append(overall_rf_logits)
-                #self.rf_logits_reserve2.append(overall_rf_logits)
-                #final_logits = self.gap(overall_rf_logits)
-
-            global_feat = self.gap(features)  # (b, ?, 1, 1)
-            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-            final_logits = self.classifier(feat)
-            return final_logits
-
+    # 对特定模块设置forward-hook
+    def setHook(self, hook_fn_forward):
+        modules = self.named_modules()
+        for name, module in modules:
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Identity):
+                if "reduction0" in name:
+                    module.register_forward_hook(hook_fn_forward)
+                if "reduction1" in name:
+                    module.register_forward_hook(hook_fn_forward)
 
 
 def _load_state_dict(model, model_url, progress):

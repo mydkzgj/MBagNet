@@ -64,13 +64,14 @@ class SegmentationDataset(Dataset):
         self.target_transform = target_transform
 
         self.ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
-        self.padding = cfg.DATA.TRANSFORM.PADDING * self.ratio * 2 -1  #为了后面直接使用 加入 *2-1
+        PADDING = 0#cfg.DATA.TRANSFORM.PADDING   #不引入padding和crop
+        self.padding = PADDING * 2 -1  #为了后面直接使用 加入 *2-1
         self.resizeH = cfg.DATA.TRANSFORM.SIZE[0]
         self.resizeW = cfg.DATA.TRANSFORM.SIZE[1]
         self.mask_resizeH = self.resizeH // self.ratio
         self.mask_resizeW = self.resizeW // self.ratio
         self.MaxPool = torch.nn.AdaptiveMaxPool2d((self.mask_resizeH, self.mask_resizeW))
-        self.MaskPad = torch.nn.ZeroPad2d(cfg.DATA.TRANSFORM.PADDING)
+        self.MaskPad = torch.nn.ZeroPad2d(PADDING//self.ratio)   #padding最好是ratio的倍数
 
 
     def __len__(self):
@@ -95,11 +96,14 @@ class SegmentationDataset(Dataset):
         mask = self.MaxPool(mask)
         mask = self.MaskPad(mask)
 
-
         # 随机剪切（不过像素级标签剪切平移是不是没什么用）
         #"""
-        randH = random.randint(0, self.padding)
-        randW = random.randint(0, self.padding)
+        if self.padding > 0:
+            randH = random.randint(0, self.padding)
+            randW = random.randint(0, self.padding)
+        else:
+            randH = 0
+            randW = 0
         mask_randH = randH//self.ratio
         mask_randW = randW//self.ratio
         img = img[:, randH:randH + self.resizeH, randW:randW + self.resizeW]
