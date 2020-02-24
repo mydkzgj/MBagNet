@@ -78,7 +78,7 @@ def make_D_loss(cfg, num_classes):
     """
 
     #计算loss的函数
-    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, seg_mask=None, label_mask=None, seg_label=None):
+    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None):
         losses = {}
         for lossName in lossKeys:
             if lossName == "similarity_loss":
@@ -102,7 +102,7 @@ def make_D_loss(cfg, num_classes):
             elif lossName == "cross_entropy_multilabel_loss":
                 losses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss(logit, multilabel)
             elif lossName == "mask_loss":
-                losses["mask_loss"] = mask_loss(seg_mask, label_mask, seg_label)
+                losses["mask_loss"] = mask_loss(output_mask, seg_mask, seg_label)
             else:
                 raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                                 'but got {}'.format(cfg.LOSS.TYPE))

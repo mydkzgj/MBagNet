@@ -300,9 +300,41 @@ def showWeight(model):
         plt.show()
     print("finish")
 
+#CJY BagNet 可视化
+def showBagNetEvidence():
+    from utils import bagnet_utils as bu
+    bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
-#CJY 显示不同感受野的特征 版本1  最终采用非线性分类器
-def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, OveralMaxFlag=1, AvgFlag=1):
+# CJY Grad-CAM可视化
+def showGradCAM():
+    # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
+    # visualization
+    from utils.visualisation.gradcam import GradCam
+    from utils.visualisation.misc_functions import save_class_activation_images
+    from PIL import Image
+    import matplotlib.pyplot as plt
+    # Grad cam
+    grad_cam = GradCam(model,
+                       target_layer="denseblock2.denselayer12.conv2")  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+    # Generate cam mask
+    cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
+    # original_image
+    mean = np.array([0.4914, 0.4822, 0.4465])
+    var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
+    img = imgs[0].cpu().detach().numpy()
+    img = np.transpose(img, (1, 2, 0))
+    img = (img * var + mean) * 255  # 去标准化
+    img = Image.fromarray(img.astype('uint8')).convert('RGB')
+    # plt.imshow(img)
+    # plt.show()
+    # Save mask
+    save_class_activation_images(img, cam, str(engine.state.iteration) + "label" + str(labels[0].item()))
+    print('Grad cam completed')
+
+
+
+#CJY MBagNet专属， 显示不同感受野的logit-map
+def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, OveralMaxFlag=1, AvgFlag=1):
     global save_img_index
     savePath = "D:/MIP/Experiment/MBagNet/work_space/heatmap/"
     percentile = 99
@@ -346,7 +378,6 @@ def showrfFeatureMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1,
         show_mask_label = 1
     else:
         show_mask_label = 0
-
 
 
     #（3）.显示感受野的权重 or 网络block结构

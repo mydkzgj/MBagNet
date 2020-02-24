@@ -128,6 +128,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
     def _update(engine, batch):
         model.train()
 
+        # 分为D和G不同的优化器（暂时无用）
         schedulers_epochs_index = (engine.state.epoch - 1) // epochs_traverse_optimizers
         index = (engine.state.epoch - 1) % epochs_traverse_optimizers  # 注意engine.state.epoch从1开始
         phase_index = index // epochs_per_optimizer
@@ -137,97 +138,75 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         engine.state.epochs_traverse_optimizers = epochs_traverse_optimizers
         engine.state.losstype = op2loss[engine.state.optimizer_index]
 
-        imgs, labels, seg_imgs, masks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
-        masks = torch.gt(masks, 0).float()
-        grad_num = imgs.shape[0]
-        seg_num = masks.shape[0]
-        input_imgs = torch.cat([imgs, seg_imgs], dim=0)
-        input_labels = torch.cat([labels, seg_labels], dim=0)
-        #multilabels = label2multilabel(labels)
+        # 获取数据
+        grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
+        seg_masks = torch.gt(seg_masks, 0).float()
+        # 记录grade和seg的样本数量
+        grade_num = grade_imgs.shape[0]
+        seg_num = seg_masks.shape[0]
+        # 将grade和seg样本concat起来
+        imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
+        labels = torch.cat([grade_labels, seg_labels], dim=0)
+        #multilabels = label2multilabel(grade_labels)
         #将label转为one-hot
-        #one_hot_labels = torch.nn.functional.one_hot(labels, scores.shape[1]).float()
-        #one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
+        #one_hot_labels = torch.nn.functional.one_hot(grade_labels, scores.shape[1]).float()
 
-        #imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-        input_imgs = input_imgs.to(device) if torch.cuda.device_count() >= 1 else input_imgs
-        input_labels = input_labels.to(device) if torch.cuda.device_count() >= 1 else input_labels
-        labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+        #grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
+        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 else grade_labels
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-        masks = masks.to(device) if torch.cuda.device_count() >= 1 else masks
-        #multilabels = multilabels.to(device) if torch.cuda.device_count() >= 1 else multilabels
+        seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
+        imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
+        labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
 
-        logits = model(input_imgs)
-        #logits = logits[0:grad_num]
-        #seg_masks = seg_masks[grad_num:grad_num+seg_num]
-
+        # 运行模型
+        model.transimitBatchDistribution((grade_num, seg_num))
+        logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
 
         # CJY 利用Grad-CAM生成关注map
         if model.GradCAM == True:  # 此处取第一个block生成的特征，此时特征图分辨率还很高
-
             #将label转为one - hot
-            one_hot_labels = torch.nn.functional.one_hot(input_labels, logits.shape[1]).float()
+            one_hot_labels = torch.nn.functional.one_hot(labels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
-
             # 回传one-hot向量
             logits.backward(gradient=one_hot_labels, retain_graph=True)
-
             # 生成CAM
             #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
             #inter_gradient = model.GradCAM_BN(model.inter_output)
             #inter_output = model.GradCAM_BN(model.inter_output)
-
             inter_mul = model.inter_gradient * model.inter_output
             #inter_mul = model.GradCAM_BN(inter_mul)
-
             gcam = torch.sum(inter_mul, dim=1, keepdim=True)
-
             #gcam = model.GradCAM_BN(gcam)
-
-            seg_gcam = gcam[grad_num:grad_num+seg_num]
-
+            seg_gcam = gcam[grade_num:grade_num+seg_num]
             for op in optimizers:
                 op.zero_grad()
-            ## 计算loss
-            #mask_loss = torch.mean(torch.pow(seg_gcam-seg_labels, 2))
 
+        output_masks = model.base.seg_attention#seg_gcam
 
-        #seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-
-        #seg_feats, seg_logits, seg_masks = model(seg_imgs)
-
-        #计算多标签对应的label
-        #log_probs = F.log_softmax(RF_logits, dim=1)
-        #targets = (multilabels/torch.sum(multilabels, dim=1, keepdim=True)).unsqueeze(2).expand_as(log_probs)
-        #rf_loss = (- targets * log_probs).sum(dim=1).mean(0)
-
+        # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=input_labels, seg_mask=seg_gcam, label_mask=masks, seg_label = seg_labels)    #损失词典
-
-        weight = {"cluster_loss":1, "cross_entropy_loss":1, "ranked_loss":1,  'kld_loss':1, 'similarity_loss':1, 'margin_loss':0, 'cross_entropy_multilabel_loss':1, "mask_loss":1, "attention_loss":1, 'class_predict_loss':1,}
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels)    #损失词典
+        weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":1,}
         loss = 0
         for lossKey in losses.keys():
             if lossKey == "cluster_loss":
                 loss += losses[lossKey][0] * weight[lossKey]
             else:
                 loss += losses[lossKey] * weight[lossKey]
-
-
         loss = loss/accumulation_steps
+        # 反向传播
         loss.backward()
-
-
-
+        # 参数优化
         if engine.state.iteration % accumulation_steps == 0:  # 此处要注意
             optimizers[engine.state.optimizer_index].step()
             for op in optimizers:
                 op.zero_grad()
 
         # compute acc
-        #acc = (scores.max(1)[1] == labels).float().mean()
-        logits = logits[0:grad_num]
-        return {"scores": logits, "labels": labels, "losses": losses, #"multilabels": multilabels, #"rf_loss":rf_loss,
-                "total_loss": loss.item()}
+        #acc = (scores.max(1)[1] == grade_labels).float().mean()
+        grade_logits = logits[0:grade_num]
+        return {"scores": grade_logits, "labels": grade_labels, "losses": losses, "total_loss": loss.item()}
     engine = Engine(_update)
 
     for name, metric in metrics.items():

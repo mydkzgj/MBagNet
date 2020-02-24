@@ -163,7 +163,7 @@ class Baseline(nn.Module):
 
         if self.hookFlag == 1:
             if self.base_name == "multi_bagnet":
-                self.base.setHook(hook_fn_forward)
+                self.base.setReductionHook(hook_fn_forward)
 
             elif self.base_name == "densenetS224":
                 modules = self.named_modules()

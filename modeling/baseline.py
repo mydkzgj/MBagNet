@@ -42,13 +42,17 @@ class Baseline(nn.Module):
     def __init__(self,  base_name, num_classes, preAct=True, fusionType="concat"):
         super(Baseline, self).__init__()
 
-        self.heatmapFlag = 0
-        self.rf_logits_hook = 0
         self.num_classes = num_classes
         self.base_name = base_name
-        self.classifier_type = "normal"   #默认是一层线性分类器
 
-        self.GradCAM = True
+        # baselineOutputType 和 classifierType
+        self.frameworkDict = {"f-c":("feature", "normal"), "pl-c":("pre-logit", "post"), "fl-n":("final-logit", "none")}
+        self.BCType = "f-c"   #默认是该模式   baseline & classifier
+        self.baseOutputType = self.frameworkDict[self.BCType][0]
+        self.classifierType = self.frameworkDict[self.BCType][1]
+
+
+        self.GradCAM = False
 
         # 1.Backbone
         if base_name == 'resnet18':
@@ -77,34 +81,34 @@ class Baseline(nn.Module):
             self.base = densenetS224()
             self.in_planes = self.base.num_output_features
         elif base_name == "mbagnet121":
-            self.rf_logits_hook = 1
-            self.base_out_channels = 5
-            self.base = mbagnet121(preAct=preAct, fusionType=fusionType, reduction=1, rf_logits_hook=self.rf_logits_hook, num_classes=self.base_out_channels, complexity=0)   #class采用4， 为的是找到病灶种类
-            self.rf_pos_weight = torch.tensor([self.base.receptive_field_list[i]["rf_size"] for i in range(len(self.base.receptive_field_list))]).float()
-            self.rf_pos_weight = self.rf_pos_weight/224#self.rf_pos_weight[-1]
-            self.rf_pos_weight = self.rf_pos_weight.cuda()
+            # 预设参数
+            self.BCType = "fl-n"#"pl-c"    #"f-c", "pl-c", "fl-n"
+            self.baseOutputType = self.frameworkDict[self.BCType][0]
+            self.classifierType = self.frameworkDict[self.BCType][1]
+            self.baseOutChannels = self.num_classes
+            if self.BCType == "pl-c":
+                self.baseOutChannels = 5  #可自设定，比如病灶种类
+
+            self.rf_logits_hook = 1   #是否加入hook
+            self.heatmapFlag = 0      #是否保存热点图
+
+            # 初始化网络
+            self.base = mbagnet121(preAct=preAct, fusionType=fusionType, reduction=1, outputType=self.baseOutputType, rf_logits_hook=self.rf_logits_hook, num_classes=self.baseOutChannels, complexity=0)
             self.in_planes = self.base.num_features
-            self.classifier_type = "logit"
-            self.heatmapFlag = 1
-            self.masklabel = [None]
-        elif base_name == "multi_bagnet":
-            self.base = mbagnetS224(preAct=preAct, fusionType=fusionType, reduction=1, rf_logits_hook=1, num_classes=self.num_classes)
-            self.in_planes = self.base.num_features
-            self.classifier_type = "none"
-            self.heatmapFlag = 0
+
 
         # 2.以下是classifier的网络结构（3种）
-        # （1）normal模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
-        if self.classifier_type == "normal":
+        # （1）normal-classifier模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
+        if self.classifierType == "normal":
             self.gap = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Linear(self.in_planes, self.num_classes)
             self.classifier.apply(weights_init_classifier)
-        #  (2)logit模式: backbone提供的是logits，不需要gap，只需线性classifier即可
-        elif self.classifier_type == "logit":
-            self.finalClassifier = nn.Linear(self.base_out_channels, self.num_classes)
+        #  (2)post-classifier模式: backbone提供的是logits，不需要gap，只需线性classifier即可
+        elif self.classifierType == "post":
+            self.finalClassifier = nn.Linear(self.baseOutChannels, self.num_classes)
             self.finalClassifier.apply(weights_init_classifier)
         #  (3)none模式: backbone自带分类器
-        else:
+        elif self.classifierType == "none":
             print("Backbone with classifier itself.")
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
@@ -115,19 +119,13 @@ class Baseline(nn.Module):
             for module_name, module in self.base.features.named_modules():
                 if isinstance(module, torch.nn.Conv2d):
                     print(module_name)
-                    if module_name == "transition3.conv":
+                    if module_name == "transition1.conv":
                         self.GradCAM_BN = torch.nn.BatchNorm2d(1)
 
                         module.register_forward_hook(self.forward_hook_fn)
                         module.register_backward_hook(self.backward_hook_fn)
                         break
 
-
-
-        print(1)
-        #print(self.base)
-        #print(self.count_param())
-        #print(self.count_param2())
 
     def forward_hook_fn(self, module, input, output):
         self.inter_output = output  #将输入图像的梯度获取
@@ -136,76 +134,28 @@ class Baseline(nn.Module):
         self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
 
 
+    def transmitClassifierWeight(self):   #将线性分类器回传到base中
+        if self.classifierType == "post":
+            #self.base.baselineClassifierWeight = self.finalClassifier.weight
+            #self.base.baselineClassifierBias = self.finalClassifier.bias
+            self.base.overallClassifierWeight = torch.matmul(self.finalClassifier.weight, self.base.classifier.weight)
+            self.base.num_classes = self.num_classes   #重置新的num-classes
 
-
-    #CJY 可视化用
-    #1. 传入label
-    def transmitLabel(self, label):
-        self.label = label
-
-    def transmitMaskLabel(self, Masklabel):
-        self.masklabel = Masklabel
-
-    #"""
-    #2. 显示rf-logits的热点图
-    def showRFlogitMap(self, x, label, p_label, rf_logits_reserve, sample_index=0): # sample_index=0 选择显示的样本的索引
-        show_maps = []
-        # 1.存入样本
-        show_maps.insert(0, x[sample_index])
-        # 2.存入标签
-        show_maps.insert(1, [label[sample_index], p_label[sample_index], self.masklabel[sample_index]])
-        # 3.存入感受野的weight
-        if self.base.classifierType == "rfmode":
-            show_maps.append(self.base.rf_inter_classifier.weight.unsqueeze(-1).unsqueeze(-1))
-        else:
-            weight_instead = torch.zeros((1, len(rf_logits_reserve), 1, 1))
-            pos = 1
-            weight_instead[0][pos][0][0] = 1
-            for i in range(len(self.base.num_layers)):
-                pos = pos + self.base.num_layers[i]
-                weight_instead[0][pos][0][0] = 1
-            show_maps.append(weight_instead)
-
-        # 4.存入rf_logits   n个感受野+1个总和
-        for i in range(len(rf_logits_reserve)):
-            show_maps.append(rf_logits_reserve[i][sample_index].unsqueeze(0))
-
-        # 5. show_map中成分如下：0.img 1.[label,predict_label] 2.n+1 个rf_logits
-        self.base.generateScoreMap(show_maps, rank_num_per_class=10)
-    #"""
+    def transimitBatchDistribution(self, BD):
+        self.base.batchDistribution = BD
 
     def forward(self, x):
-        # 分为两种情况：1.base自带分类器 2.base只提供特征
-        if self.classifier_type == "normal":   #当base只提供特征时
+        # 分为三种情况：1.base只提供特征 2.base输出logit但需后处理 3
+        if self.classifierType == "normal":
             base_out = self.base(x)
             global_feat = self.gap(base_out)  # (b, ?, 1, 1)
             feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
             final_logits = self.classifier(feat)
-        elif self.classifier_type == "logit":  #mbagnet专属
+        elif self.classifierType == "post":
             logits = self.base(x)
             final_logits = self.finalClassifier(logits)
-
-
-            #验证是否后者之和等于前者
-            """
-            for i in range(len(self.base.rf_logits_reserve)-1):
-                rf = self.base.rf_logits_reserve[i].view(self.base.rf_logits_reserve[i].shape[0], self.base.rf_logits_reserve[i].shape[1], -1)
-                rf_mean = torch.mean(rf, dim=-1, keepdim=True)
-                if i == 0:
-                    r = rf_mean
-                else:
-                    r = torch.cat([r, rf_mean], dim=-1)
-            rs1 = torch.sum(r, dim=-1) + self.base.classifier.bias
-            rs2 = torch.mean(self.base.rf_logits_reserve[-1], dim=(-1,-2)) + self.base.classifier.bias
-            #"""
-            #磨得问题
-
-        else:
+        elif self.classifierType == "none":
             final_logits = self.base(x)
-
-            #if self.heatmapFlag == 1:
-            #    self.p_label = torch.argmax(final_logits, dim=1)  # predict_label
-            #    self.showRFlogitMap(x, self.label, self.p_label, self.base.rf_logits_reserve)
 
         return final_logits   # 其他参数可以用model的成员变量来传递
 

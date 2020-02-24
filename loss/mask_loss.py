@@ -107,7 +107,7 @@ class MaskLoss(object):
     def __init__(self):
         pass
 
-    def __call__(self, seg_mask, label_mask, seg_label):
+    def __call__(self, output_mask, seg_mask, seg_label):   #output_mask, seg_mask, seg_label
         #seg_mask = torch.abs(seg_mask)  #abs
 
         """
@@ -208,10 +208,13 @@ class MaskLoss(object):
 
 
         #"""
-        groudtruth_pos_map = label_mask.bool()
-        seg_mask = torch.pow(seg_mask, 2)
-        pos = seg_mask[groudtruth_pos_map]
-        neg = seg_mask[~groudtruth_pos_map]
+
+
+        """
+        groudtruth_pos_map = seg_mask.bool()
+        output_mask = torch.pow(output_mask, 2)
+        pos = output_mask[groudtruth_pos_map]
+        neg = output_mask[~groudtruth_pos_map]
 
         pos_sum = torch.sum(pos)
         neg_sum = torch.sum(neg)
@@ -221,6 +224,14 @@ class MaskLoss(object):
         #loss_weight = label_mask / (torch.sum(label_mask)) + (1 - label_mask) / (torch.sum(1 - label_mask))
         #loss = torch.pow(seg_mask - label_mask, 2)
         #total_loss = torch.sum(loss*loss_weight)
+        """
+
+
+        output_score = torch.sigmoid(output_mask)
+        loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
+        pow_loss = torch.sum(loss * seg_mask)/torch.sum(seg_mask)
+        neg_loss = torch.sum(loss * (1-seg_mask))/torch.sum((1-seg_mask))
+        total_loss = pow_loss + neg_loss
 
         return total_loss
 

@@ -55,53 +55,29 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
 
-        imgs, labels, seg_imgs, seg_masks, seg_labels  = batch
+        imgs, labels, seg_imgs, seg_masks, seg_labels = batch
 
-        #如果想要看有pixel-label的图片的可视化就 将showMap置为1
-        showMask = 0
-
-        if showMask == 1 and model.heatmapFlag == 1:
-            imgs = seg_imgs
-            labels = seg_labels
+        if model.heatmapFlag == 1:
+            # 如果想要看有pixel-label的图片的可视化就 将showMap置为1
+            UseSegData = 1
+            # transmitClassifierWeight() 是将baseline中的classifier weight传回给base，使得其可以直接计算logits-map，
+            # 只是在heatmapFlag开着的时候有用
+            if model.BCType == "pl-c":
+                model.transmitClassifierWeight()
+            if UseSegData == 1:
+                imgs = seg_imgs
+                labels = seg_labels
 
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
 
-        """
-        # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
-        # visualization
-        from utils.visualisation.gradcam import GradCam
-        from utils.visualisation.misc_functions import save_class_activation_images
-        from PIL import Image
-        import matplotlib.pyplot as plt
-        # Grad cam
-        grad_cam = GradCam(model, target_layer="denseblock2.denselayer12.conv2")#"transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-        # Generate cam mask
-        cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
-        # original_image
-        mean = np.array([0.4914, 0.4822, 0.4465])
-        var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
-        img = imgs[0].cpu().detach().numpy()
-        img = np.transpose(img, (1, 2, 0))
-        img = (img * var + mean) *255  # 去标准化
-        img = Image.fromarray(img.astype('uint8')).convert('RGB')
-        #plt.imshow(img)
-        #plt.show()
-        # Save mask
-        save_class_activation_images(img, cam, str(engine.state.iteration)+"label"+str(labels[0].item()))
-        print('Grad cam completed')
-        # """
-
         with torch.no_grad():
             logits = model(imgs)
 
-            #bagnet 可视化
-            #from utils import bagnet_utils as bu
-            #bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
-
             if model.heatmapFlag == 1:
+                # MBagNet
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
-                if showMask == 1:
+                if UseSegData == 1:
                     model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, masklabels=seg_masks,)
                 else:
                     model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels,)
