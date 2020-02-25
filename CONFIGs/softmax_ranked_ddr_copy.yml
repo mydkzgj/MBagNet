@@ -35,8 +35,8 @@ MODEL:
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"         #"f-c","pl-c","fl-n"
- HOOK_TYPE: "none"                                         #"featureReserve","rflogitGenerate","none"
- SEGMENTATION_TYPE: "none"                        #"denseFC", "none"
+ HOOK_TYPE: "featureReserve"                                         #"featureReserve","rflogitGenerate","none"
+ SEGMENTATION_TYPE: "denseFC"                        #"denseFC", "none"
  SEG_NUM_CLASSES: 1
 
 # -----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ TRAIN:
  # Train Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 3
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1#2
+  INSTANCES_PER_CATEGORY_IN_BATCH: 2#2
   MASK_PER_BATCH: 1
   ACCUMULATION_STEP: 2
 

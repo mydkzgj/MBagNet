@@ -184,15 +184,23 @@ class _MBagBlock(nn.Module):
 
 
 class _Transition(nn.Sequential):
-    def __init__(self, num_input_features, num_output_features, num_groups):
+    def __init__(self, num_input_features, num_output_features, num_groups, transitionType="linear",):
         super(_Transition, self).__init__()
-        #self.add_module('norm', nn.BatchNorm2d(num_input_features))
-        #self.add_module('relu', nn.ReLU(inplace=True))
-        self.add_module('conv', Conv2d(num_input_features, num_output_features,# groups=num_groups,  #cjy 新增groups=num_output_features
-                                          kernel_size=1, stride=1, bias=False))
-        # transition 主要负责降分辨率，同时也可负责感受野之间的加权降维（非group的conv）
-        # 降低分辨率的方式：1.pool 2.conv(group)不打乱感受野
-        self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
+        if transitionType == "linear":
+            self.add_module('conv', Conv2d(num_input_features, num_output_features,
+                                           # groups=num_groups,  #cjy 新增groups=num_output_features
+                                           kernel_size=1, stride=1, bias=False))
+            # transition 主要负责降分辨率，同时也可负责感受野之间的加权降维（非group的conv）
+            # 降低分辨率的方式：1.pool 2.conv(group)不打乱感受野
+            self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
+
+        elif transitionType == "non-linear":
+            self.add_module('norm', nn.BatchNorm2d(num_input_features))
+            self.add_module('relu', nn.ReLU(inplace=True))
+            self.add_module('conv', Conv2d(num_input_features, num_output_features,
+                                           kernel_size=1, stride=1, bias=False))
+            self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
+
 
 
 class _TransitionUp(nn.Sequential):
@@ -228,7 +236,7 @@ class MultiBagNet(nn.Module):
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
                  num_init_features=32, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False,
                  preAct=True, fusionType="concat", reduction=1, complexity=0,
-                 transitionType="conv",
+                 transitionType="linear",
                  outputType="final-logit",
                  hookType="none", segmentationType="none", seg_num_classes=1):
 
@@ -238,6 +246,9 @@ class MultiBagNet(nn.Module):
         self.num_layers = list(block_config)
         self.num_init_features = num_init_features
         self.growth_rate = growth_rate
+        self.bn_size = bn_size
+        self.drop_rate = drop_rate
+        self.memory_efficient = memory_efficient
 
         # MBagBlock配置
         self.preAct = preAct
@@ -285,10 +296,10 @@ class MultiBagNet(nn.Module):
             block = _MBagBlock(
                 num_layers=num_layers,
                 num_input_features=self.num_features,
-                bn_size=bn_size,
-                growth_rate=growth_rate,
-                drop_rate=drop_rate,
-                memory_efficient=memory_efficient,
+                bn_size=self.bn_size,
+                growth_rate=self.growth_rate,
+                drop_rate=self.drop_rate,
+                memory_efficient=self.memory_efficient,
                 preAct=self.preAct,
                 fusionType=self.fusionType,
                 reduction=self.reduction,
@@ -301,7 +312,8 @@ class MultiBagNet(nn.Module):
 
             if i != len(block_config) - 1:
                 trans = _Transition(num_input_features=self.num_features,
-                                    num_output_features=self.num_features//2, num_groups=self.num_receptive_field)
+                                    num_output_features=self.num_features//2, num_groups=self.num_receptive_field,
+                                    transitionType=self.transitionType)
                 self.features.add_module('transition%d' % (i + 1), trans)
                 self.num_features = self.num_features // 2
                 self.transition_output_channels['transition%d' % (i + 1)] = self.num_features
@@ -340,51 +352,7 @@ class MultiBagNet(nn.Module):
         """
 
         if self.segmentationType == "denseFC":
-            if self.hookType != "featureReserve":
-                raise Exception("if segmentationType is 'denseFC', hookType must be 'featureReserve'")
-            # Segmentation Module
-            self.segmentation = nn.ModuleDict()
-            self.seg_num_features = self.num_features
-            # Each denseblock
-            for i, num_layers in enumerate(reversed(self.num_layers)):
-                if i == 0:
-                    continue
-                index = len(block_config) - i # 为了保证序号是对应的
-
-                # transitionUp
-                transUp = _TransitionUp(num_input_features=self.seg_num_features,
-                                        num_output_features=self.seg_num_features // 2)  # 每个模块的输入为对应的transition层输出+前面的每个transitionUp的输出
-                #self.segmentation.add_module('transitionUp%d' % (j + 1), transUp)
-                self.segmentation['transitionUp%d' % (index)] = transUp
-                self.seg_num_features = self.seg_num_features // 2 + self.transition_output_channels['transition%d' % (index)]
-
-                # blockUp
-                blockUp = _MBagBlock(
-                    num_layers=num_layers,
-                    num_input_features=self.seg_num_features,
-                    bn_size=bn_size,
-                    growth_rate=growth_rate,
-                    drop_rate=drop_rate,
-                    memory_efficient=memory_efficient,
-                    preAct=self.preAct,
-                    fusionType=self.fusionType,
-                    reduction=self.reduction,
-                    complexity=self.complexity
-                )
-                self.segmentation['denseblockUp%d' % (index)] = blockUp
-                self.seg_num_features = blockUp.out_channels - self.seg_num_features
-
-            # lastLayer
-            self.segmentation["last_layer"] = nn.Sequential(OrderedDict([
-                ('tranconv0', nn.ConvTranspose2d(self.seg_num_features, self.num_init_features, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False)),
-                ('norm0', nn.BatchNorm2d(self.num_init_features)),
-                ('relu0', nn.ReLU(inplace=True)),
-                ('tranconv1', nn.ConvTranspose2d(self.num_init_features, self.num_init_features, kernel_size=7, stride=2, padding=3, output_padding=1, bias=False)),
-            ]))
-            self.seg_num_features = self.num_init_features
-
-            # descriminator
-            self.segmentation["descriminator"] = nn.Conv2d(self.seg_num_features, self.seg_num_classes, kernel_size=1, bias=False)
+            self.make_segmentation_module()
 
 
         # 设置hook  # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
@@ -456,6 +424,59 @@ class MultiBagNet(nn.Module):
                 self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
 
             return final_logits
+
+    def make_segmentation_module(self):
+        if self.hookType != "featureReserve":
+            raise Exception("if segmentationType is 'denseFC', hookType must be 'featureReserve'")
+        # Segmentation Module
+        self.segmentation = nn.ModuleDict()
+        self.seg_num_features = self.num_features
+        # Each denseblock
+        for i, num_layers in enumerate(reversed(self.num_layers)):
+            if i == 0:
+                continue
+            index = len(self.num_layers) - i  # 为了保证序号是对应的
+
+            # transitionUp
+            transUp = _TransitionUp(num_input_features=self.seg_num_features,
+                                    num_output_features=self.seg_num_features // 2)  # 每个模块的输入为对应的transition层输出+前面的每个transitionUp的输出
+            # self.segmentation.add_module('transitionUp%d' % (j + 1), transUp)
+            self.segmentation['transitionUp%d' % (index)] = transUp
+            self.seg_num_features = self.seg_num_features // 2 + self.transition_output_channels[
+                'transition%d' % (index)]
+
+            # blockUp
+            blockUp = _MBagBlock(
+                num_layers=num_layers,
+                num_input_features=self.seg_num_features,
+                bn_size=self.bn_size,
+                growth_rate=self.growth_rate,
+                drop_rate=self.drop_rate,
+                memory_efficient=self.memory_efficient,
+                preAct=self.preAct,
+                fusionType=self.fusionType,
+                reduction=self.reduction,
+                complexity=self.complexity
+            )
+            self.segmentation['denseblockUp%d' % (index)] = blockUp
+            self.seg_num_features = blockUp.out_channels - self.seg_num_features
+
+        # lastLayer
+        self.segmentation["last_layer"] = nn.Sequential(OrderedDict([
+            ('tranconv0',
+             nn.ConvTranspose2d(self.seg_num_features, self.num_init_features, kernel_size=3, stride=2, padding=1,
+                                output_padding=1, bias=False)),
+            ('norm0', nn.BatchNorm2d(self.num_init_features)),
+            ('relu0', nn.ReLU(inplace=True)),
+            ('tranconv1',
+             nn.ConvTranspose2d(self.num_init_features, self.num_init_features, kernel_size=7, stride=2, padding=3,
+                                output_padding=1, bias=False)),
+        ]))
+        self.seg_num_features = self.num_init_features
+
+        # descriminator
+        self.segmentation["descriminator"] = nn.Conv2d(self.seg_num_features, self.seg_num_classes, kernel_size=1,
+                                                       bias=False)
 
     def densefc_seg(self, features):
         for name in self.segmentation.keys():

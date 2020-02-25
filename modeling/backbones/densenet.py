@@ -97,6 +97,13 @@ class _Transition(nn.Sequential):
                                           kernel_size=1, stride=1, bias=False))
         self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
 
+class _TransitionUp(nn.Sequential):
+    def __init__(self, num_input_features, num_output_features):
+        super(_TransitionUp, self).__init__()
+        #self.add_module('norm', nn.BatchNorm2d(num_input_features))
+        #self.add_module('relu', nn.ReLU(inplace=True))
+        self.add_module('tranconv', nn.ConvTranspose2d(num_input_features, num_output_features, kernel_size=2, stride=2, bias=False))
+
 
 
 class DenseNet(nn.Module):
@@ -116,9 +123,17 @@ class DenseNet(nn.Module):
     """
 
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
-                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False):
+                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False,):
 
         super(DenseNet, self).__init__()
+
+        self.num_classes = num_classes
+        self.num_layers = list(block_config)
+        self.num_init_features = num_init_features
+        self.growth_rate = growth_rate
+        self.bn_size = bn_size
+        self.drop_rate = drop_rate
+        self.memory_efficient = memory_efficient
 
         # First convolution
         self.features = nn.Sequential(OrderedDict([
@@ -130,23 +145,23 @@ class DenseNet(nn.Module):
         ]))
 
         # Each denseblock
-        num_features = num_init_features
+        self.num_features = num_init_features
         for i, num_layers in enumerate(block_config):
             block = _DenseBlock(
                 num_layers=num_layers,
-                num_input_features=num_features,
-                bn_size=bn_size,
-                growth_rate=growth_rate,
-                drop_rate=drop_rate,
-                memory_efficient=memory_efficient
+                num_input_features=self.num_features,
+                bn_size=self.bn_size,
+                growth_rate=self.growth_rate,
+                drop_rate=self.drop_rate,
+                memory_efficient=self.memory_efficient
             )
             self.features.add_module('denseblock%d' % (i + 1), block)
-            num_features = num_features + num_layers * growth_rate
+            self.num_features = self.num_features + num_layers * self.growth_rate
             if i != len(block_config) - 1:
-                trans = _Transition(num_input_features=num_features,
-                                    num_output_features=num_features // 2)
+                trans = _Transition(num_input_features=self.num_features,
+                                    num_output_features=self.num_features // 2)
                 self.features.add_module('transition%d' % (i + 1), trans)
-                num_features = num_features // 2
+                self.num_features = self.num_features // 2
 
         #CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm
@@ -154,8 +169,6 @@ class DenseNet(nn.Module):
 
         # Linear layer
         #self.classifier = nn.Linear(num_features, num_classes)
-
-        self.num_output_features = num_features   #记录输出特征维度
 
         # Official init from torch repo.
         for name, m in self.named_modules():
@@ -168,6 +181,15 @@ class DenseNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
         self.calculateRF()
+
+
+    def forward(self, x):
+        features = self.features(x)
+        #out = F.relu(features, inplace=True)
+        #out = F.adaptive_avg_pool2d(out, (1, 1))
+        #out = torch.flatten(out, 1)
+        #out = self.classifier(out)
+        return features
 
     def calculateRF(self):
         # 记录下每个感受野的size，stride等参数
@@ -197,13 +219,7 @@ class DenseNet(nn.Module):
                 rf_stride = stride * rf_stride
         #print(self.receptive_field_list)
 
-    def forward(self, x):
-        features = self.features(x)
-        #out = F.relu(features, inplace=True)
-        #out = F.adaptive_avg_pool2d(out, (1, 1))
-        #out = torch.flatten(out, 1)
-        #out = self.classifier(out)
-        return features
+
 
 
 def _load_state_dict(model, model_url, progress):
