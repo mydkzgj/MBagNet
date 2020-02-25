@@ -39,18 +39,35 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 class Baseline(nn.Module):
-    def __init__(self,  base_name, num_classes, preAct=True, fusionType="concat"):
+    def __init__(self,  base_name, num_classes,
+                 preAct=True, fusionType="concat",
+                 base_classifier_Type="f-c",
+                 hookType = "none", segmentationType="none", seg_num_classes=1):
         super(Baseline, self).__init__()
-
+        # 0.参数预设
         self.num_classes = num_classes
         self.base_name = base_name
 
-        # baselineOutputType 和 classifierType
+        # 用于处理mbagnet的模块类型
+        self.preAct = preAct
+        self.fusionType = fusionType
+
+        # baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
         self.frameworkDict = {"f-c":("feature", "normal"), "pl-c":("pre-logit", "post"), "fl-n":("final-logit", "none")}
-        self.BCType = "f-c"   #默认是该模式   baseline & classifier
+        self.BCType = base_classifier_Type   #默认是该模式   baseline & classifier
         self.baseOutputType = self.frameworkDict[self.BCType][0]
         self.classifierType = self.frameworkDict[self.BCType][1]
+        if self.BCType == "pl-c":
+            self.baseOutChannels = seg_num_classes  # 可自设定，比如病灶种类
+        else:
+            self.baseOutChannels = self.num_classes
 
+        # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
+        self.hookType = hookType
+
+        # segType "denseFC", "none"
+        self.segmentationType = segmentationType
+        self.seg_num_classes = seg_num_classes
 
         self.GradCAM = False
 
@@ -81,21 +98,12 @@ class Baseline(nn.Module):
             self.base = densenetS224()
             self.in_planes = self.base.num_output_features
         elif base_name == "mbagnet121":
-            # 预设参数
-            self.BCType = "fl-n"#"pl-c"    #"f-c", "pl-c", "fl-n"
-            self.baseOutputType = self.frameworkDict[self.BCType][0]
-            self.classifierType = self.frameworkDict[self.BCType][1]
-            self.baseOutChannels = self.num_classes
-            if self.BCType == "pl-c":
-                self.baseOutChannels = 5  #可自设定，比如病灶种类
-
-            self.rf_logits_hook = 1   #是否加入hook
-            self.heatmapFlag = 0      #是否保存热点图
-
-            # 初始化网络
-            self.base = mbagnet121(preAct=preAct, fusionType=fusionType, reduction=1, outputType=self.baseOutputType, rf_logits_hook=self.rf_logits_hook, num_classes=self.baseOutChannels, complexity=0)
+            self.base = mbagnet121(num_classes=self.baseOutChannels,
+                                   preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0,
+                                   outputType=self.baseOutputType,
+                                   hookType=self.hookType, segmentationType=self.segmentationType, seg_num_classes=self.seg_num_classes,
+                                   )
             self.in_planes = self.base.num_features
-
 
         # 2.以下是classifier的网络结构（3种）
         # （1）normal-classifier模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
@@ -187,11 +195,7 @@ class Baseline(nn.Module):
         elif loadChoice == "Overall":
             for i in param_dict:
                 if i not in self.state_dict():
-                    if "classifier" in i:
-                        basei = "base."+i
-                        self.state_dict()[basei].copy_(param_dict[i])
-                        continue
-                    print(i)
+                    print("Cannot load %s, Maybe you are using incorrect framework"%i)
                     continue
                 self.state_dict()[i].copy_(param_dict[i])
 

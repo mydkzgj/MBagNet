@@ -65,7 +65,7 @@ class SegmentationDataset(Dataset):
 
         self.ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
         self.padding = cfg.DATA.TRANSFORM.PADDING   #不引入padding和crop
-        self.pad_num = 0#self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
+        self.pad_num = 0 #self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
         self.resizeH = cfg.DATA.TRANSFORM.SIZE[0]
         self.resizeW = cfg.DATA.TRANSFORM.SIZE[1]
         self.mask_resizeH = self.resizeH // self.ratio

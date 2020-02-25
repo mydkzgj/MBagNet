@@ -35,7 +35,8 @@ def activated_output_transform(output):
 def convert_to_one_hot(y, C):
     return np.eye(C)[y.reshape(-1)]
 
-def create_supervised_evaluator(model, metrics, loss_fn, device=None):
+
+def create_supervised_visualizer(model, metrics, loss_fn, device=None):
     """
     Factory function for creating an evaluator for supervised models
 
@@ -55,16 +56,24 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
         with torch.no_grad():
-
             imgs, labels, seg_imgs, seg_masks, seg_labels = batch
+            model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
+            model.heatmapType = "grade"  # "grade", "seg", "none"
+            if model.heatmapFlag == "grade":
+                imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
+                labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+                logits = model(imgs)
+                p_labels = torch.argmax(logits, dim=1)  # predict_label
+                model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, )
+                return {"logits": logits, "labels": labels}
 
-            imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-            labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-
-            logits = model(imgs)
-
-            return {"logits": logits, "labels": labels}
-
+            elif model.heatmapType == "segmentation":
+                seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+                seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
+                logits = model(seg_imgs)
+                p_labels = torch.argmax(logits, dim=1)  # predict_label
+                model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
+                return {"logits": logits, "labels": seg_labels}
 
 
     engine = Engine(_inference)
@@ -74,7 +83,8 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
 
     return engine
 
-def do_inference(
+
+def do_visualization(
         cfg,
         model,
         test_loader,
@@ -94,7 +104,7 @@ def do_inference(
                     "recall": Recall(output_transform=lambda x: (x["logits"], x["labels"])),
                     "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], x["labels"])),
                     }
-    evaluator = create_supervised_evaluator(model, metrics=metrics_eval, loss_fn=loss_fn, device=device)
+    evaluator = create_supervised_visualizer(model, metrics=metrics_eval, loss_fn=loss_fn, device=device)
 
     y_pred = []
     y_label = []
@@ -202,4 +212,3 @@ def do_inference(
     metrics["roc_figure"] = roc_numpy
 
     return metrics
-

@@ -226,29 +226,39 @@ class MultiBagNet(nn.Module):
     """
 
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
-                 num_init_features=32, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False, preAct=True, fusionType="concat", transitionType="conv", outputType="final-logit", rf_logits_hook=False, reduction=1, complexity=0):
+                 num_init_features=32, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False,
+                 preAct=True, fusionType="concat", reduction=1, complexity=0,
+                 transitionType="conv",
+                 outputType="final-logit",
+                 hookType="none", segmentationType="none", seg_num_classes=1):
 
         super(MultiBagNet, self).__init__()
 
-        self.preAct = preAct
-        self.fusionType = fusionType
-        self.reduction = reduction
-        self.complexity = complexity
-        self.transitionType = transitionType
-        self.outputType = outputType
-        self.rf_logits_hook = rf_logits_hook
-
         self.num_classes = num_classes
-
         self.num_layers = list(block_config)
         self.num_init_features = num_init_features
         self.growth_rate = growth_rate
 
+        # MBagBlock配置
+        self.preAct = preAct
+        self.fusionType = fusionType
+        self.reduction = reduction
+        self.complexity = complexity
+
+        # Transition配置
+        self.transitionType = transitionType
+        self.transition_output_channels = {}  # 用于记录downstream中的transition
+
+        # classifier配置
+        self.outputType = outputType
+
+        # segmentation配置
+        self.hookType = hookType
+        self.segmentationType = segmentationType
+        self.seg_num_classes = seg_num_classes
+
+        # batch中grade和segmentation的比例，若为1则全部为grade样本
         self.batchDistribution = 1
-
-        self.segmentationType = "dense"#"none"
-        self.transition_output_channels = {}
-
 
 
         # First convolution
@@ -317,6 +327,9 @@ class MultiBagNet(nn.Module):
             self.gap = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Linear(self.num_features, self.num_classes, bias=False)
 
+        # 计算各模块感受野大小情况，记录到self.receptive_field_list中
+        self.receptive_field_list = self.calculateRF()
+
         """
         elif self.classifierType == "rfmode":
             self.gap = nn.AdaptiveAvgPool2d(1)
@@ -326,27 +339,26 @@ class MultiBagNet(nn.Module):
             self.rf_inter_classifier = nn.Linear(self.num_receptive_field, 1)
         """
 
-        if self.segmentationType != "none":
+        if self.segmentationType == "denseFC":
+            if self.hookType != "featureReserve":
+                raise Exception("if segmentationType is 'denseFC', hookType must be 'featureReserve'")
             # Segmentation Module
-            # 用于上采样得到分割图
-
             self.segmentation = nn.ModuleDict()
-
             self.seg_num_features = self.num_features
             # Each denseblock
             for i, num_layers in enumerate(reversed(self.num_layers)):
                 if i == 0:
                     continue
-
                 index = len(block_config) - i # 为了保证序号是对应的
 
+                # transitionUp
                 transUp = _TransitionUp(num_input_features=self.seg_num_features,
                                         num_output_features=self.seg_num_features // 2)  # 每个模块的输入为对应的transition层输出+前面的每个transitionUp的输出
                 #self.segmentation.add_module('transitionUp%d' % (j + 1), transUp)
                 self.segmentation['transitionUp%d' % (index)] = transUp
                 self.seg_num_features = self.seg_num_features // 2 + self.transition_output_channels['transition%d' % (index)]
 
-                #
+                # blockUp
                 blockUp = _MBagBlock(
                     num_layers=num_layers,
                     num_input_features=self.seg_num_features,
@@ -359,10 +371,10 @@ class MultiBagNet(nn.Module):
                     reduction=self.reduction,
                     complexity=self.complexity
                 )
-                #self.segmentation.add_module('denseblockUp%d' % (j + 1), blockUp)
                 self.segmentation['denseblockUp%d' % (index)] = blockUp
                 self.seg_num_features = blockUp.out_channels - self.seg_num_features
 
+            # lastLayer
             self.segmentation["last_layer"] = nn.Sequential(OrderedDict([
                 ('tranconv0', nn.ConvTranspose2d(self.seg_num_features, self.num_init_features, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False)),
                 ('norm0', nn.BatchNorm2d(self.num_init_features)),
@@ -371,10 +383,19 @@ class MultiBagNet(nn.Module):
             ]))
             self.seg_num_features = self.num_init_features
 
-            self.seg_num_classes = 1
+            # descriminator
             self.segmentation["descriminator"] = nn.Conv2d(self.seg_num_features, self.seg_num_classes, kernel_size=1, bias=False)
 
 
+        # 设置hook  # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
+        if hookType == "rflogitGenerate":
+            self.rf_logits_reserve = []
+            self.setReductionHook(self.generateRFlogitMap)
+        elif hookType == "featureReserve":
+            self.features_reserve = []
+            self.setTransitionHook(self.reserveFeature)
+        elif hookType == "none":
+            print("No hook!")
 
         # Official init from torch repo.
         for name, m in self.named_modules():
@@ -387,25 +408,28 @@ class MultiBagNet(nn.Module):
                 nn.init.normal_(m.weight, std=0.001)
                 #nn.init.constant_(m.bias, 0)
 
-        # 计算各模块感受野大小情况，记录到self.receptive_field_list中
-        self.receptive_field_list = self.calculateRF()
 
-        # 设置hook
-        if rf_logits_hook == True:
-            self.rf_logits_reserve = []
-            #self.setReductionHook(self.generateRFlogitMap)
-
-            self.features_reserve = []
-            self.setTransitionHook(self.reserveFeature)
 
 
     def forward(self, x):
         if self.outputType == "feature":  #不包含分类器，输出特征
             # 求特征输出
             features = self.features(x)
+
+            # 分割函数
+            if self.segmentationType == "denseFC":
+                if self.batchDistribution == 1:
+                    seg_features = features
+                else:
+                    seg_features = features[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+                self.seg_attention = self.densefc_seg(seg_features)
+                self.features_reserve.clear()
+                self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
+
             return features
+
         elif self.outputType == "pre-logit" or self.outputType == "final-logit":  #包含分类器，输出logits
-            if self.rf_logits_hook == True:
+            if self.hookType == "rflogitGenerate":
                 # 用于与hook 配合
                 self.currentBlockIndex = 0
                 self.currentLayerIndex = 0
@@ -413,24 +437,24 @@ class MultiBagNet(nn.Module):
 
             # 求特征输出
             features = self.features(x)
-
-            if self.rf_logits_hook == True:
-                #self.generateOverallRFlogitMap()
-
-                # 分割函数
-                if self.segmentationType != "none":
-                    if self.batchDistribution == 1:
-                        seg_features = features
-                    else:
-                        seg_features = features[self.batchDistribution[0]:self.batchDistribution[0]+self.batchDistribution[1]]
-                    self.seg_attention = self.densefc_seg(seg_features)
-                    self.features_reserve.clear()
-
-                self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
-
             global_feat = self.gap(features)  # (b, ?, 1, 1)
             feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
             final_logits = self.classifier(feat)
+
+            if self.hookType == "rflogitGenerate":
+                self.generateOverallRFlogitMap()
+                self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
+
+            # 分割函数
+            if self.segmentationType == "denseFC":
+                if self.batchDistribution == 1:
+                    seg_features = features
+                else:
+                    seg_features = features[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+                self.seg_attention = self.densefc_seg(seg_features)
+                self.features_reserve.clear()
+                self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
+
             return final_logits
 
     def densefc_seg(self, features):
@@ -452,7 +476,6 @@ class MultiBagNet(nn.Module):
 
 
         return out
-
 
 
 

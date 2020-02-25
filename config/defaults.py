@@ -77,6 +77,14 @@ _C.MODEL.NAME = 'multi_bagnet'
 _C.MODEL.PRE_ACTIVATION = 1
 # how block output fuse, options: "concat", "add", "none"
 _C.MODEL.FUSION_TYPE = "concat"
+# baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
+_C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
+# hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
+_C.MODEL.HOOK_TYPE = "none"
+# segType "denseFC", "none"
+_C.MODEL.SEGMENTATION_TYPE = "none"
+# seg output channels
+_C.MODEL.SEG_NUM_CLASSES = 1
 
 
 # -----------------------------------------------------------------------------
@@ -177,6 +185,9 @@ _C.TRAIN.DATALOADER.CATEGORIES_PER_BATCH = 6
 _C.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH = 4
 # Number of images per batch
 _C.TRAIN.DATALOADER.IMS_PER_BATCH = _C.TRAIN.DATALOADER.CATEGORIES_PER_BATCH * _C.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH
+# Number of Mask per batch
+_C.TRAIN.DATALOADER.MASK_PER_BATCH = 1
+
 # -----------------------------------------------------------------------------
 # Train Trick
 # -----------------------------------------------------------------------------
@@ -220,6 +231,8 @@ _C.VAL.DATALOADER.CATEGORIES_PER_BATCH = 6
 _C.VAL.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH = 4
 # Number of images per batch
 _C.VAL.DATALOADER.IMS_PER_BATCH = _C.TRAIN.DATALOADER.CATEGORIES_PER_BATCH * _C.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH
+# Number of Mask per batch
+_C.VAL.DATALOADER.MASK_PER_BATCH = 1
 
 
 # -----------------------------------------------------------------------------
@@ -252,3 +265,5 @@ _C.TEST.DATALOADER.CATEGORIES_PER_BATCH = 6
 _C.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH = 4
 # Number of images per batch
 _C.TEST.DATALOADER.IMS_PER_BATCH = _C.TEST.DATALOADER.CATEGORIES_PER_BATCH * _C.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH
+# Number of Mask per batch
+_C.TEST.DATALOADER.MASK_PER_BATCH = 1

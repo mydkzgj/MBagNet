@@ -140,7 +140,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 获取数据
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
-        seg_masks = torch.gt(seg_masks, 0).float()
+        #seg_masks = torch.gt(seg_masks, 0).float()
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0]
         seg_num = seg_masks.shape[0]
@@ -182,7 +182,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             for op in optimizers:
                 op.zero_grad()
 
-        output_masks = model.base.seg_attention#seg_gcam
+        if model.segmentationType == "denseFC":
+            output_masks = model.base.seg_attention#seg_gcam
+        else:
+            output_masks = None
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
@@ -346,7 +349,8 @@ def do_train(
 
         logger.info("Model:{}".format(model))
         logger.info("Model:{}".format(model.count_param()))
-        logger.info("Model:{}".format(model.count_param2()))
+        inputshape = (3, cfg.DATA.TRANSFORM.SIZE[0], cfg.DATA.TRANSFORM.SIZE[1])
+        logger.info("Model:{}".format(model.count_param2(input_shape=inputshape)))
         #print(model)
         #print(model.count_param())
         #print(model.count_param2())
