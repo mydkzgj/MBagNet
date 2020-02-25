@@ -42,11 +42,14 @@ class Baseline(nn.Module):
     def __init__(self,  base_name, num_classes,
                  preAct=True, fusionType="concat",
                  base_classifier_Type="f-c",
-                 hookType = "none", segmentationType="none", seg_num_classes=1):
+                 hookType = "none", segmentationType="none", seg_num_classes=1,
+                 accumulation_steps=1,
+                 ):
         super(Baseline, self).__init__()
         # 0.参数预设
         self.num_classes = num_classes
         self.base_name = base_name
+        self.accumulation_steps = accumulation_steps
 
         # 用于处理mbagnet的模块类型
         self.preAct = preAct

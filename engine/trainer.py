@@ -59,9 +59,6 @@ except ImportError:
 global ITER
 ITER = 0
 
-global accumulation_steps
-accumulation_steps = 1
-
 global epochs_traverse_optimizers
 epochs_traverse_optimizers = 0
 
@@ -197,11 +194,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 loss += losses[lossKey][0] * weight[lossKey]
             else:
                 loss += losses[lossKey] * weight[lossKey]
-        loss = loss/accumulation_steps
+        loss = loss/model.accumulation_steps
         # 反向传播
         loss.backward()
         # 参数优化
-        if engine.state.iteration % accumulation_steps == 0:  # 此处要注意
+        if engine.state.iteration % model.accumulation_steps == 0:  # 此处要注意
             optimizers[engine.state.optimizer_index].step()
             for op in optimizers:
                 op.zero_grad()
@@ -403,7 +400,7 @@ def do_train(
         global ITER
         ITER += 1
 
-        if ITER % (log_period*accumulation_steps) == 0:
+        if ITER % (log_period*model.accumulation_steps) == 0:
             step = engine.state.iteration
 
             #写入train-summary

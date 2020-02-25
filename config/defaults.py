@@ -187,6 +187,9 @@ _C.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH = 4
 _C.TRAIN.DATALOADER.IMS_PER_BATCH = _C.TRAIN.DATALOADER.CATEGORIES_PER_BATCH * _C.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH
 # Number of Mask per batch
 _C.TRAIN.DATALOADER.MASK_PER_BATCH = 1
+# accumulation_steps (only used in train)
+_C.TRAIN.DATALOADER.ACCUMULATION_STEP = 1
+
 
 # -----------------------------------------------------------------------------
 # Train Trick
