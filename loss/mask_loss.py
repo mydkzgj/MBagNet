@@ -231,8 +231,19 @@ class MaskLoss(object):
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
-        pos_loss = torch.sum(loss * seg_mask)/torch.sum(seg_mask)
-        neg_loss = torch.sum(loss * (1-seg_mask))/torch.sum((1-seg_mask))
+
+        pos_num = torch.sum(seg_mask)
+        if pos_num != 0:
+            pos_loss = torch.sum(loss * seg_mask)/pos_num
+        else:
+            pos_loss = 0
+
+        neg_num = torch.sum((1 - seg_mask))
+        if neg_num != 0:
+            neg_loss = torch.sum(loss * (1-seg_mask))/neg_num
+        else:
+            neg_loss = 0
+
         total_loss = pos_loss + neg_loss
 
         return total_loss

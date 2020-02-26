@@ -73,6 +73,9 @@ class SegmentationDataset(Dataset):
         self.MaxPool = torch.nn.AdaptiveMaxPool2d((self.mask_resizeH, self.mask_resizeW))
         self.MaskPad = torch.nn.ZeroPad2d(self.padding//self.ratio)   #padding最好是ratio的倍数
 
+        # 用于生成mask的维度
+        self.seg_num_classes = cfg.MODEL.SEG_NUM_CLASSES
+
 
     def __len__(self):
         return len(self.dataset)
@@ -109,6 +112,12 @@ class SegmentationDataset(Dataset):
         img = img[:, randH:randH + self.resizeH, randW:randW + self.resizeW]
         mask = mask[:, mask_randH:mask_randH + self.mask_resizeH, mask_randW:mask_randW + self.mask_resizeW]
         #"""
+
+        if self.seg_num_classes == 1:
+            mask = torch.max(mask, dim=0, keepdim=True)[0]
+        elif self.seg_num_classes != mask.shape[0]:
+            raise Exception("SEG_NUM_CLASSES cannot match the channels of mask")
+
 
         return img, mask, img_label  # 返回的是图片
 

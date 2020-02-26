@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import random
 
 save_img_index = 0
+savePath = "D:/MIP/Experiment/MBagNet/work_space/heatmap/"
 
 def map_visualization(map_tensor):
     map = map_tensor.cpu().detach().numpy()
@@ -336,7 +337,8 @@ def showGradCAM():
 #CJY MBagNet专属， 显示不同感受野的logit-map
 def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, OveralMaxFlag=1, AvgFlag=1):
     global save_img_index
-    savePath = "D:/MIP/Experiment/MBagNet/work_space/heatmap/"
+    global savePath
+
     percentile = 99
 
     rfs_weight_dict = {}   #linear weight 保存
@@ -654,3 +656,38 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
 
     # 记录保存图片的索引的全局变量
     save_img_index = save_img_index + 1
+
+
+
+def drawDenseFCMask(img, seg, mask=None):
+    global savePath
+    global save_img_index
+    # 1.提取原图并去标准化,保存
+    mean = np.array([0.4914, 0.4822, 0.4465])
+    var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
+
+    img = img.cpu().detach().numpy()
+    img = np.transpose(img, (1, 2, 0))
+    img = img * var + mean  # 去标准化
+
+    # img = cv.resize(img, (224,224))
+    # img_r = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+    r, g, b = cv.split(img)
+    img_bgr = cv.merge([b, g, r])
+    # cv.imshow("img", img_bgr)
+    # cv.waitKey(0)
+    cv.imwrite(savePath + "heatmap_" + "denseFC_" +str(save_img_index) + '_0' + '.png', img_bgr * 255)
+
+    # 2. seg
+    seg = seg[0].cpu().detach().numpy()
+    cv.imwrite(savePath + "heatmap_" + "denseFC_" + str(save_img_index) + '_1' + '.png', seg * 255)
+
+    # 3. mask
+    if isinstance(mask, torch.Tensor):
+        mask = mask[0].cpu().detach().numpy()
+        cv.imwrite(savePath + "heatmap_" + "denseFC_" + str(save_img_index) + '_2' + '.png', mask * 255)
+
+    # 记录保存图片的索引的全局变量
+    save_img_index = save_img_index + 1
+
+

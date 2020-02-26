@@ -268,8 +268,8 @@ class MultiBagNet(nn.Module):
         self.segmentationType = segmentationType
         self.seg_num_classes = seg_num_classes
 
-        # batch中grade和segmentation的比例，若为1则全部为grade样本
-        self.batchDistribution = 1
+        # batch中grade和segmentation的比例，若为0则全部为grade样本， 1则全部为seg样本
+        self.batchDistribution = 0
 
 
         # First convolution
@@ -386,13 +386,15 @@ class MultiBagNet(nn.Module):
 
             # 分割函数
             if self.segmentationType == "denseFC":
-                if self.batchDistribution == 1:
-                    seg_features = features
-                else:
-                    seg_features = features[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
-                self.seg_attention = self.densefc_seg(seg_features)
-                self.features_reserve.clear()
-                self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
+                if self.batchDistribution != 0:
+                    if self.batchDistribution == 1:
+                        seg_features = features
+                    else:
+                        seg_features = features[
+                                       self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+                    self.seg_attention = self.densefc_seg(seg_features)
+                    self.features_reserve.clear()
+                    self.batchDistribution = 0   # 用于确定生成mask的样本数量，如果是1就是全部生成, 0是全部不生成
 
             return features
 
@@ -411,18 +413,19 @@ class MultiBagNet(nn.Module):
 
             if self.hookType == "rflogitGenerate":
                 self.generateOverallRFlogitMap()
-                self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
+                self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成
 
             # 分割函数
             if self.segmentationType == "denseFC":
-                if self.batchDistribution == 1:
-                    seg_features = features
-                else:
-                    seg_features = features[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
-                self.seg_attention = self.densefc_seg(seg_features)
-                self.features_reserve.clear()
-                self.batchDistribution = 1  # 用于确定生成mask的样本数量，如果是1就是全部生成
-
+                if self.batchDistribution != 0:
+                    if self.batchDistribution == 1:
+                        seg_features = features
+                    else:
+                        seg_features = features[
+                                       self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+                    self.seg_attention = self.densefc_seg(seg_features)
+                    self.features_reserve.clear()
+                    self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成
             return final_logits
 
     def make_segmentation_module(self):
@@ -498,6 +501,15 @@ class MultiBagNet(nn.Module):
 
         return out
 
+    def showDenseFCMask(self, seg_attention, imgs, labels, p_labels, masklabels=None, sample_index=0):
+        img = imgs[sample_index]
+        seg = torch.sigmoid(seg_attention[sample_index])
+        if isinstance(masklabels, torch.Tensor):
+            mask = masklabels[sample_index]
+        else:
+            mask =None
+        fV.drawDenseFCMask(img, seg, mask)
+
 
 
     # 计算网络每一层的感受野情况
@@ -540,70 +552,75 @@ class MultiBagNet(nn.Module):
 
     # forward hook function : 依据每一个layer的输出，依据后续经过的transition线性层计算出最终的logit值
     def generateRFlogitMap(self, module, input, output):
-        if self.batchDistribution != 1:
-            output = output[self.batchDistribution[0]:self.batchDistribution[0]+self.batchDistribution[1]]
-        # 获取各block中layer的分布
-        layer_config = self.num_layers.copy()
-        layer_config[0] = layer_config[0] + 1      # 将conv0,maxpooling层合并，相当于只以transition层分割
+        if self.batchDistribution != 0:
+            if self.batchDistribution != 1:
+                output = output[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+            # 获取各block中layer的分布
+            layer_config = self.num_layers.copy()
+            layer_config[0] = layer_config[0] + 1  # 将conv0,maxpooling层合并，相当于只以transition层分割
 
-        # 计算当前模块后续经过Transition层，将需要用到的weight放入List中
-        transitionLayerWeightList = []
-        BlockStartPos = [0]
-        for name, parameters in self.features.named_parameters():
-            if "transition" in name and "conv" in name and "weight" in name:
-                transitionLayerWeightList.append(parameters)
-                BlockStartPos.append(parameters.shape[0])
-        if self.outputType == "pre-logit" or self.outputType == "final-logit":        # 将最终的线性层也归入到transitionLayer中，其实本质确是相同的
-            if hasattr(self, "overallClassifierWeight") and isinstance(self.overallClassifierWeight, torch.Tensor):
-                classifier_weight = self.overallClassifierWeight
+            # 计算当前模块后续经过Transition层，将需要用到的weight放入List中
+            transitionLayerWeightList = []
+            BlockStartPos = [0]
+            for name, parameters in self.features.named_parameters():
+                if "transition" in name and "conv" in name and "weight" in name:
+                    transitionLayerWeightList.append(parameters)
+                    BlockStartPos.append(parameters.shape[0])
+            if self.outputType == "pre-logit" or self.outputType == "final-logit":  # 将最终的线性层也归入到transitionLayer中，其实本质确是相同的
+                if hasattr(self, "overallClassifierWeight") and isinstance(self.overallClassifierWeight, torch.Tensor):
+                    classifier_weight = self.overallClassifierWeight
+                else:
+                    classifier_weight = self.classifier.weight
+                transitionLayerWeightList.append(classifier_weight.unsqueeze(-1).unsqueeze(-1))
+                BlockStartPos.append(classifier_weight.shape[0])
+
+            # 确定module的位置
+            # print(self.currentBlockIndex)
+            # print(self.currentLayerIndex)
+
+            # 由于并非group-conv，所以需要确定该模块对应后续的transition层的哪块儿位置
+            if self.currentBlockIndex == 0:
+                if self.currentLayerIndex == 0:
+                    weight_start_pos = BlockStartPos[self.currentBlockIndex]
+                    weight_end_pos = self.num_init_features
+                else:
+                    weight_start_pos = self.num_init_features + (self.currentLayerIndex - 1) * self.growth_rate
+                    weight_end_pos = weight_start_pos + self.growth_rate
             else:
-                classifier_weight = self.classifier.weight
-            transitionLayerWeightList.append(classifier_weight.unsqueeze(-1).unsqueeze(-1))
-            BlockStartPos.append(classifier_weight.shape[0])
-
-        # 确定module的位置
-        #print(self.currentBlockIndex)
-        #print(self.currentLayerIndex)
-
-        # 由于并非group-conv，所以需要确定该模块对应后续的transition层的哪块儿位置
-        if self.currentBlockIndex == 0:
-            if self.currentLayerIndex == 0:
-                weight_start_pos = BlockStartPos[self.currentBlockIndex]
-                weight_end_pos = self.num_init_features
-            else:
-                weight_start_pos = self.num_init_features + (self.currentLayerIndex-1) * self.growth_rate
+                weight_start_pos = BlockStartPos[self.currentBlockIndex] + self.currentLayerIndex * self.growth_rate
                 weight_end_pos = weight_start_pos + self.growth_rate
-        else:
-            weight_start_pos = BlockStartPos[self.currentBlockIndex] + self.currentLayerIndex * self.growth_rate
-            weight_end_pos = weight_start_pos + self.growth_rate
 
-        #print(weight_start_pos)
-        #print(weight_end_pos)
+            # print(weight_start_pos)
+            # print(weight_end_pos)
 
-        # 计算经过transition层的映射
-        transitionLayerNum = len(self.num_layers)
-        for i in range(transitionLayerNum):
-            if i >= self.currentBlockIndex:
-                transitionLayerWeight = transitionLayerWeightList[i][:,weight_start_pos:weight_end_pos]
-                output = F.conv2d(output, transitionLayerWeight)
-                weight_start_pos = 0
-                weight_end_pos = transitionLayerWeight.shape[0]
+            # 计算经过transition层的映射
+            transitionLayerNum = len(self.num_layers)
+            for i in range(transitionLayerNum):
+                if i >= self.currentBlockIndex:
+                    transitionLayerWeight = transitionLayerWeightList[i][:, weight_start_pos:weight_end_pos]
+                    output = F.conv2d(output, transitionLayerWeight)
+                    weight_start_pos = 0
+                    weight_end_pos = transitionLayerWeight.shape[0]
 
-        # 将结果置于rf_logits_reserve中
-        self.rf_logits_reserve.append(output)
+            # 将结果置于rf_logits_reserve中
+            self.rf_logits_reserve.append(output)
 
-        # 将模块的位置信息指向下一个
-        self.currentLayerIndex = self.currentLayerIndex + 1
-        if self.currentLayerIndex == layer_config[self.currentBlockIndex]:
-            self.currentBlockIndex = self.currentBlockIndex + 1
-            self.currentLayerIndex = 0
+            # 将模块的位置信息指向下一个
+            self.currentLayerIndex = self.currentLayerIndex + 1
+            if self.currentLayerIndex == layer_config[self.currentBlockIndex]:
+                self.currentBlockIndex = self.currentBlockIndex + 1
+                self.currentLayerIndex = 0
+
+
 
     # forward hook function : 保存module的输出（部分or全部）
     def reserveFeature(self, module, input, output):
-        if self.batchDistribution != 1:
-            self.features_reserve.append(input[0][self.batchDistribution[0]:self.batchDistribution[0]+self.batchDistribution[1]])
-        else:
-            self.features_reserve.append(input[0])
+        if self.batchDistribution != 0:
+            if self.batchDistribution != 1:
+                self.features_reserve.append(input[0][self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
+            else:
+                self.features_reserve.append(input[0])
+
 
     # 利用每一步生成的rf_logits_map,生成总决策图overall_rf_logits_map
 

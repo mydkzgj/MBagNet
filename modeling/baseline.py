@@ -89,12 +89,14 @@ class Baseline(nn.Module):
             self.base = resnet152()
         elif base_name == "densenet121":
             #self.base = densenet121()
+            #"""
             self.base = mbagnet121(num_classes=self.baseOutChannels,
                                    preAct=True, fusionType="concat", reduction=1, complexity=0,
                                    transitionType="non-linear",
                                    outputType=self.baseOutputType,
                                    hookType=self.hookType, segmentationType=self.segmentationType, seg_num_classes=self.seg_num_classes,
                                    )
+            #"""
             self.in_planes = self.base.num_features
         # 以下为了与multi_bagnet比较所做的调整网络
         elif base_name == "bagnet":

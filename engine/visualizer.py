@@ -58,13 +58,17 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         with torch.no_grad():
             imgs, labels, seg_imgs, seg_masks, seg_labels = batch
             model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
-            model.heatmapType = "grade"  # "grade", "seg", "none"
-            if model.heatmapFlag == "grade":
+            model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
+            model.heatmapType = "segmentation"  # "grade", "seg", "none"
+            if model.heatmapType == "grade":
                 imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
                 labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
                 logits = model(imgs)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
-                model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, )
+                if model.segmentationType == "denseFC":
+                    model.base.showDenseFCMask(model.base.seg_attention, imgs, labels, p_labels,)
+                elif model.segmentationType == "rfLogit":
+                    model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, )
                 return {"logits": logits, "labels": labels}
 
             elif model.heatmapType == "segmentation":
@@ -72,7 +76,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
                 logits = model(seg_imgs)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
-                model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
+                if model.segmentationType == "denseFC":
+                    model.base.showDenseFCMask(model.base.seg_attention, imgs, labels, p_labels, masklabels=seg_masks)
+                elif model.segmentationType == "rfLogit":
+                    model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
                 return {"logits": logits, "labels": seg_labels}
 
 
