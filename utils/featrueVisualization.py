@@ -490,6 +490,7 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
         plt.axis('off')
 
         # a-1.显示rfs_weight
+
         for i in range(len(rfs_weight_dict)):
             # print(i+1+1)
             ax = plt.subplot(window_row, window_col, i + 1 + 1)
@@ -497,6 +498,7 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
             ax.imshow(rfs_weight_dict[i], interpolation='none', cmap='RdBu_r', vmin=rfs_weight_min,
                       vmax=rfs_weight_max)  # extent=[0,100,0,100],
             plt.axis('off')
+
 
         # a-2.显示label
         for i in range(1, num_class + 1):
@@ -507,22 +509,25 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
             plt.axis('off')
 
         if show_mask_label == 1:  # 显示masklabel
-            mask_combine = np.ones_like(mask_label[0])
+            mask_combine = np.zeros_like(mask_label[0])
             if mask_label.shape[0] != 1:
                 for i in range(mask_label.shape[0]):
                     ax = plt.subplot(window_row, window_col, window_col * (i + 2))
                     plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
                     ax.imshow(mask_label[i], interpolation='none', cmap='RdBu_r', vmin=-1,
                               vmax=1)  # extent=[0,100,0,100],
+                    plt.axis('off')
                     mask_combine = mask_combine | mask_label[i]
 
                 ax = plt.subplot(window_row, window_col, window_col)
                 plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
                 ax.imshow(mask_combine, interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+                plt.axis('off')
             else:
                 ax = plt.subplot(window_row, window_col, window_col)
                 plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
                 ax.imshow(mask_label[0], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+                plt.axis('off')
 
         # a-3.显示rf_score per class
         for i in range(len(map_dict)):
@@ -578,22 +583,24 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
             plt.axis('off')
 
         if show_mask_label == 1:  # 显示masklabel
-            mask_combine = np.ones_like(mask_label[0])
+            mask_combine = np.zeros_like(mask_label[0])
             if mask_label.shape[0] != 1:
                 for i in range(mask_label.shape[0]):
                     ax = plt.subplot(window_row, window_col, window_col * (i + 2))
                     plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-                    ax.imshow(mask_label[i], interpolation='none', cmap='RdBu_r', vmin=-1,
-                              vmax=1)  # extent=[0,100,0,100],
+                    ax.imshow(mask_label[i], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+                    plt.axis('off')
                     mask_combine = mask_combine | mask_label[i]
 
                 ax = plt.subplot(window_row, window_col, window_col)
                 plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
                 ax.imshow(mask_combine, interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+                plt.axis('off')
             else:
                 ax = plt.subplot(window_row, window_col, window_col)
                 plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
                 ax.imshow(mask_label[0], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+                plt.axis('off')
 
         # b-3.显示rf_score per class
         for i in range(len(map_dict)):
@@ -612,7 +619,7 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
 
     # c.显示每个grad的mean, 所有rf的grad共用一个最大值
     if AvgFlag == 1:
-        fig = plt.figure(2, figsize=(num_rf + 1, num_class + 1), dpi=120)
+        fig = plt.figure(1, figsize=(num_rf + 1, num_class + 1), dpi=120)
         ax = plt.subplot(num_class + 1, num_rf + 1, 1)
         plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
         ax.imshow(img)  # extent=[0,100,0,100],
@@ -654,6 +661,64 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
 
         plt.savefig(savePath + "heatmap_" + str(save_img_index) + '_4' + '.png', bbox_inches='tight', pad_inches=0, dpi=150)
 
+    # CJY at 2020.2.27
+    if show_mask_label == 1:  # 显示masklabel
+        w = num_class + 1
+        h = 3
+    else:
+        w = num_class + 1
+        h = 2
+
+    fig = plt.figure(2, figsize=(w, h), )  # dpi=120)
+
+    # 显示标签
+    for i in range(1, num_class + 1):
+        # print(i*(num_rf+1) + 1)
+        ax = plt.subplot(h, w, i+1)
+        plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+        ax.imshow(label_dict[i], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+        plt.axis('off')
+
+    # 显示图片
+    ax = plt.subplot(h, w, w + 1)
+    plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+    ax.imshow(img)  # extent=[0,100,0,100],
+    plt.axis('off')
+
+    max = every_rf_logits_absmax[len(every_rf_logits_absmax)-1]
+    seg = rf_score_maps[-1].cpu().detach().numpy()
+    for i in range(num_class):
+        ax = plt.subplot(h, w, w + i + 2)
+        ax.imshow(seg[0][i], interpolation='none', cmap='RdBu_r', vmin=-max, vmax=max)
+        plt.axis('off')
+
+
+    if show_mask_label == 1:  # 显示masklabel
+        mask_combine = np.zeros_like(mask_label[0])
+        if mask_label.shape[0] != 1:
+            for i in range(mask_label.shape[0]):
+                ax = plt.subplot(h, w, 2*w + i + 2)
+                plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+                ax.imshow(mask_label[i], interpolation='none', cmap='RdBu_r', vmin=-1,
+                          vmax=1)  # extent=[0,100,0,100],
+                plt.axis('off')
+                mask_combine = mask_combine | mask_label[i]
+
+            ax = plt.subplot(h, w, 2*w+1)
+            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+            ax.imshow(mask_combine, interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+            plt.axis('off')
+        else:
+            ax = plt.subplot(h, w, 2*w+1)
+            plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
+            ax.imshow(mask_label[0], interpolation='none', cmap='RdBu_r', vmin=-1, vmax=1)  # extent=[0,100,0,100],
+            plt.axis('off')
+
+    plt.savefig(savePath + "heatmap_" + str(save_img_index) + '_5' + '.png', bbox_inches='tight', pad_inches=0,
+                    dpi=150)
+
+
+
     # 记录保存图片的索引的全局变量
     save_img_index = save_img_index + 1
 
@@ -676,16 +741,35 @@ def drawDenseFCMask(img, seg, mask=None):
     img_bgr = cv.merge([b, g, r])
     # cv.imshow("img", img_bgr)
     # cv.waitKey(0)
-    cv.imwrite(savePath + "heatmap_" + "denseFC_" +str(save_img_index) + '_0' + '.png', img_bgr * 255)
+    cv.imwrite(savePath + "heatmap_" +str(save_img_index) + "_denseFC" + '_img' + '.png', img_bgr * 255)
 
     # 2. seg
-    seg = seg[0].cpu().detach().numpy()
-    cv.imwrite(savePath + "heatmap_" + "denseFC_" + str(save_img_index) + '_1' + '.png', seg * 255)
+    if seg.shape[0] == 1:
+        seg = seg[0].cpu().detach().numpy()
+        cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_denseFC" '_seg' +'.png', seg * 255)
+    else:
+        bar = np.ones((seg.shape[1], 5), dtype=np.float32)
+        l = []
+        for i in range(seg.shape[0]):
+            l.append(seg[i].cpu().detach().numpy())
+            s = cv.hconcat(l)
+            l = [s, bar]
+        cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_denseFC" '_seg' + '.png', s * 255)
 
     # 3. mask
     if isinstance(mask, torch.Tensor):
-        mask = mask[0].cpu().detach().numpy()
-        cv.imwrite(savePath + "heatmap_" + "denseFC_" + str(save_img_index) + '_2' + '.png', mask * 255)
+        if mask.shape[0] == 1:
+            mask = mask[0].cpu().detach().numpy()
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_denseFC" + '_mask' + '.png', mask * 255)
+        else:
+            bar = np.ones((mask.shape[1], 5), dtype=np.float32)
+            l = []
+            for i in range(mask.shape[0]):
+                l.append(mask[i].cpu().detach().numpy())
+                m = cv.hconcat(l)
+                l = [m, bar]
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_denseFC" '_mask' + '.png', m * 255)
+
 
     # 记录保存图片的索引的全局变量
     save_img_index = save_img_index + 1

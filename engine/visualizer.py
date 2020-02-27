@@ -67,7 +67,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
                 if model.segmentationType == "denseFC":
                     model.base.showDenseFCMask(model.base.seg_attention, imgs, labels, p_labels,)
-                elif model.segmentationType == "rfLogit":
+                elif model.segmentationType == "bagFeature":
                     model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, )
                 return {"logits": logits, "labels": labels}
 
@@ -77,8 +77,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 logits = model(seg_imgs)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
                 if model.segmentationType == "denseFC":
-                    model.base.showDenseFCMask(model.base.seg_attention, imgs, labels, p_labels, masklabels=seg_masks)
-                elif model.segmentationType == "rfLogit":
+                    model.base.showDenseFCMask(model.base.seg_attention, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
+                elif model.segmentationType == "bagFeature":
                     model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
                 return {"logits": logits, "labels": seg_labels}
 

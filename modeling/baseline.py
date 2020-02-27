@@ -155,7 +155,10 @@ class Baseline(nn.Module):
 
 
     def transmitClassifierWeight(self):   #将线性分类器回传到base中
-        if self.classifierType == "post":
+        if self.classifierType == "normal":
+            self.base.overallClassifierWeight = self.classifier.weight
+            self.base.num_classes = self.num_classes  # 重置新的num-classes
+        elif self.classifierType == "post":
             #self.base.baselineClassifierWeight = self.finalClassifier.weight
             #self.base.baselineClassifierBias = self.finalClassifier.bias
             self.base.overallClassifierWeight = torch.matmul(self.finalClassifier.weight, self.base.classifier.weight)

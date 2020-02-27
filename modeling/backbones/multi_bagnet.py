@@ -333,7 +333,6 @@ class MultiBagNet(nn.Module):
         elif self.outputType == "pre-logit":
             self.gap = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Linear(self.num_features, self.num_classes, bias=False)
-            self.overallClassifierWeight = 1
 
         elif self.outputType == "final-logit":
             self.gap = nn.AdaptiveAvgPool2d(1)
@@ -358,6 +357,8 @@ class MultiBagNet(nn.Module):
         # 设置hook  # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
         if hookType == "rflogitGenerate":
             self.rf_logits_reserve = []
+            self.currentBlockIndex = 0   #用于知道hook提取的module的位置  与hook 配合
+            self.currentLayerIndex = 0
             self.setReductionHook(self.generateRFlogitMap)
         elif hookType == "featureReserve":
             self.features_reserve = []
@@ -380,52 +381,35 @@ class MultiBagNet(nn.Module):
 
 
     def forward(self, x):
+        # 求特征输出
+        features = self.features(x)
+
+        # 分割函数
+        if self.segmentationType == "denseFC":
+            if self.batchDistribution != 0:
+                if self.batchDistribution == 1:
+                    seg_features = features
+                else:
+                    seg_features = features[
+                                   self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+                self.seg_attention = self.densefc_seg(seg_features)
+                self.features_reserve.clear()
+                self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成, 0是全部不生成
+        elif self.segmentationType == "bagFeature":
+            self.generateOverallRFlogitMap()
+            self.currentBlockIndex = 0   #用于知道hook提取的module的位置  与hook 配合
+            self.currentLayerIndex = 0
+            self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成, 0是全部不生成
+
+        # 输出类型
         if self.outputType == "feature":  #不包含分类器，输出特征
-            # 求特征输出
-            features = self.features(x)
-
-            # 分割函数
-            if self.segmentationType == "denseFC":
-                if self.batchDistribution != 0:
-                    if self.batchDistribution == 1:
-                        seg_features = features
-                    else:
-                        seg_features = features[
-                                       self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
-                    self.seg_attention = self.densefc_seg(seg_features)
-                    self.features_reserve.clear()
-                    self.batchDistribution = 0   # 用于确定生成mask的样本数量，如果是1就是全部生成, 0是全部不生成
-
             return features
-
         elif self.outputType == "pre-logit" or self.outputType == "final-logit":  #包含分类器，输出logits
-            if self.hookType == "rflogitGenerate":
-                # 用于与hook 配合
-                self.currentBlockIndex = 0
-                self.currentLayerIndex = 0
-                self.rf_logits_reserve.clear()
-
             # 求特征输出
             features = self.features(x)
             global_feat = self.gap(features)  # (b, ?, 1, 1)
             feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
             final_logits = self.classifier(feat)
-
-            if self.hookType == "rflogitGenerate":
-                self.generateOverallRFlogitMap()
-                self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成
-
-            # 分割函数
-            if self.segmentationType == "denseFC":
-                if self.batchDistribution != 0:
-                    if self.batchDistribution == 1:
-                        seg_features = features
-                    else:
-                        seg_features = features[
-                                       self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
-                    self.seg_attention = self.densefc_seg(seg_features)
-                    self.features_reserve.clear()
-                    self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成
             return final_logits
 
     def make_segmentation_module(self):
@@ -552,6 +536,9 @@ class MultiBagNet(nn.Module):
 
     # forward hook function : 依据每一个layer的输出，依据后续经过的transition线性层计算出最终的logit值
     def generateRFlogitMap(self, module, input, output):
+        if self.currentLayerIndex == 0 and self.currentBlockIndex == 0:   #在第一个模块需要先将self.rf_logits_reserve清空
+            self.rf_logits_reserve.clear()
+
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:
                 output = output[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
@@ -566,13 +553,16 @@ class MultiBagNet(nn.Module):
                 if "transition" in name and "conv" in name and "weight" in name:
                     transitionLayerWeightList.append(parameters)
                     BlockStartPos.append(parameters.shape[0])
-            if self.outputType == "pre-logit" or self.outputType == "final-logit":  # 将最终的线性层也归入到transitionLayer中，其实本质确是相同的
-                if hasattr(self, "overallClassifierWeight") and isinstance(self.overallClassifierWeight, torch.Tensor):
+
+            if self.outputType == "pre-logit" or self.outputType == "feature":  # 将最终的线性层也归入到transitionLayer中，其实本质确是相同的
+                if hasattr(self, "overallClassifierWeight"):
                     classifier_weight = self.overallClassifierWeight
                 else:
-                    classifier_weight = self.classifier.weight
-                transitionLayerWeightList.append(classifier_weight.unsqueeze(-1).unsqueeze(-1))
-                BlockStartPos.append(classifier_weight.shape[0])
+                    raise Exception("Don't pass outside classifier back to baseline!")
+            elif self.outputType == "final-logit" :
+                classifier_weight = self.classifier.weight
+            transitionLayerWeightList.append(classifier_weight.unsqueeze(-1).unsqueeze(-1))
+            BlockStartPos.append(classifier_weight.shape[0])
 
             # 确定module的位置
             # print(self.currentBlockIndex)
@@ -744,7 +734,7 @@ class MultiBagNet(nn.Module):
         pick_logits_dict = self.rankEvidence(show_maps, rank_num_per_class=10)
 
         # 6. 可视化
-        fV.drawRfLogitsMap(show_maps, self.num_classes, pick_logits_dict, EveryMaxFlag=1, OveralMaxFlag=1, AvgFlag=1)
+        fV.drawRfLogitsMap(show_maps, self.num_classes, pick_logits_dict, EveryMaxFlag=0, OveralMaxFlag=0, AvgFlag=0)
 
 
 

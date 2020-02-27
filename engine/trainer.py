@@ -157,6 +157,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 运行模型
         model.transimitBatchDistribution((grade_num, seg_num))
+        if model.segmentation_type == "bagFeature" and model.hook_type == "rflogitGenerate":
+            model.transmitClassifierWeight()
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
 
@@ -246,6 +248,7 @@ def do_train(
     writer_val = SummaryWriter(cfg.SOLVER.OUTPUT_DIR + "/summary/val")
 
     writer_train["graph"] = SummaryWriter(cfg.SOLVER.OUTPUT_DIR + "/summary/train/graph")
+
     try:
         #print(model)
         images, labels = next(iter(train_loader))
@@ -255,6 +258,7 @@ def do_train(
         writer_train["graph"].flush()
     except Exception as e:
         print("Failed to save model graph: {}".format(e))
+
 
 
     # 设置训练相关的metrics

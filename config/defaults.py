@@ -81,7 +81,7 @@ _C.MODEL.FUSION_TYPE = "concat"
 _C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
 # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
 _C.MODEL.HOOK_TYPE = "none"
-# segType "denseFC", "none"
+# segType "denseFC", "bagFeature", "none"
 _C.MODEL.SEGMENTATION_TYPE = "none"
 # seg output channels
 _C.MODEL.SEG_NUM_CLASSES = 1
