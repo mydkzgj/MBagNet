@@ -35,8 +35,8 @@ MODEL:
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"         #"f-c","pl-c","fl-n"
- HOOK_TYPE:  "rflogitGenerate"#"featureReserve"#                                        #"featureReserve","rflogitGenerate","none"
- SEGMENTATION_TYPE:   "bagFeature"# "denseFC"#                     #"denseFC", "bagFeature", "none"
+ HOOK_TYPE:  "featureReserve"#"rflogitGenerate"#                                        #"featureReserve","rflogitGenerate","none"
+ SEGMENTATION_TYPE:   "denseFC"#"bagFeature"#                      #"denseFC", "bagFeature", "none"
  SEG_NUM_CLASSES: 1
 
 # -----------------------------------------------------------------------------

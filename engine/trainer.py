@@ -157,7 +157,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 运行模型
         model.transimitBatchDistribution((grade_num, seg_num))
-        if model.segmentation_type == "bagFeature" and model.hook_type == "rflogitGenerate":
+        if model.segmentationType == "bagFeature" and model.hookType == "rflogitGenerate":
             model.transmitClassifierWeight()
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
