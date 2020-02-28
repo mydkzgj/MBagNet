@@ -108,124 +108,8 @@ class MaskLoss(object):
         pass
 
     def __call__(self, output_mask, seg_mask, seg_label):   #output_mask, seg_mask, seg_label
-        #seg_mask = torch.abs(seg_mask)  #abs
-
+        #  CJY distribution 1
         """
-        N = seg_label.shape[0]
-        csmlist = []
-        for i in range(N):
-            #class_seg_mask_score = seg_mask[i, 0:5]   #取前几维
-            templist = []
-            for j in range(5):
-                if j == seg_label[i].item():
-                    class_seg_mask_score = seg_mask[i, j].unsqueeze(0).unsqueeze(0)
-                else:
-                    class_seg_mask_score = -seg_mask[i, j].unsqueeze(0).unsqueeze(0)
-                templist.append(class_seg_mask_score)
-
-            #class_seg_mask_score = seg_mask[i,seg_label[i]].unsqueeze(0).unsqueeze(0)
-            #class_seg_mask_normal = -seg_mask[i, 0].unsqueeze(0).unsqueeze(0)
-            class_seg_mask_score = torch.cat(templist, dim=1)
-            csmlist.append(class_seg_mask_score)
-
-        csm = torch.cat(csmlist, dim=0)
-        csm_score = torch.tanh(csm)
-
-        label_mask = label_mask.expand(label_mask.shape[0], label_mask.shape[1]*5, label_mask.shape[2], label_mask.shape[3])
-        """
-        """
-        # 依据label_mask对像素进行分组
-        groudtruth_pos_map = label_mask.bool()
-        csm_gpos = csm[groudtruth_pos_map]
-        csm_gneg = csm[groudtruth_pos_map]
-
-        #应该正的值中小于1的值
-        csm_gpos_neg1_index = torch.lt(csm_gpos, 0)
-        csm_gpos_neg1 = csm_gpos[csm_gpos_neg1_index]
-        loss_pos = 1 - csm_gpos_neg1
-
-        #应该负的值中大于0的值
-        csm_gneg_pos0_index = torch.gt(csm_gneg, 0)
-        csm_gneg_pos0 = csm_gpos[csm_gneg_pos0_index]
-        loss_neg = csm_gneg_pos0
-        """
-
-        #loss = F.binary_cross_entropy(csm_score, label_mask, reduction="none")
-
-        #csm_score = torch.sigmoid(seg_mask) #torch.tanh(torch.relu(seg_mask))
-        #loss = F.binary_cross_entropy(csm_score, label_mask, reduction="none")
-
-        #loss_with_pos_weight = loss * (label_mask * 9 + 1)
-
-        """
-
-        #predict_pos_map = torch.gt(csm, 0)
-        groudtruth_pos_map = label_mask.bool()
-        #neg_mask = (~groudtruth_pos_map) & predict_pos_map
-
-        loss_pos = loss[groudtruth_pos_map]
-        #loss_neg = loss[neg_mask]
-        #loss_neg = loss[~groudtruth_pos_map]
-
-        loss_neg = csm_score[~groudtruth_pos_map]
-
-        if loss_pos.shape[0] != 0:
-            loss_pos_mean = torch.mean(loss_pos)
-        else:
-            #print("loss_pos:", loss_pos)
-            loss_pos_mean = 0
-
-        if loss_neg.shape[0] != 0:
-            loss_neg_mean = torch.mean(loss_neg)
-        else:
-            #print("loss_neg:", loss_neg)
-            loss_neg_mean = 0
-
-
-        total_loss = loss_pos_mean + loss_neg_mean
-        """
-        #total_loss = torch.mean(loss_with_pos_weight)
-        """
-        #loss = torch.pow(seg_mask[:, 0:4] - label_mask, 2)
-        #loss = F.binary_cross_entropy_with_logits(seg_mask, label_mask, reduction="none")
-
-        #print(torch.sum(label_mask))
-        #print(torch.sum(1-label_mask))
-        #loss_pos = torch.sum(loss * label_mask) / torch.sum(label_mask)
-        #loss_neg = torch.sum(loss * (1-label_mask)) / torch.sum(1-label_mask)
-        #total_loss = loss_pos + loss_neg
-        #total_loss = torch.sum(loss)
-
-        #loss_with_pos_weight = (label_mask * 49 + 1)
-        #total_loss = torch.mean(loss_with_pos_weight)
-
-        #loss_weight = label_mask/(torch.sum(label_mask)) + (1-label_mask)/(torch.sum(1-label_mask))
-        loss_weight = (label_mask * 49 + 1)
-        loss = loss * loss_weight
-        total_loss = torch.mean(loss)
-
-
-
-
-        #"""
-
-
-        """
-        groudtruth_pos_map = seg_mask.bool()
-        output_mask = torch.pow(output_mask, 2)
-        pos = output_mask[groudtruth_pos_map]
-        neg = output_mask[~groudtruth_pos_map]
-
-        pos_sum = torch.sum(pos)
-        neg_sum = torch.sum(neg)
-
-        total_loss = neg_sum/(pos_sum+neg_sum)
-
-        #loss_weight = label_mask / (torch.sum(label_mask)) + (1 - label_mask) / (torch.sum(1 - label_mask))
-        #loss = torch.pow(seg_mask - label_mask, 2)
-        #total_loss = torch.sum(loss*loss_weight)
-        """
-
         if not isinstance(output_mask, torch.Tensor):
             return 0
 
@@ -233,14 +117,53 @@ class MaskLoss(object):
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
 
         pos_num = torch.sum(seg_mask)
+        pos_loss_map = loss * seg_mask
         if pos_num != 0:
-            pos_loss = torch.sum(loss * seg_mask)/pos_num
+            pos_loss = torch.sum(pos_loss_map)/pos_num
         else:
             pos_loss = 0
 
         neg_num = torch.sum((1 - seg_mask))
+        neg_loss_map = loss * (1 - seg_mask)
         if neg_num != 0:
-            neg_loss = torch.sum(loss * (1-seg_mask))/neg_num
+            neg_loss = torch.sum(neg_loss_map)/neg_num
+        else:
+            neg_loss = 0
+
+        total_loss = pos_loss + neg_loss
+        """
+
+        # 注意：负样本的数量实在太多，会淹没误判的正样本。 所以我认为应该动态的设定总值的范围
+        # 比如以mean来区分难易样本
+        if not isinstance(output_mask, torch.Tensor):
+            return 0
+
+        output_score = torch.sigmoid(output_mask)
+        loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
+
+        pos_num = torch.sum(seg_mask)
+        pos_loss_map = loss * seg_mask
+        pos_loss_map_sum = torch.sum(pos_loss_map)
+        if pos_num != 0:
+            pos_mean = pos_loss_map_sum / pos_num
+            pos_gtmean = torch.sum(torch.gt(pos_loss_map, pos_mean))
+            if pos_gtmean != 0:
+                pos_loss = pos_loss_map_sum/pos_gtmean
+            else:
+                pos_loss = pos_mean
+        else:
+            pos_loss = 0
+
+        neg_num = torch.sum((1 - seg_mask))
+        neg_loss_map = loss * (1 - seg_mask)
+        neg_loss_map_sum = torch.sum(neg_loss_map)
+        if neg_num != 0:
+            neg_mean = neg_loss_map_sum / neg_num
+            neg_gtmean = torch.sum(torch.gt(neg_loss_map, neg_mean))
+            if neg_gtmean != 0:
+                neg_loss = neg_loss_map_sum / neg_gtmean
+            else:
+                neg_loss = neg_mean
         else:
             neg_loss = 0
 
