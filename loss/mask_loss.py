@@ -109,12 +109,14 @@ class MaskLoss(object):
 
     def __call__(self, output_mask, seg_mask, seg_label):   #output_mask, seg_mask, seg_label
         #  CJY distribution 1
-        """
+        #"""
         if not isinstance(output_mask, torch.Tensor):
             return 0
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
+
+        loss_max = torch.max(loss)
 
         pos_num = torch.sum(seg_mask)
         pos_loss_map = loss * seg_mask
@@ -130,9 +132,10 @@ class MaskLoss(object):
         else:
             neg_loss = 0
 
-        total_loss = pos_loss + neg_loss
-        """
+        total_loss = pos_loss + neg_loss + loss_max
+        #"""
 
+        """
         # 注意：负样本的数量实在太多，会淹没误判的正样本。 所以我认为应该动态的设定总值的范围
         # 比如以mean来区分难易样本
         if not isinstance(output_mask, torch.Tensor):
@@ -141,10 +144,6 @@ class MaskLoss(object):
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
 
-        total_loss = torch.max(loss)
-
-
-        """
         pos_num = torch.sum(seg_mask)
         pos_loss_map = loss * seg_mask
         pos_loss_map_sum = torch.sum(pos_loss_map)
