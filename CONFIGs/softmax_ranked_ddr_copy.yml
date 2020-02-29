@@ -31,12 +31,12 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'densenet201'                                         #'densenet121'#'mbagnet121' 
+ NAME: 'mbagnet121'                                         #'densenet121'#'mbagnet121' 
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"         #"f-c","pl-c","fl-n"
- HOOK_TYPE:  "none"#"featureReserve"#"rflogitGenerate"#                                        #"featureReserve","rflogitGenerate","none"
- SEGMENTATION_TYPE:   "none"#"denseFC"#"bagFeature"#                      #"denseFC", "bagFeature", "none"
+ HOOK_TYPE:  "featureReserve"#"rflogitGenerate"#                                        #"featureReserve","rflogitGenerate","none"
+ SEGMENTATION_TYPE:   "denseFC"#"bagFeature"#                      #"denseFC", "bagFeature", "none"
  SEG_NUM_CLASSES: 4
 
 # -----------------------------------------------------------------------------
@@ -108,7 +108,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet201-c1103571.pth'#densenet121-a639ec97.pth'
+  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'  #'./pretrained/densenet201-c1103571.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 

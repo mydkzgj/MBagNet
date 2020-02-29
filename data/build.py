@@ -5,7 +5,7 @@
 """
 
 from .datasets import init_dataset, ImageDataset, SegmentationDataset
-from .samplers import RandomSampler
+from .samplers import RandomSampler, RandomSamplerForSegmentation
 from .transforms import build_transforms, build_seg_transforms
 
 import torchvision
@@ -181,7 +181,9 @@ def make_seg_data_loader(cfg):
     # train_set = ImageDataset(dataset.train, train_transforms)
     train_set = SegmentationDataset(dataset.seg_train, train_transforms, train_mask_transforms, cfg)
     train_loader = DataLoader(
-        train_set, batch_size=cfg.TRAIN.DATALOADER.MASK_PER_BATCH, shuffle=True, num_workers=num_workers,
+        train_set, batch_size=cfg.TRAIN.DATALOADER.MASK_PER_BATCH, num_workers=num_workers, #shuffle=True,
+        # CJY  为了保证类别均衡
+        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, 4, is_train=True),
         collate_fn=collate_fn_seg
     )
 

@@ -32,6 +32,11 @@ def activated_output_transform(output):
     return y_pred, labels_one_hot
 """
 
+TP = 0
+FP = 0
+TN = 0
+FN = 0
+
 def convert_to_one_hot(y, C):
     return np.eye(C)[y.reshape(-1)]
 
@@ -77,6 +82,12 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 logits = model(seg_imgs)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
                 if model.segmentationType == "denseFC":
+                    global TP, FP, TN, FN
+                    tps, fps, tns, fns = computeIOU(model.base.seg_attention.cpu(), seg_masks.cpu())
+                    TP = TP + tps
+                    FP = FP + fps
+                    TN = TN + tns
+                    FN = FN + fns
                     model.base.showDenseFCMask(model.base.seg_attention, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
                 elif model.segmentationType == "bagFeature":
                     model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
@@ -89,6 +100,33 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         metric.attach(engine, name)
 
     return engine
+
+
+
+def computeIOU(seg_map, seg_mask):
+    seg_pmask = torch.gt(torch.sigmoid(seg_map), 0.5)
+    seg_mask = seg_mask.bool()
+
+    tp = (seg_pmask & seg_mask).sum(-1).sum(-1)
+    fp = (seg_pmask & (~seg_mask)).sum(-1).sum(-1)
+    tn = ((~seg_pmask) & (~seg_mask)).sum(-1).sum(-1)
+    fn = ((~seg_pmask) & seg_mask).sum(-1).sum(-1)
+
+    GroundTruth = seg_mask.sum(dim=-1).sum(dim=-1)
+    Accuracy = (tp + tn)/(tp + fp + tn + fn + 1E-12)
+    Precision = tp/(tp + fp + 1E-12)
+    Recall = tp/(tp + fn + 1E-12)
+    IOU = tp/(tp + fp + fn + 1E-12)
+
+    #print("GT:", GroundTruth)
+    #print("Accuracy:" , Accuracy)
+    #print("Precision:", Precision)
+    #print("Recall", Recall)
+    #print("IOU", IOU)
+
+    return tp, fp, tn, fn
+
+
 
 
 def do_visualization(
