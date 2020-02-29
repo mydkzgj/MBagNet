@@ -31,13 +31,13 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'mbagnet121'                                         #'densenet121'#'mbagnet121' 
+ NAME: 'densenet121'                                         #'densenet121'#'mbagnet121' 
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"         #"f-c","pl-c","fl-n"
  HOOK_TYPE:  "featureReserve"#"rflogitGenerate"#                                        #"featureReserve","rflogitGenerate","none"
  SEGMENTATION_TYPE:   "denseFC"#"bagFeature"#                      #"denseFC", "bagFeature", "none"
- SEG_NUM_CLASSES: 1
+ SEG_NUM_CLASSES: 4
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -136,7 +136,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "./work_space/mbagnet121_model_1.pth"
+ WEIGHT: "./work_space/densenet121_model_1.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

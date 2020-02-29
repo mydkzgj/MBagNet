@@ -141,6 +141,10 @@ class MaskLoss(object):
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
 
+        total_loss = torch.max(loss)
+
+
+        """
         pos_num = torch.sum(seg_mask)
         pos_loss_map = loss * seg_mask
         pos_loss_map_sum = torch.sum(pos_loss_map)
@@ -168,6 +172,7 @@ class MaskLoss(object):
             neg_loss = 0
 
         total_loss = pos_loss + neg_loss
+        """
 
         return total_loss
 
