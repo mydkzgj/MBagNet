@@ -98,6 +98,19 @@ class Baseline(nn.Module):
                                    )
             #"""
             self.in_planes = self.base.num_features
+        elif base_name == "densenet201":
+            # self.base = densenet201()
+            # """
+            self.base = mbagnet201(num_classes=self.baseOutChannels,
+                                   preAct=True, fusionType="concat", reduction=1, complexity=0,
+                                   transitionType="non-linear",
+                                   outputType=self.baseOutputType,
+                                   hookType=self.hookType, segmentationType=self.segmentationType,
+                                   seg_num_classes=self.seg_num_classes,
+                                   )
+            # """
+            self.in_planes = self.base.num_features
+
         # 以下为了与multi_bagnet比较所做的调整网络
         elif base_name == "bagnet":
             self.base = bagnet9()
@@ -114,6 +127,16 @@ class Baseline(nn.Module):
                                    transitionType="linear",
                                    outputType=self.baseOutputType,
                                    hookType=self.hookType, segmentationType=self.segmentationType, seg_num_classes=self.seg_num_classes,
+                                   )
+            self.in_planes = self.base.num_features
+
+        elif base_name == "mbagnet201":
+            self.base = mbagnet201(num_classes=self.baseOutChannels,
+                                   preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0,
+                                   transitionType="linear",
+                                   outputType=self.baseOutputType,
+                                   hookType=self.hookType, segmentationType=self.segmentationType,
+                                   seg_num_classes=self.seg_num_classes,
                                    )
             self.in_planes = self.base.num_features
 
