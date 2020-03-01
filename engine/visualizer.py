@@ -40,6 +40,16 @@ FN = 0
 def convert_to_one_hot(y, C):
     return np.eye(C)[y.reshape(-1)]
 
+def computeIOU(seg_map, seg_mask, th=0.5):
+    seg_pmask = torch.gt(torch.sigmoid(seg_map), th)
+    seg_mask = seg_mask.bool()
+
+    tp = (seg_pmask & seg_mask).sum(-1).sum(-1)
+    fp = (seg_pmask & (~seg_mask)).sum(-1).sum(-1)
+    tn = ((~seg_pmask) & (~seg_mask)).sum(-1).sum(-1)
+    fn = ((~seg_pmask) & seg_mask).sum(-1).sum(-1)
+    return tp, fp, tn, fn
+
 
 def create_supervised_visualizer(model, metrics, loss_fn, device=None):
     """
@@ -64,7 +74,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             imgs, labels, seg_imgs, seg_masks, seg_labels = batch
             model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
             model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
-            model.heatmapType = "segmentation"  # "grade", "seg", "none"
+            model.heatmapType = "computeSegMetric"  # "grade", "segmentation", "computeSegMetric"
+
             if model.heatmapType == "grade":
                 imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
                 labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
@@ -82,17 +93,22 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 logits = model(seg_imgs)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
                 if model.segmentationType == "denseFC":
-                    global TP, FP, TN, FN
-                    tps, fps, tns, fns = computeIOU(model.base.seg_attention.cpu(), seg_masks.cpu())
-                    TP = TP + tps
-                    FP = FP + fps
-                    TN = TN + tns
-                    FN = FN + fns
                     model.base.showDenseFCMask(model.base.seg_attention, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
                 elif model.segmentationType == "bagFeature":
                     model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
                 return {"logits": logits, "labels": seg_labels}
 
+            elif model.heatmapType == "computeSegMetric":
+                seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+                seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
+                logits = model(seg_imgs)
+                global TP, FP, TN, FN
+                tps, fps, tns, fns = computeIOU(model.base.seg_attention.cpu(), seg_masks.cpu(), th=0.5)
+                TP = TP + tps
+                FP = FP + fps
+                TN = TN + tns
+                FN = FN + fns
+                return {"logits": logits, "labels": seg_labels}
 
     engine = Engine(_inference)
 
@@ -100,33 +116,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         metric.attach(engine, name)
 
     return engine
-
-
-
-def computeIOU(seg_map, seg_mask):
-    seg_pmask = torch.gt(torch.sigmoid(seg_map), 0.5)
-    seg_mask = seg_mask.bool()
-
-    tp = (seg_pmask & seg_mask).sum(-1).sum(-1)
-    fp = (seg_pmask & (~seg_mask)).sum(-1).sum(-1)
-    tn = ((~seg_pmask) & (~seg_mask)).sum(-1).sum(-1)
-    fn = ((~seg_pmask) & seg_mask).sum(-1).sum(-1)
-
-    GroundTruth = seg_mask.sum(dim=-1).sum(dim=-1)
-    Accuracy = (tp + tn)/(tp + fp + tn + fn + 1E-12)
-    Precision = tp/(tp + fp + 1E-12)
-    Recall = tp/(tp + fn + 1E-12)
-    IOU = tp/(tp + fp + fn + 1E-12)
-
-    #print("GT:", GroundTruth)
-    #print("Accuracy:" , Accuracy)
-    #print("Precision:", Precision)
-    #print("Recall", Recall)
-    #print("IOU", IOU)
-
-    return tp, fp, tn, fn
-
-
 
 
 def do_visualization(
@@ -199,6 +188,36 @@ def do_visualization(
         metrics["recall"] = recall_dict
         metrics["overall_accuracy"] = overall_accuracy
         metrics["confusion_matrix"] = confusion_matrix
+
+        if model.heatmapType == "computeSegMetric":
+            global TP, FP, TN, FN
+            # CJY at 2020.3.1  add seg IOU 等metrics
+            Accuracy = (TP + TN) / (TP + FP + TN + FN + 1E-12)
+            Acc = [Accuracy[0][i].item() for i in range(4)]
+            Acc_mean = (Acc[0] + Acc[1] + Acc[2] + Acc[3]) / 4
+
+            Precision = TP / (TP + FP + 1E-12)
+            Pre = [Precision[0][i].item() for i in range(4)]
+            Pre_mean = (Pre[0] + Pre[1] + Pre[2] + Pre[3]) / 4
+
+            Recall = TP / (TP + FN + 1E-12)
+            Rec = [Recall[0][i].item() for i in range(4)]
+            Rec_mean = (Rec[0] + Rec[1] + Rec[2] + Rec[3]) / 4
+
+            IOU = TP / (TP + FP + FN + 1E-12)
+            IU = [IOU[0][i].item() for i in range(4)]
+            IU_mean = (IU[0] + IU[1] + IU[2] + IU[3]) / 4
+
+            logger.info("Segmentation Metrics")
+            logger.info(
+                "Accuracy : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Acc[0], Acc[1], Acc[2], Acc[3], Acc_mean))
+            logger.info(
+                "Precision: {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Pre[0], Pre[1], Pre[2], Pre[3], Pre_mean))
+            logger.info(
+                "Recall   : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Rec[0], Rec[1], Rec[2], Rec[3], Rec_mean))
+            logger.info(
+                "IOU      : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(IU[0], IU[1], IU[2], IU[3], IU_mean))
+
 
     evaluator.run(test_loader)
     # Draw ConfusionMatrix
