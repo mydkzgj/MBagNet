@@ -59,7 +59,7 @@ def save_class_activation_images(org_img, activation_map, file_name):
         activation_map (numpy arr): Activation map (grayscale) 0-255
         file_name (str): File name of the exported image
     """
-    savepath = './work_space/results'
+    savepath = './work_space/heatmap'
     if not os.path.exists(savepath):
         os.makedirs(savepath)
     # Grayscale activation map
@@ -70,9 +70,9 @@ def save_class_activation_images(org_img, activation_map, file_name):
     # Save heatmap on iamge
     path_to_file = os.path.join(savepath, file_name+'_Cam_On_Image.png')
     save_image(heatmap_on_image, path_to_file)
-    # SAve grayscale heatmap
-    path_to_file = os.path.join(savepath, file_name+'_Cam_Grayscale.png')
-    save_image(activation_map, path_to_file)
+    # Save grayscale heatmap
+    #path_to_file = os.path.join(savepath, file_name+'_Cam_Grayscale.png')
+    #save_image(activation_map, path_to_file)
     # Save ori image
     path_to_file = os.path.join(savepath, file_name+'_Cam_Ori_Image.png')
     save_image(org_img, path_to_file)

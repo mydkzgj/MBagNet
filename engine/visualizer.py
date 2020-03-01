@@ -21,6 +21,8 @@ from utils.plot_ROC import plotROC_OneClass, plotROC_MultiClass
 from utils.draw_ConfusionMatrix import drawConfusionMatrix
 import numpy as np
 
+import utils.featrueVisualization as fv
+
 """
 # pytorch 转换 one-hot 方式 scatter
 def activated_output_transform(output):
@@ -31,6 +33,7 @@ def activated_output_transform(output):
     labels_one_hot.scatter_(1, labels.cpu().unsqueeze(1), 1).cuda()
     return y_pred, labels_one_hot
 """
+
 
 TP = 0
 FP = 0
@@ -74,7 +77,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             imgs, labels, seg_imgs, seg_masks, seg_labels = batch
             model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
             model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
-            model.heatmapType = "computeSegMetric"  # "grade", "segmentation", "computeSegMetric"
+            model.heatmapType = "GradCAM"#"computeSegMetric"  # "grade", "segmentation", "computeSegMetric", "GradCAM"
 
             if model.heatmapType == "grade":
                 imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
@@ -109,6 +112,16 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 TN = TN + tns
                 FN = FN + fns
                 return {"logits": logits, "labels": seg_labels}
+
+        if model.heatmapType == "GradCAM":
+            seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+            seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
+            with torch.no_grad():
+                logits = model(seg_imgs)
+            target_layer = "denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+            fv.showGradCAM(model, seg_imgs, seg_labels, target_layer=target_layer, mask=seg_masks[0])
+
+            return {"logits": logits, "labels": seg_labels}
 
     engine = Engine(_inference)
 

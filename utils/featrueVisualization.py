@@ -307,7 +307,7 @@ def showBagNetEvidence():
     bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
 # CJY Grad-CAM可视化
-def showGradCAM():
+def showGradCAM(model, imgs, labels, target_layer, mask=None):
     # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
     # visualization
     from utils.visualisation.gradcam import GradCam
@@ -315,8 +315,7 @@ def showGradCAM():
     from PIL import Image
     import matplotlib.pyplot as plt
     # Grad cam
-    grad_cam = GradCam(model,
-                       target_layer="denseblock2.denselayer12.conv2")  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+    grad_cam = GradCam(model, target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
     # Generate cam mask
     cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
     # original_image
@@ -329,7 +328,27 @@ def showGradCAM():
     # plt.imshow(img)
     # plt.show()
     # Save mask
-    save_class_activation_images(img, cam, str(engine.state.iteration) + "label" + str(labels[0].item()))
+    global save_img_index
+    save_class_activation_images(img, cam, "heatmap_" + str(save_img_index) + "_GradCAM_Label" + str(labels[0].item()))
+
+    # mask
+    if isinstance(mask, torch.Tensor):
+        if mask.shape[0] == 1:
+            mask = mask[0].cpu().detach().numpy()
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" + '_mask' + '.png', mask * 255)
+        else:
+            bar = np.ones((mask.shape[1], 5), dtype=np.float32)
+            omask = 0
+            l = []
+            for i in range(mask.shape[0]):
+                l.append(mask[i].cpu().detach().numpy())
+                m = cv.hconcat(l)
+                l = [m, bar]
+                omask = 1 - (1 - omask) * (1 - mask[i].cpu().detach().numpy())
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_mask0' + '.png', omask * 255)
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_mask1' + '.png', m * 255)
+
+    save_img_index = save_img_index + 1
     print('Grad cam completed')
 
 
@@ -721,7 +740,6 @@ def drawRfLogitsMap(rf_score_maps, num_class, rank_logits_dict, EveryMaxFlag=1, 
 
     # 记录保存图片的索引的全局变量
     save_img_index = save_img_index + 1
-
 
 
 def drawDenseFCMask(img, seg, mask=None):

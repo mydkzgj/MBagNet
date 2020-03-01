@@ -50,7 +50,7 @@ class CamExtractor():
             Does a forward pass on convolutions, hooks the function at given layer
         """
         for module_name, module in self.model.base.features.named_modules():  #此处的hook比较特殊，因为并非是寻找model的参数的梯度。而是要寻找输出特征的梯度。所以是与输入相关的，不能提前定义
-            if isinstance(module, torch.nn.Conv2d) or isinstance(module, torch.nn.MaxPool2d) or isinstance(module, torch.nn.AvgPool2d) or isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.ReLU):
+            if 1:#isinstance(module, torch.nn.Conv2d) or isinstance(module, torch.nn.MaxPool2d) or isinstance(module, torch.nn.AvgPool2d) or isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.ReLU):
                 #print(module_name)
                 if self.target_module_name == "":
                     module.register_forward_hook(self.set_requires_gradients_firstlayer)
@@ -66,7 +66,7 @@ class CamExtractor():
             Does a full forward pass on the model
         """
         # Forward pass on the convolutions
-        global_feat, final_logits, global_feat = self.model(x)
+        final_logits = self.model(x)
 
         return self.conv_out, final_logits
 
@@ -109,7 +109,7 @@ class GradCam():
             cam += w * target[i, :, :]
 
         #直接对应element-wise 相乘
-        #cam = np.sum(target * guided_gradients, axis=0)
+        cam = np.sum(target * guided_gradients, axis=0)
 
         # 比较一下与logits的差距，毕竟是用线性逼近非线性
         #cam_sum = np.sum(cam, axis=(0,1))
@@ -120,12 +120,14 @@ class GradCam():
         #cam = (cam - np.min(cam)) / (np.max(cam) - np.min(cam))  # Normalize between 0-1
 
         #CJY 用abs来归一化
-        cam = np.maximum(cam, 0)
+        #"""
+        #cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1
         else:
             cam = cam + 0.5
+        #"""
 
         cam = np.uint8(cam * 255)  # Scale between 0-255 to visualize
         cam = np.uint8(Image.fromarray(cam).resize((input_image.shape[2],
