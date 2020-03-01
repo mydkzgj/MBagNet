@@ -137,7 +137,7 @@ class MaskLoss(object):
 
 
         # 注意：负样本的数量实在太多，会淹没误判的正样本。 所以我认为应该动态的设定总值的范围
-        # 比如以mean来区分难易样本
+        # 分区域求均值
         if not isinstance(output_mask, torch.Tensor):
             return 0
 
@@ -146,7 +146,8 @@ class MaskLoss(object):
 
         seg_pmask = torch.gt(output_score, 0.5).float()
 
-        region1 = seg_pmask * seg_mask
+
+        region1 = (1 - seg_pmask) * (1 - seg_mask)
         num1 = torch.sum(region1)
         loss_map1 = loss * region1
         if num1 != 0:
@@ -154,7 +155,7 @@ class MaskLoss(object):
         else:
             loss1 = 0
 
-        region2 = seg_pmask * (1 - seg_mask) + (1 - seg_pmask) * seg_mask
+        region2 = 1 - region1
         num2 = torch.sum(region2)
         loss_map2 = loss * region2
         if num2 != 0:
@@ -162,16 +163,7 @@ class MaskLoss(object):
         else:
             loss2 = 0
 
-        region4 = (1 - seg_pmask) * (1 - seg_mask)
-        num4 = torch.sum(region4)
-        loss_map4 = loss * region4
-        if num4 != 0:
-            loss4 = torch.sum(loss_map4) / num4
-        else:
-            loss4 = 0
-
-        total_loss = loss1 + loss2 + loss4
-
+        total_loss = loss1 + loss2
 
         return total_loss
 
