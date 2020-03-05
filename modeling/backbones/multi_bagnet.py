@@ -433,11 +433,12 @@ class MultiBagNet(nn.Module):
                 'transition%d' % (index)]
 
             # blockUp
+            self.seg_growth_rate = self.growth_rate//4
             blockUp = _MBagBlock(
                 num_layers=num_layers,
                 num_input_features=self.seg_num_features,
                 bn_size=self.bn_size,
-                growth_rate=self.growth_rate,
+                growth_rate=self.seg_growth_rate,
                 drop_rate=self.drop_rate,
                 memory_efficient=self.memory_efficient,
                 preAct=self.preAct,
