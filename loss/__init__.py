@@ -16,6 +16,7 @@ from .margin_loss import MarginLoss
 from .cross_entropy_label_smooth import CrossEntropyLabelSmooth
 from .cross_entropy_multilabel import CrossEntropyMultiLabel
 from .mask_loss import MaskLoss
+from .masked_img_loss import PosMaskedImgLoss, NegMaskedImgLoss
 
 
 
@@ -66,6 +67,12 @@ def make_D_loss(cfg, num_classes):
         elif lossName == "mask_loss":
             mask_loss = MaskLoss()
             lossClasses["mask_loss"] = mask_loss
+        elif lossName == "pos_masked_img_loss":
+            pos_masked_img_loss = PosMaskedImgLoss()
+            lossClasses["pos_masked_img_loss"] = pos_masked_img_loss
+        elif lossName == "neg_masked_img_loss":
+            neg_masked_img_loss = NegMaskedImgLoss()
+            lossClasses["neg_masked_img_loss"] = neg_masked_img_loss
 
         else:
             raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
@@ -78,7 +85,7 @@ def make_D_loss(cfg, num_classes):
     """
 
     #计算loss的函数
-    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None):
+    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None, pos_masked_logit=None, neg_masked_logit=None):
         losses = {}
         for lossName in lossKeys:
             if lossName == "similarity_loss":
@@ -103,6 +110,10 @@ def make_D_loss(cfg, num_classes):
                 losses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss(logit, multilabel)
             elif lossName == "mask_loss":
                 losses["mask_loss"] = mask_loss(output_mask, seg_mask, seg_label)
+            elif lossName == "pos_masked_img_loss":
+                losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
+            elif lossName == "neg_masked_img_loss":
+                losses["neg_masked_img_loss"] = neg_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
             else:
                 raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                                 'but got {}'.format(cfg.LOSS.TYPE))

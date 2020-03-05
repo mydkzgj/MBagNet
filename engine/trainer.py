@@ -159,7 +159,26 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         model.transimitBatchDistribution((grade_num, seg_num))
         if model.segmentationType == "bagFeature" and model.hookType == "rflogitGenerate":
             model.transmitClassifierWeight()
+        elif model.segmentationType == "denseFC":
+            model.tBD = 1
+            model.transimitBatchDistribution(model.tBD)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
+
+        #CJY at 2020.3.5 soft mask 回传
+        if model.segmentationType == "denseFC" and model.tBD == 1:
+            if model.base.seg_attention.shape[1] != 1:
+                attention_mask = torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]
+            else:
+                attention_mask = model.base.seg_attention
+            attention_mask = torch.sigmoid(attention_mask)
+            # img加掩膜  互为补
+            pos_masked_img = attention_mask * imgs
+            neg_masked_img = (1-attention_mask) * imgs
+
+            # 不加hook了
+            pm_logits = model(pos_masked_img)
+            nm_logits = model(neg_masked_img)
+
 
 
         # CJY 利用Grad-CAM生成关注map
@@ -182,14 +201,17 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 op.zero_grad()
 
         if model.segmentationType == "denseFC":
-            output_masks = model.base.seg_attention#seg_gcam
+            if model.tBD == 1:
+                output_masks = model.base.seg_attention[grade_num: grade_num + seg_num]
+            else:
+                output_masks = model.base.seg_attention#seg_gcam
         else:
             output_masks = None
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels)    #损失词典
-        weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":1,}
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits)    #损失词典
+        weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1}
         loss = 0
         for lossKey in losses.keys():
             if lossKey == "cluster_loss":
@@ -306,6 +328,12 @@ def do_train(
         elif lossName == "mask_loss":
             metrics_train["AVG-" + "mask_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["mask_loss"])
+        elif lossName == "pos_masked_img_loss":
+            metrics_train["AVG-" + "pos_masked_img_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["pos_masked_img_loss"])
+        elif lossName == "neg_masked_img_loss":
+            metrics_train["AVG-" + "neg_masked_img_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["neg_masked_img_loss"])
         else:
             raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                             'but got {}'.format(cfg.LOSS.TYPE))
