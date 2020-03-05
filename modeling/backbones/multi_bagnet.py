@@ -454,7 +454,7 @@ class MultiBagNet(nn.Module):
             ('tranconv0',
              nn.ConvTranspose2d(self.seg_num_features, self.seg_num_last_features, kernel_size=3, stride=2, padding=1,
                                 output_padding=1, bias=False)),
-            ('norm0', nn.BatchNorm2d(self.self.seg_num_last_features)),
+            ('norm0', nn.BatchNorm2d(self.seg_num_last_features)),
             ('relu0', nn.ReLU(inplace=True)),
             ('tranconv1',
              nn.ConvTranspose2d(self.seg_num_last_features, self.seg_num_last_features, kernel_size=7, stride=2, padding=3,
