@@ -449,17 +449,18 @@ class MultiBagNet(nn.Module):
             self.seg_num_features = blockUp.out_channels - self.seg_num_features
 
         # lastLayer
+        self.seg_num_last_features = self.num_init_features//8  #缩减8倍
         self.segmentation["last_layer"] = nn.Sequential(OrderedDict([
             ('tranconv0',
-             nn.ConvTranspose2d(self.seg_num_features, self.num_init_features, kernel_size=3, stride=2, padding=1,
+             nn.ConvTranspose2d(self.seg_num_features, self.seg_num_last_features, kernel_size=3, stride=2, padding=1,
                                 output_padding=1, bias=False)),
-            ('norm0', nn.BatchNorm2d(self.num_init_features)),
+            ('norm0', nn.BatchNorm2d(self.self.seg_num_last_features)),
             ('relu0', nn.ReLU(inplace=True)),
             ('tranconv1',
-             nn.ConvTranspose2d(self.num_init_features, self.num_init_features, kernel_size=7, stride=2, padding=3,
+             nn.ConvTranspose2d(self.seg_num_last_features, self.seg_num_last_features, kernel_size=7, stride=2, padding=3,
                                 output_padding=1, bias=False)),
         ]))
-        self.seg_num_features = self.num_init_features
+        self.seg_num_features = self.seg_num_last_features
 
         # descriminator
         self.segmentation["descriminator"] = nn.Conv2d(self.seg_num_features, self.seg_num_classes, kernel_size=1,
