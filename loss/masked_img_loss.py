@@ -127,7 +127,7 @@ class PosMaskedImgLoss(object):
         loss = F.cross_entropy(origin_logits-pos_masked_logits, label, reduction="none")
 
         # 寻找class=5的sample
-        pick_index = torch.ne(label, 5)
+        pick_index = torch.ne(label, 5) & torch.ne(label, 0)
         pick_loss = loss[pick_index]
         total_loss = torch.mean(pick_loss)
 
@@ -160,7 +160,7 @@ class NegMaskedImgLoss(object):
         loss = F.cross_entropy(pos_masked_logits, label, reduction="none")
 
         # 寻找class=5的sample
-        pick_index = torch.ne(label, 5)
+        pick_index = torch.ne(label, 5) & torch.ne(label, 0)
         pick_loss = loss[pick_index]
         total_loss = torch.mean(pick_loss)
 
