@@ -179,6 +179,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             pm_logits = model(pos_masked_img)
             nm_logits = model(neg_masked_img)
 
+            one_hot_labels = torch.nn.functional.one_hot(labels, logits.shape[1]).float()
+            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
+
 
 
         # CJY 利用Grad-CAM生成关注map
@@ -210,7 +213,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits)    #损失词典
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, one_hot_label=one_hot_labels)    #损失词典
         weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":0}
         loss = 0
         for lossKey in losses.keys():

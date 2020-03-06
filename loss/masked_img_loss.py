@@ -108,7 +108,7 @@ class PosMaskedImgLoss(object):
         self.CEL = torch.nn.CrossEntropyLoss()
         pass
 
-    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label):   #output_mask, seg_mask, seg_label
+    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label, one_hot_label):   #output_mask, seg_mask, seg_label
         if not isinstance(pos_masked_logits, torch.Tensor):
             return 0
         # 因为mask主要给的1，2，3，4类的信息，所以只考虑1，2，3，4类
@@ -129,7 +129,7 @@ class NegMaskedImgLoss(object):
         self.CEL = torch.nn.CrossEntropyLoss()
         pass
 
-    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label):   #output_mask, seg_mask, seg_label
+    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label, one_hot_label):   #output_mask, seg_mask, seg_label
         if not isinstance(neg_masked_logits, torch.Tensor):
             return 0
         # 因为mask主要给的1，2，3，4类的信息，所以只考虑1，2，3，4类
