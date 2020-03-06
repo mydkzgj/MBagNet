@@ -109,7 +109,7 @@ class MaskLoss(object):
 
     def __call__(self, output_mask, seg_mask, seg_label):   #output_mask, seg_mask, seg_label
         #  CJY distribution 1
-        """
+        #"""
         if not isinstance(output_mask, torch.Tensor):
             return 0
 
@@ -133,9 +133,10 @@ class MaskLoss(object):
             neg_loss = 0
 
         total_loss = pos_loss + neg_loss #+ loss_max
+        #"""
+
+        # CJY d2
         """
-
-
         # 注意：负样本的数量实在太多，会淹没误判的正样本。 所以我认为应该动态的设定总值的范围
         # 分区域求均值
         if not isinstance(output_mask, torch.Tensor):
@@ -164,6 +165,7 @@ class MaskLoss(object):
             loss2 = 0
 
         total_loss = loss1 + loss2
+        #"""
 
         return total_loss
 
