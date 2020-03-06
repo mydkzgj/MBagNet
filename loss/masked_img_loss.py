@@ -133,11 +133,11 @@ class NegMaskedImgLoss(object):
         if not isinstance(neg_masked_logits, torch.Tensor):
             return 0
         # 因为mask主要给的1，2，3，4类的信息，所以只考虑1，2，3，4类
-        
+
         ori_logits = origin_logits[:, 1:5]
 
         nm_logits = neg_masked_logits[:, 1:5]
-        nd_logits = torch.abs(nm_logits)/torch.abs(ori_logits).clamp(min=1E-12)
+        nd_logits = torch.abs(nm_logits) #/torch.abs(ori_logits).clamp(min=1E-12)
         neg_loss = torch.mean(nd_logits)
 
         total_loss = neg_loss
