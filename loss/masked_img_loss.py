@@ -134,13 +134,16 @@ class NegMaskedImgLoss(object):
             return 0
         # 因为mask主要给的1，2，3，4类的信息，所以只考虑1，2，3，4类
 
-        ori_logits = origin_logits[:, 1:5]
+        #ori_logits = origin_logits[:, 1:5]
 
-        nm_logits = neg_masked_logits[:, 1:5]
-        nd_logits = torch.abs(nm_logits) #/torch.abs(ori_logits).clamp(min=1E-12)
-        neg_loss = torch.mean(nd_logits)
+        #nm_logits = neg_masked_logits[:, 1:5]
+        #nd_logits = torch.abs(nm_logits) #/torch.abs(ori_logits).clamp(min=1E-12)
+        #neg_loss = torch.mean(nd_logits)
 
-        total_loss = neg_loss
+        #total_loss = neg_loss
+
+        # neg 先全都不要了，仅仅是那这个函数去计算pos产生的logits的cross——entropy——loss
+        total_loss = self.CEL(pos_masked_logits, label)
 
 
         return total_loss

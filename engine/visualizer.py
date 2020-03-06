@@ -77,7 +77,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             imgs, labels, seg_imgs, seg_masks, seg_labels = batch
             model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
             model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
-            model.heatmapType = "GradCAM"#"computeSegMetric"  # "grade", "segmentation", "computeSegMetric", "GradCAM"
+            model.heatmapType = "grade"#"GradCAM"#"computeSegMetric"  # "grade", "segmentation", "computeSegMetric", "GradCAM"
 
             if model.heatmapType == "grade":
                 imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
