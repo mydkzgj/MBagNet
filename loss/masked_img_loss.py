@@ -147,15 +147,21 @@ class NegMaskedImgLoss(object):
         if not isinstance(neg_masked_logits, torch.Tensor):
             return 0
         # 因为mask主要给的1，2，3，4类的信息，所以只考虑1，2，3，4类
+        num_ori = origin_logits.shape[0]
+        num_s = pos_masked_logits.shape[0]
+        origin_logits = origin_logits[num_ori - num_s:num_ori]
+        label = label[num_ori - num_s:num_ori]
 
         #ori_logits = origin_logits[:, 1:5]
 
-        #nm_logits = neg_masked_logits[:, 1:5]
-        #nd_logits = torch.abs(nm_logits) #/torch.abs(ori_logits).clamp(min=1E-12)
-        #neg_loss = torch.mean(nd_logits)
+        nm_logits = neg_masked_logits[one_hot_label.bool()]
+        nd_logits = torch.abs(nm_logits) #/torch.abs(ori_logits).clamp(min=1E-12)
+        neg_loss = torch.mean(nd_logits)
 
-        #total_loss = neg_loss
+        total_loss = neg_loss
 
+        # CJY 2
+        """
         # neg 先全都不要了，仅仅是那这个函数去计算pos产生的logits的cross——entropy——loss
         # 由于病灶只跟正常和有病灶相关，所以只跟前几维做loss
         # 去掉batch中的最后类的样本
@@ -170,6 +176,7 @@ class NegMaskedImgLoss(object):
         #pick_index = torch.ne(label, 5)# & torch.ne(label, 0)
         pick_loss = loss#[pick_index]
         total_loss = torch.mean(pick_loss)
+        """
 
         return total_loss
 

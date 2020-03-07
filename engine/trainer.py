@@ -160,7 +160,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if model.segmentationType == "bagFeature" and model.hookType == "rflogitGenerate":
             model.transmitClassifierWeight()
         elif model.segmentationType == "denseFC":
-            model.tBD = (grade_num-0, seg_num+0)
+            model.tBD = (grade_num, seg_num)
             model.transimitBatchDistribution(model.tBD)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
