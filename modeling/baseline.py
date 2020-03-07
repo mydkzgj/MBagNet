@@ -197,13 +197,44 @@ class Baseline(nn.Module):
             global_feat = self.gap(base_out)  # (b, ?, 1, 1)
             feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
             final_logits = self.classifier(feat)
+
+            if self.segmentationType == "denseFC":
+                if self.tBD == 1:
+                    simgs = x
+                    slabels = x
+                else:
+                    simgs = imgs[model.tBD[0]:model.tBD[0] + model.tBD[1]]
+                    slabels = labels[model.tBD[0]:model.tBD[0] + model.tBD[1]]
+                if self.base.seg_attention.shape[1] != 1:
+                    attention_mask = torch.max(self.base.seg_attention, dim=1, keepdim=True)[0]
+                else:
+                    attention_mask = self.base.seg_attention
+                attention_mask = torch.sigmoid(attention_mask)
+                # attention_mask = torch.nn.functional.max_pool2d(attention_mask, kernel_size=20, stride=1)
+                # img加掩膜  互为补
+                pos_masked_img = attention_mask * simgs
+                neg_masked_img = (1 - attention_mask) * simgs
+
+                # 不加hook了
+                base_out1 = self.base(pos_masked_img)
+                global_feat1 = self.gap(base_out1)  # (b, ?, 1, 1)
+                feat1 = global_feat1.view(global_feat1.shape[0], -1)  # flatten to (bs, 2048)
+                pm_logits = self.classifier(feat1)
+
+                base_out2 = self.base(neg_masked_img)
+                global_feat2 = self.gap(base_out2)  # (b, ?, 1, 1)
+                feat2 = global_feat2.view(global_feat2.shape[0], -1)  # flatten to (bs, 2048)
+                nm_logits = self.classifier(feat2)
+
+
+
         elif self.classifierType == "post":
             logits = self.base(x)
             final_logits = self.finalClassifier(logits)
         elif self.classifierType == "none":
             final_logits = self.base(x)
 
-        return final_logits   # 其他参数可以用model的成员变量来传递
+        return final_logits, pm_logits, nm_logits   # 其他参数可以用model的成员变量来传递
 
 
     # 载入参数
