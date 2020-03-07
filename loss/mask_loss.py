@@ -113,7 +113,7 @@ class MaskLoss(object):
         if not isinstance(output_mask, torch.Tensor):
             return 0
 
-        output_mask = output_mask[:, 0:4]
+        #output_mask = output_mask[:, 0:4]
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
