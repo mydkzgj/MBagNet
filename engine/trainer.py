@@ -160,26 +160,33 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if model.segmentationType == "bagFeature" and model.hookType == "rflogitGenerate":
             model.transmitClassifierWeight()
         elif model.segmentationType == "denseFC":
-            model.tBD = 1
+            model.tBD = (grade_num-2, seg_num+2)
             model.transimitBatchDistribution(model.tBD)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
         #CJY at 2020.3.5 soft mask 回传
-        if model.segmentationType == "denseFC" and model.tBD == 1:
+        if model.segmentationType == "denseFC":
+            if model.tBD == 1:
+                simgs = imgs
+                slabels = labels
+            else:
+                simgs = imgs[model.tBD[0]:model.tBD[0]+model.tBD[1]]
+                slabels = labels[model.tBD[0]:model.tBD[0]+model.tBD[1]]
+
             if model.base.seg_attention.shape[1] != 1:
                 attention_mask = torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]
             else:
                 attention_mask = model.base.seg_attention
             attention_mask = torch.sigmoid(attention_mask)
             # img加掩膜  互为补
-            pos_masked_img = attention_mask * imgs
-            neg_masked_img = (1-attention_mask) * imgs
+            pos_masked_img = attention_mask * simgs
+            neg_masked_img = (1-attention_mask) * simgs
 
             # 不加hook了
             pm_logits = model(pos_masked_img)
             nm_logits = model(neg_masked_img)
 
-            one_hot_labels = torch.nn.functional.one_hot(labels, logits.shape[1]).float()
+            one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
 
 
@@ -202,10 +209,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             seg_gcam = gcam[grade_num:grade_num+seg_num]
             for op in optimizers:
                 op.zero_grad()
-
         if model.segmentationType == "denseFC":
-            if model.tBD == 1:
-                output_masks = model.base.seg_attention[grade_num: grade_num + seg_num]
+            num_sa = model.base.seg_attention.shape[0]
+            if num_sa != seg_num:
+                output_masks = model.base.seg_attention[num_sa-seg_num: num_sa]
             else:
                 output_masks = model.base.seg_attention#seg_gcam
         else:

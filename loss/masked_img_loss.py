@@ -122,13 +122,17 @@ class PosMaskedImgLoss(object):
 
         total_loss = pos_loss
         #"""
+        num_ori = origin_logits.shape[0]
+        num_s = pos_masked_logits.shape[0]
+        origin_logits = origin_logits[num_ori-num_s:num_ori]
+        label = label[num_ori-num_s:num_ori]
 
 
         loss = F.cross_entropy(origin_logits-pos_masked_logits, label, reduction="none")
 
         # 寻找class=5的sample
-        #pick_index = torch.ne(label, 5) & torch.ne(label, 0)
-        pick_loss = loss#[pick_index]
+        pick_index = torch.ne(label, 5) & torch.ne(label, 0)
+        pick_loss = loss[pick_index]
         total_loss = torch.mean(pick_loss)
 
         return total_loss
@@ -155,13 +159,16 @@ class NegMaskedImgLoss(object):
         # neg 先全都不要了，仅仅是那这个函数去计算pos产生的logits的cross——entropy——loss
         # 由于病灶只跟正常和有病灶相关，所以只跟前几维做loss
         # 去掉batch中的最后类的样本
-
+        num_ori = origin_logits.shape[0]
+        num_s = pos_masked_logits.shape[0]
+        origin_logits = origin_logits[num_ori - num_s:num_ori]
+        label = label[num_ori - num_s:num_ori]
 
         loss = F.cross_entropy(pos_masked_logits, label, reduction="none")
 
         # 寻找class=5的sample
-        #pick_index = torch.ne(label, 5) & torch.ne(label, 0)
-        pick_loss = loss#[pick_index]
+        pick_index = torch.ne(label, 5) & torch.ne(label, 0)
+        pick_loss = loss[pick_index]
         total_loss = torch.mean(pick_loss)
 
         return total_loss
