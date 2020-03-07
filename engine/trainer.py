@@ -164,14 +164,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.transimitBatchDistribution(model.tBD)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
-        if model.segmentationType == "denseFC":
-            num_sa = model.base.seg_attention.shape[0]
-            if num_sa != seg_num:
-                output_masks = model.base.seg_attention[num_sa-seg_num: num_sa]
-            else:
-                output_masks = model.base.seg_attention#seg_gcam
-        else:
-            output_masks = None
+
 
         #CJY at 2020.3.5 soft mask 回传
         #"""
@@ -225,6 +218,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             for op in optimizers:
                 op.zero_grad()
 
+        if model.segmentationType == "denseFC":
+            num_sa = model.base.seg_attention.shape[0]
+            if num_sa != seg_num:
+                output_masks = model.base.seg_attention[num_sa-seg_num: num_sa]
+            else:
+                output_masks = model.base.seg_attention#seg_gcam
+        else:
+            output_masks = None
 
 
         # 计算loss
