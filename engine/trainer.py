@@ -186,14 +186,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             neg_masked_img = (1-attention_mask) * simgs
 
             # 不加hook了
-            #pm_logits = model(pos_masked_img)
+            pm_logits = model(pos_masked_img)
             #nm_logits = model(neg_masked_img)
 
             one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
         #"""
         pm_logits = None
-        nm_logits = None
+        #nm_logits = None
         #one_hot_labels = None
 
 
