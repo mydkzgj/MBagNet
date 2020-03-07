@@ -172,6 +172,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 # simgs = imgs[model.tBD[0]:model.tBD[0] + model.tBD[1]]
                 slabels = labels[model.tBD[0]:model.tBD[0] + model.tBD[1]]
 
+            one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
+            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
+
         #CJY at 2020.3.5 soft mask 回传
         """
         if model.segmentationType == "denseFC":
