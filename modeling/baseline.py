@@ -199,7 +199,7 @@ class Baseline(nn.Module):
             final_logits = self.classifier(feat)
 
             if self.segmentationType == "denseFC" and hasattr(self.base, "seg_attention"):
-                if self.tBD == 0:
+                if self.tBD != 0:
                     if self.tBD == 1:
                         simgs = x
                         # slabels = x
