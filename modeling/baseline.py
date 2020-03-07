@@ -199,34 +199,35 @@ class Baseline(nn.Module):
             final_logits = self.classifier(feat)
 
             if self.segmentationType == "denseFC" and hasattr(self.base, "seg_attention"):
-                self.tBD = (6,1)
-                if self.tBD == 1:
-                    simgs = x
-                    #slabels = x
-                else:
-                    simgs = x[self.tBD[0]:self.tBD[0] + self.tBD[1]]
-                    #slabels = labels[self.tBD[0]:self.tBD[0] + self.tBD[1]]
-                if self.base.seg_attention.shape[1] != 1:
-                    attention_mask = torch.max(self.base.seg_attention, dim=1, keepdim=True)[0]
-                else:
-                    attention_mask = self.base.seg_attention
-                attention_mask = torch.sigmoid(attention_mask)
-                # attention_mask = torch.nn.functional.max_pool2d(attention_mask, kernel_size=20, stride=1)
-                # img加掩膜  互为补
-                pos_masked_img = attention_mask * simgs
-                neg_masked_img = (1 - attention_mask) * simgs
+                if self.tBD == 0:
+                    if self.tBD == 1:
+                        simgs = x
+                        # slabels = x
+                    else:
+                        simgs = x[self.tBD[0]:self.tBD[0] + self.tBD[1]]
+                        # slabels = labels[self.tBD[0]:self.tBD[0] + self.tBD[1]]
+                    if self.base.seg_attention.shape[1] != 1:
+                        attention_mask = torch.max(self.base.seg_attention, dim=1, keepdim=True)[0]
+                    else:
+                        attention_mask = self.base.seg_attention
+                    attention_mask = torch.sigmoid(attention_mask)
+                    # attention_mask = torch.nn.functional.max_pool2d(attention_mask, kernel_size=20, stride=1)
+                    # img加掩膜  互为补
+                    pos_masked_img = attention_mask * simgs
+                    neg_masked_img = (1 - attention_mask) * simgs
 
-                # 不加hook了
-                #base_out1 = self.base(pos_masked_img)
-                #global_feat1 = self.gap(base_out1)  # (b, ?, 1, 1)
-                #feat1 = global_feat1.view(global_feat1.shape[0], -1)  # flatten to (bs, 2048)
-                #self.pm_logits = self.classifier(feat1)
-                self.pm_logits = None
+                    # 不加hook了
+                    # base_out1 = self.base(pos_masked_img)
+                    # global_feat1 = self.gap(base_out1)  # (b, ?, 1, 1)
+                    # feat1 = global_feat1.view(global_feat1.shape[0], -1)  # flatten to (bs, 2048)
+                    # self.pm_logits = self.classifier(feat1)
+                    self.pm_logits = None
 
-                base_out2 = self.base(neg_masked_img)
-                global_feat2 = self.gap(base_out2)  # (b, ?, 1, 1)
-                feat2 = global_feat2.view(global_feat2.shape[0], -1)  # flatten to (bs, 2048)
-                self.nm_logits = self.classifier(feat2)
+                    base_out2 = self.base(neg_masked_img)
+                    global_feat2 = self.gap(base_out2)  # (b, ?, 1, 1)
+                    feat2 = global_feat2.view(global_feat2.shape[0], -1)  # flatten to (bs, 2048)
+                    self.nm_logits = self.classifier(feat2)
+
 
 
 
