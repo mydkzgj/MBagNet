@@ -164,8 +164,17 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.transimitBatchDistribution(model.tBD)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
+        if model.segmentationType == "denseFC":
+            num_sa = model.base.seg_attention.shape[0]
+            if num_sa != seg_num:
+                output_masks = model.base.seg_attention[num_sa-seg_num: num_sa]
+            else:
+                output_masks = model.base.seg_attention#seg_gcam
+        else:
+            output_masks = None
+
         #CJY at 2020.3.5 soft mask 回传
-        """
+        #"""
         if model.segmentationType == "denseFC":
             if model.tBD == 1:
                 simgs = imgs
@@ -179,7 +188,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             else:
                 attention_mask = model.base.seg_attention
             attention_mask = torch.sigmoid(attention_mask)
-            attention_mask = torch.nn.functional.max_pool2d(attention_mask, kernel_size=20, stride=1)
+            #attention_mask = torch.nn.functional.max_pool2d(attention_mask, kernel_size=20, stride=1)
             # img加掩膜  互为补
             pos_masked_img = attention_mask * simgs
             neg_masked_img = (1-attention_mask) * simgs
@@ -190,10 +199,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
-        """
-        pm_logits = None
-        nm_logits = None
-        one_hot_labels = None
+        #"""
+        #pm_logits = None
+        #nm_logits = None
+        #one_hot_labels = None
 
 
 
@@ -215,14 +224,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             seg_gcam = gcam[grade_num:grade_num+seg_num]
             for op in optimizers:
                 op.zero_grad()
-        if model.segmentationType == "denseFC":
-            num_sa = model.base.seg_attention.shape[0]
-            if num_sa != seg_num:
-                output_masks = model.base.seg_attention[num_sa-seg_num: num_sa]
-            else:
-                output_masks = model.base.seg_attention#seg_gcam
-        else:
-            output_masks = None
+
+
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
