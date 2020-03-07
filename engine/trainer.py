@@ -165,6 +165,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
         #CJY at 2020.3.5 soft mask 回传
+        """
         if model.segmentationType == "denseFC":
             if model.tBD == 1:
                 simgs = imgs
@@ -178,6 +179,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             else:
                 attention_mask = model.base.seg_attention
             attention_mask = torch.sigmoid(attention_mask)
+            attention_mask = torch.nn.functional.max_pool2d(attention_mask, kernel_size=20, stride=1)
             # img加掩膜  互为补
             pos_masked_img = attention_mask * simgs
             neg_masked_img = (1-attention_mask) * simgs
@@ -188,6 +190,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
+        """
+        pm_logits = None
+        nm_logits = None
+        one_hot_labels = None
 
 
 
