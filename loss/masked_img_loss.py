@@ -111,17 +111,25 @@ class PosMaskedImgLoss(object):
     def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label, one_hot_label):   #output_mask, seg_mask, seg_label
         if not isinstance(pos_masked_logits, torch.Tensor):
             return 0
-        """
+        #"""
         # 因为mask主要给的1，2，3，4类的信息，所以只考虑1，2，3，4类
-        ori_logits = origin_logits[:, 1:5]
+        num_ori = origin_logits.shape[0]
+        num_s = pos_masked_logits.shape[0]
+        origin_logits = origin_logits[num_ori - num_s:num_ori]
+        label = label[num_ori - num_s:num_ori]
+
 
         #pos_mask
-        pm_logits = pos_masked_logits[:, 1:5]
+        ori_logits = origin_logits[one_hot_label.bool()]
+        pm_logits = pos_masked_logits[one_hot_label.bool()]
         pd_logits = torch.abs(pm_logits - ori_logits)  #/torch.abs(ori_logits).clamp(min=1E-12)    #相对距离
         pos_loss = torch.mean(pd_logits)
 
         total_loss = pos_loss
         #"""
+
+        """
+        #CJY 2
         num_ori = origin_logits.shape[0]
         num_s = pos_masked_logits.shape[0]
         origin_logits = origin_logits[num_ori-num_s:num_ori]
@@ -134,6 +142,7 @@ class PosMaskedImgLoss(object):
         #pick_index = torch.ne(label, 5) #& torch.ne(label, 0)
         pick_loss = loss#[pick_index]
         total_loss = torch.mean(pick_loss)
+        #"""
 
         return total_loss
 

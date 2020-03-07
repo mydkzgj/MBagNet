@@ -433,7 +433,7 @@ class MultiBagNet(nn.Module):
                 'transition%d' % (index)]
 
             # blockUp
-            self.seg_growth_rate = self.growth_rate#//4
+            self.seg_growth_rate = self.growth_rate//4
             blockUp = _MBagBlock(
                 num_layers=num_layers,
                 num_input_features=self.seg_num_features,
@@ -450,7 +450,7 @@ class MultiBagNet(nn.Module):
             self.seg_num_features = blockUp.out_channels - self.seg_num_features
 
         # lastLayer
-        self.seg_num_last_features = self.num_init_features#//8  #缩减8倍
+        self.seg_num_last_features = self.num_init_features//8  #缩减8倍
         self.segmentation["last_layer"] = nn.Sequential(OrderedDict([
             ('tranconv0',
              nn.ConvTranspose2d(self.seg_num_features, self.seg_num_last_features, kernel_size=3, stride=2, padding=1,
