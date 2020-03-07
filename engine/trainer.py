@@ -192,8 +192,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
         #"""
-        pm_logits = None
-        #nm_logits = None
+        #pm_logits = None
+        nm_logits = None
         #one_hot_labels = None
 
 
