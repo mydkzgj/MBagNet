@@ -201,10 +201,10 @@ class Baseline(nn.Module):
             if self.segmentationType == "denseFC":
                 if self.tBD == 1:
                     simgs = x
-                    slabels = x
+                    #slabels = x
                 else:
-                    simgs = imgs[model.tBD[0]:model.tBD[0] + model.tBD[1]]
-                    slabels = labels[model.tBD[0]:model.tBD[0] + model.tBD[1]]
+                    simgs = x[self.tBD[0]:self.tBD[0] + self.tBD[1]]
+                    #slabels = labels[self.tBD[0]:self.tBD[0] + self.tBD[1]]
                 if self.base.seg_attention.shape[1] != 1:
                     attention_mask = torch.max(self.base.seg_attention, dim=1, keepdim=True)[0]
                 else:

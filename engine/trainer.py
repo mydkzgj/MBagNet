@@ -164,6 +164,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.transimitBatchDistribution(model.tBD)
         logits, pm_logits, nm_logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
+        if model.segmentationType == "denseFC":
+            if model.tBD == 1:
+                # simgs = imgs
+                slabels = labels
+            else:
+                # simgs = imgs[model.tBD[0]:model.tBD[0] + model.tBD[1]]
+                slabels = labels[model.tBD[0]:model.tBD[0] + model.tBD[1]]
+
         #CJY at 2020.3.5 soft mask 回传
         """
         if model.segmentationType == "denseFC":
