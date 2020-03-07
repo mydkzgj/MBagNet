@@ -464,7 +464,7 @@ class MultiBagNet(nn.Module):
         self.seg_num_features = self.seg_num_last_features
 
         # descriminator
-        self.segmentation["descriminator"] = nn.Conv2d(self.seg_num_features, self.seg_num_classes, kernel_size=1,
+        self.segmentation["descriminator"] = nn.Conv2d(self.seg_num_features, self.seg_num_classes+1, kernel_size=1,
                                                        bias=False)
 
     def densefc_seg(self, features):
