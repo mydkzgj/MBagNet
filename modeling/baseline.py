@@ -199,6 +199,7 @@ class Baseline(nn.Module):
             final_logits = self.classifier(feat)
 
             if self.segmentationType == "denseFC":
+                self.tBD = (6,1)
                 if self.tBD == 1:
                     simgs = x
                     #slabels = x
