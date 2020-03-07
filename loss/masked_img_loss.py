@@ -157,7 +157,7 @@ class NegMaskedImgLoss(object):
             return 0
         # 因为mask主要给的1，2，3，4类的信息，所以只考虑1，2，3，4类
         num_ori = origin_logits.shape[0]
-        num_s = pos_masked_logits.shape[0]
+        num_s = neg_masked_logits.shape[0]
         origin_logits = origin_logits[num_ori - num_s:num_ori]
         label = label[num_ori - num_s:num_ori]
 

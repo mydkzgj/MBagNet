@@ -217,10 +217,11 @@ class Baseline(nn.Module):
                 neg_masked_img = (1 - attention_mask) * simgs
 
                 # 不加hook了
-                base_out1 = self.base(pos_masked_img)
-                global_feat1 = self.gap(base_out1)  # (b, ?, 1, 1)
-                feat1 = global_feat1.view(global_feat1.shape[0], -1)  # flatten to (bs, 2048)
-                self.pm_logits = self.classifier(feat1)
+                #base_out1 = self.base(pos_masked_img)
+                #global_feat1 = self.gap(base_out1)  # (b, ?, 1, 1)
+                #feat1 = global_feat1.view(global_feat1.shape[0], -1)  # flatten to (bs, 2048)
+                #self.pm_logits = self.classifier(feat1)
+                self.pm_logits = None
 
                 base_out2 = self.base(neg_masked_img)
                 global_feat2 = self.gap(base_out2)  # (b, ?, 1, 1)
