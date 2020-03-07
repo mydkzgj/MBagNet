@@ -160,7 +160,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if model.segmentationType == "bagFeature" and model.hookType == "rflogitGenerate":
             model.transmitClassifierWeight()
         elif model.segmentationType == "denseFC":
-            model.tBD = (grade_num-1, seg_num+1)
+            model.tBD = (grade_num-0, seg_num+0)
             model.transimitBatchDistribution(model.tBD)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
@@ -221,7 +221,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, one_hot_label=one_hot_labels)    #损失词典
-        weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":0, "pos_masked_img_loss":0, "neg_masked_img_loss":1}
+        weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":1}
         loss = 0
         for lossKey in losses.keys():
             if lossKey == "cluster_loss":
