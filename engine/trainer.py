@@ -164,6 +164,24 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.transimitBatchDistribution(model.tBD)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
 
+        if model.segmentationType == "denseFC":
+            num_sa = model.base.seg_attention.shape[0]
+            if num_sa != seg_num:
+                output_masks = model.base.seg_attention[num_sa-seg_num: num_sa]
+            else:
+                output_masks = model.base.seg_attention#seg_gcam
+        else:
+            output_masks = None
+
+
+        # 计算loss
+        #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, )    #损失词典
+
+        l = losses["cross_entropy_loss"] / model.accumulation_steps
+        # 反向传播
+        l.backward()
+
 
         #CJY at 2020.3.5 soft mask 回传
         #"""
@@ -187,13 +205,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             # 不加hook了
             pm_logits = model(pos_masked_img)
-            #nm_logits = model(neg_masked_img)
+            nm_logits = model(neg_masked_img)
 
             one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
         #"""
         #pm_logits = None
-        nm_logits = None
+        #nm_logits = None
         #one_hot_labels = None
 
 
@@ -230,7 +248,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, one_hot_label=one_hot_labels)    #损失词典
-        weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":0}
+        weight = {"cross_entropy_loss":0, "ranked_loss":1, 'similarity_loss':1, "mask_loss":0, "pos_masked_img_loss":0, "neg_masked_img_loss":0}
         loss = 0
         for lossKey in losses.keys():
             if lossKey == "cluster_loss":
