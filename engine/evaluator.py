@@ -62,7 +62,7 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
             labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
 
             #model.transimitBatchDistribution(1)
-            logits, pm_logits, nm_logits = model(imgs)
+            logits = model(imgs)
 
             return {"logits": logits, "labels": labels}
 

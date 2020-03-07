@@ -198,7 +198,7 @@ class Baseline(nn.Module):
             feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
             final_logits = self.classifier(feat)
 
-            if self.segmentationType == "denseFC":
+            if self.segmentationType == "denseFC" and hasattr(self.base, "seg_attention"):
                 self.tBD = (6,1)
                 if self.tBD == 1:
                     simgs = x
@@ -220,12 +220,12 @@ class Baseline(nn.Module):
                 base_out1 = self.base(pos_masked_img)
                 global_feat1 = self.gap(base_out1)  # (b, ?, 1, 1)
                 feat1 = global_feat1.view(global_feat1.shape[0], -1)  # flatten to (bs, 2048)
-                pm_logits = self.classifier(feat1)
+                self.pm_logits = self.classifier(feat1)
 
                 base_out2 = self.base(neg_masked_img)
                 global_feat2 = self.gap(base_out2)  # (b, ?, 1, 1)
                 feat2 = global_feat2.view(global_feat2.shape[0], -1)  # flatten to (bs, 2048)
-                nm_logits = self.classifier(feat2)
+                self.nm_logits = self.classifier(feat2)
 
 
 
@@ -235,7 +235,7 @@ class Baseline(nn.Module):
         elif self.classifierType == "none":
             final_logits = self.base(x)
 
-        return final_logits, pm_logits, nm_logits   # 其他参数可以用model的成员变量来传递
+        return final_logits   # 其他参数可以用model的成员变量来传递
 
 
     # 载入参数
