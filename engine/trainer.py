@@ -180,7 +180,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         l = losses["cross_entropy_loss"] / model.accumulation_steps
         # 反向传播
-        l.backward()
+        l.backward(retain_graph=True)
 
 
         #CJY at 2020.3.5 soft mask 回传
