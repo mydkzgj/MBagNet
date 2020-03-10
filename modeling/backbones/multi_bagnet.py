@@ -493,7 +493,6 @@ class MultiBagNet(nn.Module):
             elif "descriminator" in name:
                 out = self.segmentation[name](features)
 
-
         return out
 
     def showDenseFCMask(self, seg_attention, imgs, labels, p_labels, masklabels=None, sample_index=0):

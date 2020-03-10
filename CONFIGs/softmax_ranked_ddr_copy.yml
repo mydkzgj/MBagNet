@@ -39,7 +39,8 @@ MODEL:
  SEGMENTATION_TYPE:  "denseFC"#"bagFeature"#                      #"denseFC", "bagFeature", "none"
  SEG_NUM_CLASSES: 4 
  MASKED_IMG_RELOAD_TYPE: "seg_mask"     #"none", "seg_mask", "gradcam_mask"
- MASKED_IMG_NUM: 2   
+ MASKED_IMG_NUM: 1
+ SUPERVISED_TYPE: "self-semi"                       # supervisedType "self", "semi", "self-semi", "none"
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

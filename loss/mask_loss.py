@@ -140,11 +140,11 @@ class MaskLoss(object):
         #"""
         # 注意：负样本的数量实在太多，会淹没误判的正样本。
         # 该版本要比第一种好
-        if not isinstance(output_mask, torch.Tensor):
+        if not isinstance(output_mask, torch.Tensor) or not isinstance(seg_mask, torch.Tensor):
             return 0
 
-        if output_mask.shape[1] >= 4:
-            output_mask = output_mask[:, 0:4]
+        #if output_mask.shape[1] >= 4:
+        #    output_mask = output_mask[:, 0:4]
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")

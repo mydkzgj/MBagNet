@@ -12,6 +12,7 @@ def build_model(cfg, num_classes):
                      base_classifier_Type=cfg.MODEL.BASE_CLASSIFIER_COMBINE_TYPE,
                      hookType=cfg.MODEL.HOOK_TYPE, segmentationType=cfg.MODEL.SEGMENTATION_TYPE, seg_num_classes=cfg.MODEL.SEG_NUM_CLASSES,
                      maskedImgReloadType=cfg.MODEL.MASKED_IMG_RELOAD_TYPE, masked_img_num=cfg.MODEL.MASKED_IMG_NUM,
+                     supervisedType=cfg.MODEL.SUPERVISED_TYPE,
                      accumulation_steps=cfg.TRAIN.DATALOADER.ACCUMULATION_STEP
                      )
     return model

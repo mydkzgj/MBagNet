@@ -89,6 +89,8 @@ _C.MODEL.SEG_NUM_CLASSES = 1
 _C.MODEL.MASKED_IMG_RELOAD_TYPE = "none"
 # reload img num
 _C.MODEL.MASKED_IMG_NUM = 0
+# supervisedType "self", "semi", "self-semi", "none"
+_C.MODEL.SUPERVISED_TYPE = "none"
 
 
 

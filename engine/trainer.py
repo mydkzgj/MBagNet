@@ -160,8 +160,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.reloadImgBD = (grade_num+seg_num-model.masked_img_num, model.masked_img_num)
             model.transimitBatchDistribution(model.reloadImgBD)
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
-        if model.gradCAMType == True and model.target_layer == "":
-            imgs.requires_grad_(True)
+        #if model.gradCAMType == True and model.target_layer == "":
+        #    imgs.requires_grad_(True)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 
@@ -173,18 +173,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 回传one-hot向量
             logits.backward(gradient=one_hot_labels, retain_graph=True)
             # 生成CAM
-            if model.target_layer == "":
-                inter_output = imgs
-                inter_gradient = imgs.grad
-            else:
-                inter_output = model.inter_gradient
-                inter_gradient = model.inter_output
-            inter_output.requires_grad_(False)
-            inter_gradient.requires_grad_(False)
+            inter_output = model.inter_output.detach()  #此处分离节点，别人皆不分离
+            inter_gradient = model.inter_gradient
             # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
-            # inter_gradient = model.GradCAM_BN(model.inter_output)
-            # inter_output = model.GradCAM_BN(model.inter_output)
-            gcam = torch.relu(torch.sum(inter_gradient *inter_output, dim=1, keepdim=True))
+            gcam = torch.relu(torch.sum(inter_gradient * inter_output, dim=1, keepdim=True))
+            gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
 
             for op in optimizers:
                 op.zero_grad()
@@ -225,16 +218,17 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 确定分割结果输出类型
         if model.segmentationType == "denseFC":
             output_masks = model.base.seg_attention[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
-            if model.gradCAMType == True:
-                gcam_mask = torch.gt(gcam[gcam.shape[0]-seg_num:gcam.shape[0]], 0).float()
-                if model.SupervisedType == "self":
-                    seg_masks = gcam_mask
-                elif model.SupervisedType == "semi":
-                    seg_masks = seg_masks
-                elif model.SupervisedType == "self-semi":
-                   seg_masks = torch.cat([seg_masks, gcam_mask], dim=1)
-                elif model.SupervisedType == "none":
-                    seg_masks = None
+            if model.supervisedType == "self":
+                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0).float()
+                seg_masks = gcam_mask
+            elif model.supervisedType == "semi":
+                seg_masks = seg_masks
+            elif model.supervisedType == "self-semi":
+                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0).float()
+                seg_masks = torch.cat([seg_masks, gcam_mask], dim=1)
+            elif model.supervisedType == "none":
+                seg_masks = None
+
         elif model.segmentationType == "gradCAM":
             output_masks = gcam[gcam.shape[0]-seg_num: gcam.shape[0]]
         else:

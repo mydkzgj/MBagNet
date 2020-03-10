@@ -44,6 +44,7 @@ class Baseline(nn.Module):
                  base_classifier_Type="f-c",
                  hookType="none", segmentationType="none", seg_num_classes=1,
                  maskedImgReloadType="none", masked_img_num=0,
+                 supervisedType="none",
                  accumulation_steps=1,
                  ):
         super(Baseline, self).__init__()
@@ -77,18 +78,25 @@ class Baseline(nn.Module):
         self.maskedImgReloadType = maskedImgReloadType
         self.masked_img_num = masked_img_num
 
-        self.gradCAMType = True
-
         # 监督方式 "self", "semi", "self-semi", "none"
-        self.SupervisedType = "self"
+        self.supervisedType = supervisedType#"self"
 
-        if self.SupervisedType == "self":
+        if self.supervisedType == "self":
+            self.gradCAMType = True
             if self.seg_num_classes != 1:
                 self.seg_num_classes = 1
                 print("Change seg num for supervised type")
                 #raise Exception("For self-supervised, seg_num should be 1")
-        elif self.SupervisedType == "self-semi":
+        elif self.supervisedType == "semi":
+            self.gradCAMType = False
+            self.seg_num_classes = self.seg_num_classes
+        elif self.supervisedType == "self-semi":
+            self.gradCAMType = True
             self.seg_num_classes = self.seg_num_classes + 1
+        else:
+            self.gradCAMType = False
+            self.seg_num_classes = self.seg_num_classes
+
 
         # 1.Backbone
         if base_name == 'resnet18':
@@ -175,16 +183,17 @@ class Baseline(nn.Module):
         if self.gradCAMType == True:
             self.inter_output = None
             self.inter_gradient = None
-            self.target_layer = ""
+            self.target_layer = "conv0"#"denseblock1"
 
             if self.target_layer != "":
                 for module_name, module in self.base.features.named_modules():
-                    if isinstance(module, torch.nn.Conv2d):
-                        if module_name == "transition1.conv":
+                    #if isinstance(module, torch.nn.Conv2d):
+                        if module_name == self.target_layer:#"transition1.conv":
                             print("Grad-CAM hook on ", module_name)
                             module.register_forward_hook(self.forward_hook_fn)
                             module.register_backward_hook(self.backward_hook_fn)
                             break
+
 
 
     def forward_hook_fn(self, module, input, output):
