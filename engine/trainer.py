@@ -160,23 +160,32 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.reloadImgBD = (grade_num+seg_num-model.masked_img_num, model.masked_img_num)
             model.transimitBatchDistribution(model.reloadImgBD)
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
+        if model.gradCAMType == True and model.target_layer == "":
+            imgs.requires_grad_(True)
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 
         # 生成Grad-CAM
-        if model.segmentationType == "gradCAM":
+        if model.gradCAMType == True:
             # 将label转为one - hot
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             # 回传one-hot向量
             logits.backward(gradient=one_hot_labels, retain_graph=True)
             # 生成CAM
+            if model.target_layer == "":
+                inter_output = imgs
+                inter_gradient = imgs.grad
+            else:
+                inter_output = model.inter_gradient
+                inter_gradient = model.inter_output
+            inter_output.requires_grad_(False)
+            inter_gradient.requires_grad_(False)
             # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
             # inter_gradient = model.GradCAM_BN(model.inter_output)
             # inter_output = model.GradCAM_BN(model.inter_output)
-            inter_mul = model.inter_gradient * model.inter_output
-            # inter_mul = model.GradCAM_BN(inter_mul)
-            gcam = torch.sum(inter_mul, dim=1, keepdim=True)
+            gcam = torch.relu(torch.sum(inter_gradient *inter_output, dim=1, keepdim=True))
+
             for op in optimizers:
                 op.zero_grad()
 
@@ -216,6 +225,16 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 确定分割结果输出类型
         if model.segmentationType == "denseFC":
             output_masks = model.base.seg_attention[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
+            if model.gradCAMType == True:
+                gcam_mask = torch.gt(gcam[gcam.shape[0]-seg_num:gcam.shape[0]], 0).float()
+                if model.SupervisedType == "self":
+                    seg_masks = gcam_mask
+                elif model.SupervisedType == "semi":
+                    seg_masks = seg_masks
+                elif model.SupervisedType == "self-semi":
+                   seg_masks = torch.cat([seg_masks, gcam_mask], dim=1)
+                elif model.SupervisedType == "none":
+                    seg_masks = None
         elif model.segmentationType == "gradCAM":
             output_masks = gcam[gcam.shape[0]-seg_num: gcam.shape[0]]
         else:
@@ -224,7 +243,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, reload_label=rlabels,)    #损失词典
-        weight = {"cross_entropy_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":0}
+        weight = {"cross_entropy_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]

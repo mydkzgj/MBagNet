@@ -91,6 +91,7 @@ _C.MODEL.MASKED_IMG_RELOAD_TYPE = "none"
 _C.MODEL.MASKED_IMG_NUM = 0
 
 
+
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 # 3.LOSS General Setting. Can be replaced in respective sets  Structure Information

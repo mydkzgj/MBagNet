@@ -77,6 +77,19 @@ class Baseline(nn.Module):
         self.maskedImgReloadType = maskedImgReloadType
         self.masked_img_num = masked_img_num
 
+        self.gradCAMType = True
+
+        # 监督方式 "self", "semi", "self-semi", "none"
+        self.SupervisedType = "self"
+
+        if self.SupervisedType == "self":
+            if self.seg_num_classes != 1:
+                self.seg_num_classes = 1
+                print("Change seg num for supervised type")
+                #raise Exception("For self-supervised, seg_num should be 1")
+        elif self.SupervisedType == "self-semi":
+            self.seg_num_classes = self.seg_num_classes + 1
+
         # 1.Backbone
         if base_name == 'resnet18':
             self.in_planes = 512
@@ -159,16 +172,19 @@ class Baseline(nn.Module):
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
         # GradCAM
-        if self.segmentationType == "gradCAM":
+        if self.gradCAMType == True:
             self.inter_output = None
             self.inter_gradient = None
-            for module_name, module in self.base.features.named_modules():
-                if isinstance(module, torch.nn.Conv2d):
-                    print(module_name)
-                    if module_name == "transition1.conv":
-                        module.register_forward_hook(self.forward_hook_fn)
-                        module.register_backward_hook(self.backward_hook_fn)
-                        break
+            self.target_layer = ""
+
+            if self.target_layer != "":
+                for module_name, module in self.base.features.named_modules():
+                    if isinstance(module, torch.nn.Conv2d):
+                        if module_name == "transition1.conv":
+                            print("Grad-CAM hook on ", module_name)
+                            module.register_forward_hook(self.forward_hook_fn)
+                            module.register_backward_hook(self.backward_hook_fn)
+                            break
 
 
     def forward_hook_fn(self, module, input, output):
