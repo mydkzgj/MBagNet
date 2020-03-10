@@ -57,7 +57,7 @@ class RandomSampler(Sampler):
             self.max_num_samples = max_num_samples
         else:
             self.max_num_samples = (max_num_samples//self.num_instances_per_category + 1) * self.num_instances_per_category
-        #self.max_num_samples = 400 * self.num_instances_per_category   #减少训练集样本数量，加快训练速度
+        self.max_num_samples = 50 * self.num_instances_per_category   #减少训练集样本数量，加快训练速度
         self.min_num_samples = min_num_samples
 
         #设置每类的样本需要构建数量
@@ -67,8 +67,8 @@ class RandomSampler(Sampler):
         else:
             pass
             #为了加快验证时间所做，后期移除
-            #for category in self.index_dic.keys():
-            #    self.targetNum_instances_per_category[category] = self.min_num_samples
+            for category in self.index_dic.keys():
+                self.targetNum_instances_per_category[category] = self.min_num_samples
 
         #epoch内样本数量
         self.length = 0

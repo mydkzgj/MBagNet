@@ -81,10 +81,14 @@ _C.MODEL.FUSION_TYPE = "concat"
 _C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
 # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
 _C.MODEL.HOOK_TYPE = "none"
-# segType "denseFC", "bagFeature", "none"
+# segType "denseFC", "bagFeature", "none"， "gradCAM"
 _C.MODEL.SEGMENTATION_TYPE = "none"
 # seg output channels
 _C.MODEL.SEG_NUM_CLASSES = 1
+# masked img reload type  "none", "seg_mask", ""gradcam_mask""
+_C.MODEL.MASKED_IMG_RELOAD_TYPE = "none"
+# reload img num
+_C.MODEL.MASKED_IMG_NUM = 0
 
 
 # -----------------------------------------------------------------------------

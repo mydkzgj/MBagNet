@@ -17,7 +17,7 @@ DATA:
   IMS_PER_BATCH: 24
 
  TRANSFORM:
-  SIZE: [224, 224]#[736, 736]#[640,640]#[224, 224]#[512, 512]
+  SIZE: [640, 640]#[736, 736]#[640,640]#[224, 224]#[512, 512]
   MASK_SIZE_RATIO: 1
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
@@ -31,13 +31,15 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'densenet121'                                         #'densenet121'#'mbagnet121' 
+ NAME: 'densenet121'                                                                   #'densenet121'#'mbagnet121' 
  PRE_ACTIVATION: 1
- FUSION_TYPE: 'concat'                                        #"concat","add","none"
- BASE_CLASSIFIER_COMBINE_TYPE: "f-c"         #"f-c","pl-c","fl-n"
- HOOK_TYPE:  "featureReserve"#"rflogitGenerate"#                                        #"featureReserve","rflogitGenerate","none"
- SEGMENTATION_TYPE:  "denseFC"#"bagFeature"#                      #"denseFC", "bagFeature", "none"
- SEG_NUM_CLASSES: 4
+ FUSION_TYPE: 'concat'                                                                 #"concat","add","none"
+ BASE_CLASSIFIER_COMBINE_TYPE: "f-c"                                      #"f-c","pl-c","fl-n"
+ HOOK_TYPE:  "featureReserve"                                                     #"featureReserve","rflogitGenerate","none"
+ SEGMENTATION_TYPE:  "denseFC"                                               #"denseFC", "bagFeature", "none"
+ SEG_NUM_CLASSES: 4 
+ MASKED_IMG_RELOAD_TYPE:       "seg_mask"                              #"none", "seg_mask", "gradcam_mask"
+ MASKED_IMG_NUM: 2   
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -61,7 +63,7 @@ SOLVER:
  MAX_EPOCHS: 100
  EVAL_PERIOD: 1
  CHECKPOINT_PERIOD: 1
- LOG_PERIOD: 50
+ LOG_PERIOD: 10
  OUTPUT_DIR: "work_space" 
 
  # OPTIMIZER configuration

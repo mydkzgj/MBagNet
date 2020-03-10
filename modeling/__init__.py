@@ -11,6 +11,7 @@ def build_model(cfg, num_classes):
                      preAct=cfg.MODEL.PRE_ACTIVATION, fusionType=cfg.MODEL.FUSION_TYPE,
                      base_classifier_Type=cfg.MODEL.BASE_CLASSIFIER_COMBINE_TYPE,
                      hookType=cfg.MODEL.HOOK_TYPE, segmentationType=cfg.MODEL.SEGMENTATION_TYPE, seg_num_classes=cfg.MODEL.SEG_NUM_CLASSES,
-                     accumulation_steps = cfg.TRAIN.DATALOADER.ACCUMULATION_STEP
+                     maskedImgReloadType=cfg.MODEL.MASKED_IMG_RELOAD_TYPE, masked_img_num=cfg.MODEL.MASKED_IMG_NUM,
+                     accumulation_steps=cfg.TRAIN.DATALOADER.ACCUMULATION_STEP
                      )
     return model

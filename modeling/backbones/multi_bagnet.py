@@ -412,6 +412,15 @@ class MultiBagNet(nn.Module):
             final_logits = self.classifier(feat)
             return final_logits
 
+    def forward_again(self, x):
+        # 求特征输出
+        features = self.features.conv0(x)
+        features = self.features.norm0(features)
+        features = self.features.relu0(features)
+        features = self.features.pool0(features)
+        return features
+
+
     def make_segmentation_module(self):
         if self.hookType != "featureReserve":
             raise Exception("if segmentationType is 'denseFC', hookType must be 'featureReserve'")

@@ -77,8 +77,9 @@ class GradCam():
     """
     def __init__(self, model, target_layer):
         self.model = model
-        self.model.train()#eval()
+        self.model.eval()
         # Define extractor
+        self.target_layer = target_layer
         self.extractor = CamExtractor(self.model, target_layer)
 
     def generate_cam(self, input_image, target_class=None):
@@ -121,7 +122,7 @@ class GradCam():
 
         #CJY 用abs来归一化
         #"""
-        #cam = np.maximum(cam, 0)
+        cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1

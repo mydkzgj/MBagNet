@@ -307,35 +307,41 @@ def showBagNetEvidence():
     bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
 # CJY Grad-CAM可视化
-def showGradCAM(model, imgs, labels, target_layer, mask=None):
+def showGradCAM(model, imgs, labels, target_layers, mask=None):
     # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
     # visualization
     from utils.visualisation.gradcam import GradCam
     from utils.visualisation.misc_functions import save_class_activation_images
     from PIL import Image
     import matplotlib.pyplot as plt
-    # Grad cam
-    grad_cam = GradCam(model, target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-    # Generate cam mask
-    cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
-    # original_image
-    mean = np.array([0.4914, 0.4822, 0.4465])
-    var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
-    img = imgs[0].cpu().detach().numpy()
-    img = np.transpose(img, (1, 2, 0))
-    img = (img * var + mean) * 255  # 去标准化
-    img = Image.fromarray(img.astype('uint8')).convert('RGB')
-    # plt.imshow(img)
-    # plt.show()
-    # Save mask
     global save_img_index
-    save_class_activation_images(img, cam, "heatmap_" + str(save_img_index) + "_GradCAM_Label" + str(labels[0].item()))
+    if isinstance(target_layers, list):
+        for target_layer in target_layers:
+            # Grad cam
+            grad_cam = GradCam(model, target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+            # Generate cam mask
+            cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
+            # original_image
+            mean = np.array([0.4914, 0.4822, 0.4465])
+            var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
+            img = imgs[0].cpu().detach().numpy()
+            img = np.transpose(img, (1, 2, 0))
+            img = (img * var + mean) * 255  # 去标准化
+            img = Image.fromarray(img.astype('uint8')).convert('RGB')
+            # plt.imshow(img)
+            # plt.show()
+            # Save mask
+            save_class_activation_images(img, cam, "heatmap_" + str(
+                save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(labels[0].item()))
 
-    # mask
+    # img save
+    img.save(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_OriImage' + '.png')
+
+    # mask save
     if isinstance(mask, torch.Tensor):
         if mask.shape[0] == 1:
             mask = mask[0].cpu().detach().numpy()
-            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" + '_mask' + '.png', mask * 255)
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" + '_Mask' + '.png', mask * 255)
         else:
             bar = np.ones((mask.shape[1], 5), dtype=np.float32)
             omask = 0
@@ -345,8 +351,8 @@ def showGradCAM(model, imgs, labels, target_layer, mask=None):
                 m = cv.hconcat(l)
                 l = [m, bar]
                 omask = 1 - (1 - omask) * (1 - mask[i].cpu().detach().numpy())
-            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_mask0' + '.png', omask * 255)
-            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_mask1' + '.png', m * 255)
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_Mask0' + '.png', omask * 255)
+            cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_Mask1' + '.png', m * 255)
 
     save_img_index = save_img_index + 1
     print('Grad cam completed')

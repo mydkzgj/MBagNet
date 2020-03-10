@@ -109,16 +109,15 @@ class MaskLoss(object):
 
     def __call__(self, output_mask, seg_mask, seg_label):   #output_mask, seg_mask, seg_label
         #  CJY distribution 1
-        #"""
+        """
         if not isinstance(output_mask, torch.Tensor):
             return 0
 
-        #output_mask = output_mask[:, 0:4]
+        if output_mask.shape[1] >= 4:
+            output_mask = output_mask[:, 0:4]
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
-
-        #loss_max = torch.max(loss)
 
         pos_num = torch.sum(seg_mask)
         pos_loss_map = loss * seg_mask
@@ -134,40 +133,40 @@ class MaskLoss(object):
         else:
             neg_loss = 0
 
-        total_loss = pos_loss + neg_loss #+ loss_max
+        total_loss = pos_loss + neg_loss
         #"""
 
-        # CJY d2
-        """
-        # 注意：负样本的数量实在太多，会淹没误判的正样本。 所以我认为应该动态的设定总值的范围
-        # 分区域求均值
+        # CJY distribution 2
+        #"""
+        # 注意：负样本的数量实在太多，会淹没误判的正样本。
+        # 该版本要比第一种好
         if not isinstance(output_mask, torch.Tensor):
             return 0
+
+        if output_mask.shape[1] >= 4:
+            output_mask = output_mask[:, 0:4]
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
 
-        seg_pmask = torch.gt(output_score, 0.5).float()
+        # 病灶并集处要分为一组
+        seg_mask_max = torch.max(seg_mask, dim=1, keepdim=True)[0]
+        seg_mask = seg_mask_max.expand_as(seg_mask)
 
-
-        region1 = (1 - seg_pmask) * (1 - seg_mask)
-        num1 = torch.sum(region1)
-        loss_map1 = loss * region1
-        if num1 != 0:
-            loss1 = torch.sum(loss_map1) / num1
+        pos_num = torch.sum(seg_mask)
+        pos_loss_map = loss * seg_mask
+        if pos_num != 0:
+            pos_loss = torch.sum(pos_loss_map) / pos_num
         else:
-            loss1 = 0
+            pos_loss = 0
 
-        region2 = 1 - region1
-        num2 = torch.sum(region2)
-        loss_map2 = loss * region2
-        if num2 != 0:
-            loss2 = torch.sum(loss_map2) / num2
+        neg_num = torch.sum((1 - seg_mask))
+        neg_loss_map = loss * (1 - seg_mask)
+        if neg_num != 0:
+            neg_loss = torch.sum(neg_loss_map) / neg_num
         else:
-            loss2 = 0
-
-        total_loss = loss1 + loss2
-        #"""
+            neg_loss = 0
+        total_loss = pos_loss + neg_loss
 
         return total_loss
 

@@ -144,10 +144,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 将grade和seg样本concat起来
         imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
         labels = torch.cat([grade_labels, seg_labels], dim=0)
-        #multilabels = label2multilabel(grade_labels)
-        #将label转为one-hot
+        # 置入cuda
         #one_hot_labels = torch.nn.functional.one_hot(grade_labels, scores.shape[1]).float()
-
         #grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
         grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 else grade_labels
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
@@ -156,97 +154,80 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
 
         # 运行模型
-        model.transimitBatchDistribution((grade_num, seg_num))
-        if model.segmentationType == "bagFeature" and model.hookType == "rflogitGenerate":
-            model.transmitClassifierWeight()
-        elif model.segmentationType == "denseFC":
-            model.tBD = (grade_num, seg_num)
-            model.transimitBatchDistribution(model.tBD)
+        if model.maskedImgReloadType == "none":
+            model.transimitBatchDistribution((grade_num, seg_num))
+        else:
+            model.reloadImgBD = (grade_num+seg_num-model.masked_img_num, model.masked_img_num)
+            model.transimitBatchDistribution(model.reloadImgBD)
+        model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
         logits = model(imgs)  #为了减少显存，还是要区分grade和seg
+        grade_logits = logits[0:grade_num]
 
-        if model.segmentationType == "denseFC":
-            if model.tBD == 1:
-                # simgs = imgs
-                slabels = labels
-            else:
-                # simgs = imgs[model.tBD[0]:model.tBD[0] + model.tBD[1]]
-                slabels = labels[model.tBD[0]:model.tBD[0] + model.tBD[1]]
-
-            one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
-            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
-
-        #CJY at 2020.3.5 soft mask 回传
-        """
-        if model.segmentationType == "denseFC":
-            if model.tBD == 1:
-                simgs = imgs
-                slabels = labels
-            else:
-                simgs = imgs[model.tBD[0]:model.tBD[0]+model.tBD[1]]
-                slabels = labels[model.tBD[0]:model.tBD[0]+model.tBD[1]]
-
-            if model.base.seg_attention.shape[1] != 1:
-                attention_mask = torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]
-            else:
-                attention_mask = model.base.seg_attention
-            attention_mask = torch.sigmoid(attention_mask)
-            #attention_mask = torch.nn.functional.max_pool2d(attention_mask, kernel_size=20, stride=1)
-            # img加掩膜  互为补
-            pos_masked_img = attention_mask * simgs
-            neg_masked_img = (1-attention_mask) * simgs
-
-            # 不加hook了
-            pm_logits = model(pos_masked_img)
-            nm_logits = model(neg_masked_img)
-
-            one_hot_labels = torch.nn.functional.one_hot(slabels, logits.shape[1]).float()
-            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
-        #"""
-        #pm_logits = None
-        #nm_logits = None
-        #one_hot_labels = None
-
-
-
-        # CJY 利用Grad-CAM生成关注map
-        if model.GradCAM == True:  # 此处取第一个block生成的特征，此时特征图分辨率还很高
-            #将label转为one - hot
-            one_hot_labels = torch.nn.functional.one_hot(labels, logits.shape[1]).float()
+        # 生成Grad-CAM
+        if model.segmentationType == "gradCAM":
+            # 将label转为one - hot
+            one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             # 回传one-hot向量
             logits.backward(gradient=one_hot_labels, retain_graph=True)
             # 生成CAM
-            #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
-            #inter_gradient = model.GradCAM_BN(model.inter_output)
-            #inter_output = model.GradCAM_BN(model.inter_output)
+            # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
+            # inter_gradient = model.GradCAM_BN(model.inter_output)
+            # inter_output = model.GradCAM_BN(model.inter_output)
             inter_mul = model.inter_gradient * model.inter_output
-            #inter_mul = model.GradCAM_BN(inter_mul)
+            # inter_mul = model.GradCAM_BN(inter_mul)
             gcam = torch.sum(inter_mul, dim=1, keepdim=True)
-            #gcam = model.GradCAM_BN(gcam)
-            seg_gcam = gcam[grade_num:grade_num+seg_num]
             for op in optimizers:
                 op.zero_grad()
 
-        if model.segmentationType == "denseFC":
-            num_sa = model.base.seg_attention.shape[0]
-            if num_sa != seg_num:
-                output_masks = model.base.seg_attention[num_sa-seg_num: num_sa]
+        #CJY at 2020.3.5 masked img reload
+        # 掩膜图像重新输入
+        if model.maskedImgReloadType != "none":
+            #1.生成soft_mask
+            if model.maskedImgReloadType == "seg_mask":
+                if model.segmentationType != "denseFC":
+                    raise Exception("segmentationType can't match maskedImgReloadType")
+                if model.seg_num_classes != 1:
+                    soft_mask = torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]
+                else:
+                    soft_mask = model.base.seg_attention
+                soft_mask = torch.sigmoid(soft_mask)
+                # soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=20, stride=1)
+            elif model.maskedImgReloadType == "gradcam_mask":   #生成grad-cam
+                if model.segmentationType != "gradCAM":
+                    raise Exception("segmentationType can't match maskedImgReloadType")
+                soft_mask = gcam[model.reloadImgBD[0]:model.reloadImgBD[0] + model.reloadImgBD[1]]
             else:
-                output_masks = model.base.seg_attention#seg_gcam
+                pass
+            # 2.生成masked_img
+            rimgs = imgs[model.reloadImgBD[0]:model.reloadImgBD[0] + model.reloadImgBD[1]]
+            rlabels = labels[model.reloadImgBD[0]:model.reloadImgBD[0] + model.reloadImgBD[1]]
+
+            pos_masked_img = soft_mask * rimgs
+            neg_masked_img = (1-soft_mask) * rimgs
+            # 3.reload maskedImg
+            model.eval()
+            pm_logits = model(pos_masked_img)
+            nm_logits = model(neg_masked_img)
+        else:
+            pm_logits = None
+            nm_logits = None
+
+        # 确定分割结果输出类型
+        if model.segmentationType == "denseFC":
+            output_masks = model.base.seg_attention[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
+        elif model.segmentationType == "gradCAM":
+            output_masks = gcam[gcam.shape[0]-seg_num: gcam.shape[0]]
         else:
             output_masks = None
 
-
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=model.pm_logits, neg_masked_logit=model.nm_logits, one_hot_label=one_hot_labels)    #损失词典
-        weight = {"cross_entropy_loss":1, "ranked_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":1}
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, reload_label=rlabels,)    #损失词典
+        weight = {"cross_entropy_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":0}
         loss = 0
         for lossKey in losses.keys():
-            if lossKey == "cluster_loss":
-                loss += losses[lossKey][0] * weight[lossKey]
-            else:
-                loss += losses[lossKey] * weight[lossKey]
+            loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
         # 反向传播
         loss.backward()
@@ -258,7 +239,6 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # compute acc
         #acc = (scores.max(1)[1] == grade_labels).float().mean()
-        grade_logits = logits[0:grade_num]
         return {"scores": grade_logits, "labels": grade_labels, "losses": losses, "total_loss": loss.item()}
     engine = Engine(_update)
 
@@ -381,7 +361,7 @@ def do_train(
                     "precision": Precision(output_transform=output_transform)}
 
     checkpointer = ModelCheckpoint(output_dir, cfg.MODEL.NAME, checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch)
-    checkpointer_save_graph = ModelCheckpoint(output_dir, cfg.MODEL.NAME+"_graph", checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch, save_as_state_dict=False)
+    #checkpointer_save_graph = ModelCheckpoint(output_dir, cfg.MODEL.NAME+"_graph", checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch, save_as_state_dict=False)
     timer = Timer(average=True)
 
     #3.将模块与engine联系起来attach

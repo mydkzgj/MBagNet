@@ -74,8 +74,8 @@ def save_class_activation_images(org_img, activation_map, file_name):
     #path_to_file = os.path.join(savepath, file_name+'_Cam_Grayscale.png')
     #save_image(activation_map, path_to_file)
     # Save ori image
-    path_to_file = os.path.join(savepath, file_name+'_Cam_Ori_Image.png')
-    save_image(org_img, path_to_file)
+    #path_to_file = os.path.join(savepath, file_name+'_Cam_Ori_Image.png')
+    #save_image(org_img, path_to_file)
 
 
 def apply_colormap_on_image(org_im, activation, colormap_name):
