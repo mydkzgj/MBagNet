@@ -210,7 +210,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 3.reload maskedImg
             model.eval()
             pm_logits = model(pos_masked_img)
-            nm_logits = model(neg_masked_img)
+            nm_logits = None#model(neg_masked_img)
         else:
             pm_logits = None
             nm_logits = None
