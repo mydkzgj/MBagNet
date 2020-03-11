@@ -183,7 +183,7 @@ class Baseline(nn.Module):
         if self.gradCAMType == True:
             self.inter_output = None
             self.inter_gradient = None
-            self.target_layer = "denseblock3"#"conv0"#"denseblock1"
+            self.target_layer = "conv0"#"denseblock3"#"conv0"#"denseblock1"
 
             if self.target_layer != "":
                 for module_name, module in self.base.features.named_modules():
