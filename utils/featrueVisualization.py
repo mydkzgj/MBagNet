@@ -316,11 +316,13 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
     import matplotlib.pyplot as plt
     global save_img_index
     if isinstance(target_layers, list):
+        cam_list = []  # 求总的cam
         for target_layer in target_layers:
             # Grad cam
             grad_cam = GradCam(model, target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             # Generate cam mask
             cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
+            cam.append(cam)
             # original_image
             mean = np.array([0.4914, 0.4822, 0.4465])
             var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差

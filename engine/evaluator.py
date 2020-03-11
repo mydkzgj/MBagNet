@@ -162,8 +162,8 @@ def do_inference(
     plt.close()
     """
 
-    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
-    metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
+    #confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
+    #metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
 
 
     # Plot ROC
@@ -194,13 +194,14 @@ def do_inference(
 
     logger.info("ROC_AUC: {}".format(roc_auc))
 
+    metrics["roc_auc"] = roc_auc
+    # 好像绘制，在服务器上会出错，先取消吧
+    """
     if num_classes == 2:
         roc_numpy = plotROC_OneClass(fpr[pos_label], tpr[pos_label], roc_auc[pos_label], plot_flag=plotFlag)
     elif num_classes > 2:
         roc_numpy = plotROC_MultiClass(fpr, tpr, roc_auc, num_classes, plot_flag=plotFlag)
-
-    metrics["roc_auc"] = roc_auc
     metrics["roc_figure"] = roc_numpy
-
+    #"""
     return metrics
 

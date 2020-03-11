@@ -578,11 +578,11 @@ def do_train(
             #writer.add_scalar("Val/"+"confusion_matrix", metrics['confusion_matrix'], step)
 
             #混淆矩阵 和 ROC曲线可以用图的方式来存储
-            roc_numpy = metrics["roc_figure"]
-            writer_val.add_image("ROC", roc_numpy, step, dataformats='HWC')
+            #roc_numpy = metrics["roc_figure"]
+            #writer_val.add_image("ROC", roc_numpy, step, dataformats='HWC')
 
-            confusion_matrix_numpy = metrics["confusion_matrix_numpy"]
-            writer_val.add_image("ConfusionMatrix", confusion_matrix_numpy, step, dataformats='HWC')
+            #confusion_matrix_numpy = metrics["confusion_matrix_numpy"]
+            #writer_val.add_image("ConfusionMatrix", confusion_matrix_numpy, step, dataformats='HWC')
 
             writer_val.flush()
 
