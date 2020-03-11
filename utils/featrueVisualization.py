@@ -341,7 +341,7 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
         overall_cam = 0
         for cam in cam_list:
             cam_tensor = torch.Tensor(cam)
-            cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, 5)
+            cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=5, stride=1, padding=2)
             cam = cam_tensor.numpy()
             overall_cam = overall_cam + cam
 
