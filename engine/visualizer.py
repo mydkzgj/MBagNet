@@ -118,7 +118,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
             with torch.no_grad():
                 logits = model(seg_imgs)
-            target_layers = ["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+            target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             fv.showGradCAM(model, seg_imgs, seg_labels, target_layers=target_layers, mask=seg_masks[0])
 
             return {"logits": logits, "labels": seg_labels}

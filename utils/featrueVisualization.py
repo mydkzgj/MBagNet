@@ -3,6 +3,7 @@
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 import random
 
 save_img_index = 0
@@ -322,7 +323,7 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
             grad_cam = GradCam(model, target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             # Generate cam mask
             cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
-            cam.append(cam)
+            cam_list.append(cam)
             # original_image
             mean = np.array([0.4914, 0.4822, 0.4465])
             var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
@@ -335,6 +336,19 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
             # Save mask
             save_class_activation_images(img, cam, "heatmap_" + str(
                 save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(labels[0].item()))
+
+        # 综合所有grad-cam
+        overall_cam = 0
+        for cam in cam_list:
+            cam_tensor = torch.Tensor(cam)
+            cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, 5)
+            cam = cam_tensor.numpy()
+            overall_cam = overall_cam + cam
+
+        overall_cam = overall_cam/len(cam_list)
+        # Save mask
+        save_class_activation_images(img, overall_cam, "heatmap_" + str(
+            save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()))
 
     # img save
     img.save(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_OriImage' + '.png')
