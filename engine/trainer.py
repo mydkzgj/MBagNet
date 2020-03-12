@@ -224,10 +224,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 3.reload maskedImg
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = model(pos_masked_img)
+            pm_logits = None#model(pos_masked_img)
             nm_logits = model(neg_masked_img)
         else:
-            pm_logits = None
+            #pm_logits = None
             nm_logits = None
 
         # 确定分割结果输出类型
