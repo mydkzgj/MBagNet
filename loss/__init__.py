@@ -111,9 +111,9 @@ def make_D_loss(cfg, num_classes):
             elif lossName == "mask_loss":
                 losses["mask_loss"] = mask_loss(output_mask, seg_mask, seg_label)
             elif lossName == "pos_masked_img_loss":
-                losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, reload_label)
+                losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
             elif lossName == "neg_masked_img_loss":
-                losses["neg_masked_img_loss"] = neg_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, reload_label)
+                losses["neg_masked_img_loss"] = neg_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
             else:
                 raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                                 'but got {}'.format(cfg.LOSS.TYPE))

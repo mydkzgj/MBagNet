@@ -34,13 +34,21 @@ MODEL:
  NAME: 'densenet121'                                         #'densenet121'#'mbagnet121' 
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
- BASE_CLASSIFIER_COMBINE_TYPE: "f-c"         #"f-c","pl-c","fl-n"
- HOOK_TYPE:  "featureReserve"#"rflogitGenerate"#                                        #"featureReserve","rflogitGenerate","none"
- SEGMENTATION_TYPE:  "denseFC"#"bagFeature"#                      #"denseFC", "bagFeature", "none"
+ BASE_CLASSIFIER_COMBINE_TYPE: "f-c"            #"f-c","pl-c","fl-n"
+
+ # "none", "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe", 
+ BRANCH_CONFIG_TYPE: "weakSu-noneRe"                       
+ BRANCH_IMG_NUM: 2
+ #(1). Segmentation Branch
+ HOOK_TYPE:  "featureReserve"                           #"featureReserve","rflogitGenerate","none" 
+ SEGMENTATION_TYPE:  "denseFC"                     #"denseFC", "bagFeature", "none" 
  SEG_NUM_CLASSES: 4 
- MASKED_IMG_RELOAD_TYPE: "none"     #"none", "seg_mask", "gradcam_mask"
- MASKED_IMG_NUM: 2
- SUPERVISED_TYPE: "self"                       # supervisedType "self", "semi", "self-semi", "none"
+ SEG_SUPERVISED_TYPE: "strong"
+ #(2). Grad-CAM Branch
+ GRAD_CAM_TYPE: "none"                                   #"none", "supervise_seg", "reload"
+ #(3). Reload Branch
+ MASKED_IMG_RELOAD_TYPE: "none"                 #"none", "seg_mask", "gradcam_mask" 
+ 
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

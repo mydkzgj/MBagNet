@@ -39,12 +39,13 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 class Baseline(nn.Module):
-    def __init__(self,  base_name, num_classes,
+    def __init__(self, base_name, num_classes,
                  preAct=True, fusionType="concat",
                  base_classifier_Type="f-c",
-                 hookType="none", segmentationType="none", seg_num_classes=1,
-                 maskedImgReloadType="none", masked_img_num=0,
-                 supervisedType="none",
+                 hookType="none", segmentationType="none", seg_num_classes=1, segSupervisedType="strong",
+                 gradcamType="none",
+                 maskedImgReloadType="none",
+                 branch_img_num=0, branchConfigType="none",
                  accumulation_steps=1,
                  ):
         super(Baseline, self).__init__()
@@ -67,37 +68,57 @@ class Baseline(nn.Module):
         else:
             self.baseOutChannels = self.num_classes
 
-        # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
-        self.hookType = hookType
+        # 下面为3个支路设置参数
+        # bracnh used samples including seg, gracam, reload
+        self.branch_img_num = branch_img_num
+        # 用于记录实时的样本应用分布， 运行模型前可设置
+        self.batchDistribution = 0
 
+        # Branch1: hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
+        self.hookType = hookType
         # segType "denseFC", "none"
         self.segmentationType = segmentationType
         self.seg_num_classes = seg_num_classes
+        self.segSupervisedType = segSupervisedType
 
-        # MaskedImgReloadType  "none", "seg_mask", "gradcam_mask"
+        # Branch2: gradcamType
+        self.gradCAMType = gradcamType
+
+        # Branch3: MaskedImgReloadType  "none", "seg_mask", "gradcam_mask"
         self.maskedImgReloadType = maskedImgReloadType
-        self.masked_img_num = masked_img_num
 
-        self.reloadImgBD = 0
-
-        # 监督方式 "self", "semi", "self-semi", "none"
-        self.supervisedType = supervisedType#"self"
-
-        if self.supervisedType == "self":
-            self.gradCAMType = True
-            if self.seg_num_classes != 1:
-                self.seg_num_classes = 1
-                print("Change seg num for supervised type")
-                #raise Exception("For self-supervised, seg_num should be 1")
-        elif self.supervisedType == "semi":
-            self.gradCAMType = False
+        # Branch Config方式: 若其不为none，那么前面各支路参数的设置将会依据该项进行改写
+        # "none", "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe",
+        self.branchConfigType = branchConfigType
+        if self.branchConfigType == "weakSu-noneRe":
+            self.segSupervisedType = "weak"
+            self.seg_num_classes = 1
+            self.gradCAMType = "supervise_seg"
+            self.maskedImgReloadType = "none"
+        if self.branchConfigType == "weakSu-segRe":
+            self.segSupervisedType = "weak"
+            self.seg_num_classes = 1
+            self.gradCAMType = "supervise_seg"
+            self.maskedImgReloadType = "seg_mask"
+        elif self.branchConfigType == "strongSu-segRe":
+            self.segSupervisedType = "strong"
             self.seg_num_classes = self.seg_num_classes
-        elif self.supervisedType == "self-semi":
-            self.gradCAMType = True
+            self.gradCAMType = "supervise_seg"
+            self.maskedImgReloadType = "seg_mask"
+        elif self.branchConfigType == "jointSu-segRe":
             self.seg_num_classes = self.seg_num_classes + 1
-        else:
-            self.gradCAMType = False
+            self.segSupervisedType = "joint"
+            self.gradCAMType = "supervise_seg"
+            self.maskedImgReloadType = "seg_mask"
+        elif self.branchConfigType == "strongSu-gcamRe":
             self.seg_num_classes = self.seg_num_classes
+            self.segSupervisedType = "strong"
+            self.gradCAMType = "reload"
+            self.maskedImgReloadType = "gradcam_mask"
+        elif self.branchConfigType == "noneSu-gcamRe":
+            self.segSupervisedType = "none"
+            self.gradCAMType = "reload"
+            self.maskedImgReloadType = "gradcam_mask"
 
 
         # 1.Backbone
@@ -181,11 +202,11 @@ class Baseline(nn.Module):
             print("Backbone with classifier itself.")
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
-        # GradCAM
-        if self.gradCAMType == True:
+        # GradCAM 如果其不为none，那么就设置hook
+        if self.gradCAMType != "none":
             self.inter_output = [] #None
             self.inter_gradient = [] #None
-            self.target_layer = ["denseblock1", "denseblock2", "denseblock3"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            self.target_layer = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
 
             if self.target_layer != []:
                 for tl in self.target_layer:
@@ -200,18 +221,18 @@ class Baseline(nn.Module):
 
 
     def forward_hook_fn(self, module, input, output):
-        if self.reloadImgBD != 0:
-            if self.reloadImgBD != 1:
-                self.inter_output.append(output[self.reloadImgBD[0]:self.reloadImgBD[0] + self.reloadImgBD[1]])
+        if self.batchDistribution != 0:
+            if self.batchDistribution != 1:
+                self.inter_output.append(output[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
             else:
                 # self.inter_output = output  #将输入图像的梯度获取
                 self.inter_output.append(output)  # 将输入图像的梯度获取
 
 
     def backward_hook_fn(self, module, grad_in, grad_out):
-        if self.reloadImgBD != 0:
-            if self.reloadImgBD != 1:
-                self.inter_gradient.append(grad_out[0][self.reloadImgBD[0]:self.reloadImgBD[0] + self.reloadImgBD[1]])
+        if self.batchDistribution != 0:
+            if self.batchDistribution != 1:
+                self.inter_gradient.append(grad_out[0][self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
             else:
                 # self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
                 self.inter_gradient.append(grad_out[0])  # 将输入图像的梯度获取
@@ -230,6 +251,7 @@ class Baseline(nn.Module):
                 self.base.num_classes = self.num_classes  # 重置新的num-classes
 
     def transimitBatchDistribution(self, BD):
+        self.batchDistribution = BD
         self.base.batchDistribution = BD
 
     def forward(self, x):

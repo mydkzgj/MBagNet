@@ -79,18 +79,36 @@ _C.MODEL.PRE_ACTIVATION = 1
 _C.MODEL.FUSION_TYPE = "concat"
 # baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
 _C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
+
+
+# supervisedType 3个支路的调配方案  若改变该项，则下述选项设定将无效    #"weak-reload", "semi", "self-semi", "none"
+# "none", "weakSu-segRe", "strongSu-segRe", "strongSu-gcamRe", "gcamRe"
+_C.MODEL.BRANCH_CONFIG_TYPE = "none"
+# num of samples used in branch
+_C.MODEL.BRANCH_IMG_NUM = 0
+
+# 1.Segmnetation Bracnch
 # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
 _C.MODEL.HOOK_TYPE = "none"
 # segType "denseFC", "bagFeature", "none"， "gradCAM"
 _C.MODEL.SEGMENTATION_TYPE = "none"
 # seg output channels
 _C.MODEL.SEG_NUM_CLASSES = 1
-# masked img reload type  "none", "seg_mask", ""gradcam_mask""
+# seg supervised type   # "none", "strong", "weak", "joint"
+_C.MODEL.SEG_SUPERVISED_TYPE = "strong"
+
+# 2.Grad-CAM Branch
+# Grad-CAM 的作用限制
+_C.MODEL.GRAD_CAM_TYPE = "none"  # "none", "supervise_seg", "reload"
+
+# 3.Reload Branch
+# masked img reload type  "none", "seg_mask", ""gradcam_mask""  （input）
 _C.MODEL.MASKED_IMG_RELOAD_TYPE = "none"
-# reload img num
-_C.MODEL.MASKED_IMG_NUM = 0
-# supervisedType "self", "semi", "self-semi", "none"
-_C.MODEL.SUPERVISED_TYPE = "none"
+
+
+
+
+
 
 
 

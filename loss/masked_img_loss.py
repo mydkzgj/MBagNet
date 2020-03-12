@@ -108,12 +108,13 @@ class PosMaskedImgLoss(object):
         self.CEL = torch.nn.CrossEntropyLoss()
         pass
 
-    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, reload_label, ):   #output_mask, seg_mask, seg_label
+    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label, ):   #output_mask, seg_mask, seg_label
         if not isinstance(pos_masked_logits, torch.Tensor):
             return 0
         #"""
         # CJY distribution 1  cross_entropy_loss min
         # pos_masked区域的img应该更容易区分类别
+        reload_label = label[label.shape[0] - pos_masked_logits.shape[0]:label.shape[0]]
         loss = F.cross_entropy(pos_masked_logits, reload_label, reduction="none")
 
         # 挑选指定sample的loss
@@ -125,6 +126,7 @@ class PosMaskedImgLoss(object):
         """
         # CJY distribution 2  logits diff min
         # 由pos_masked区域主要提供logit
+        reload_label = label[label.shape[0]-pos_masked_logits.shape[0]:label.shape[0]]
         origin_logits = origin_logits[origin_logits.shape[0]-pos_masked_logits.shape[0]:origin_logits.shape[0]]
         one_hot_label = torch.nn.functional.one_hot(reload_label, pos_masked_logits.shape[1]).float()
         ori_logits = origin_logits[one_hot_label.bool()]
@@ -145,12 +147,13 @@ class NegMaskedImgLoss(object):
         self.CEL = torch.nn.CrossEntropyLoss()
         pass
 
-    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, reload_label):   #output_mask, seg_mask, seg_label
+    def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label):   #output_mask, seg_mask, seg_label
         if not isinstance(neg_masked_logits, torch.Tensor):
             return 0
         #"""
         # CJY distribution 1  cross_entropy_loss min
         # pos_masked区域的img应该更容易区分类别
+        reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
         loss = F.cross_entropy(neg_masked_logits, reload_label, reduction="none")
 
         # 挑选指定sample的loss
@@ -163,6 +166,7 @@ class NegMaskedImgLoss(object):
         # CJY distribution 2  logits diff min
         # 由pos_masked区域主要提供logit
         origin_logits = origin_logits[origin_logits.shape[0]-neg_masked_logits.shape[0]:origin_logits.shape[0]]
+        reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
         one_hot_label = torch.nn.functional.one_hot(reload_label, neg_masked_logits.shape[1]).float()
         ori_logits = origin_logits[one_hot_label.bool()]
         nm_logits = neg_masked_logits[one_hot_label.bool()]
