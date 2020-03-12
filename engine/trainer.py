@@ -176,7 +176,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             overall_gcam = 0
             target_layer_num = len(model.target_layer)
             for i in  range(target_layer_num):
-                inter_output = model.inter_output[i].detach()  #此处分离节点，别人皆不分离
+                inter_output = model.inter_output[i]  #此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num-i-1]
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                 gcam = torch.relu(torch.sum(inter_gradient * inter_output, dim=1, keepdim=True))
@@ -191,6 +191,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 再次归一化
             overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             gcam = overall_gcam/overall_gcam_max
+            gcam = torch.gt(gcam, 1/target_layer_num).float()
+
 
             for op in optimizers:
                 op.zero_grad()
@@ -235,12 +237,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if model.segmentationType == "denseFC":
             output_masks = model.base.seg_attention[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
             if model.supervisedType == "self":
-                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0.8).float()
+                gcam_mask = gcam[gcam.shape[0] - seg_num:gcam.shape[0]]
                 seg_masks = gcam_mask
             elif model.supervisedType == "semi":
                 seg_masks = seg_masks
             elif model.supervisedType == "self-semi":
-                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0.8).float()
+                gcam_mask = gcam[gcam.shape[0] - seg_num:gcam.shape[0]]
                 seg_masks = torch.cat([seg_masks, gcam_mask], dim=1)
             elif model.supervisedType == "none":
                 seg_masks = None
