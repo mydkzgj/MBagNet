@@ -155,6 +155,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 运行模型
         if model.maskedImgReloadType == "none":
+            model.reloadImgBD = (grade_num + seg_num - model.masked_img_num, model.masked_img_num)
             model.transimitBatchDistribution((grade_num, seg_num))
         else:
             model.reloadImgBD = (grade_num+seg_num-model.masked_img_num, model.masked_img_num)
