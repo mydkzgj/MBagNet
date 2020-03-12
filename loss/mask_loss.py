@@ -231,10 +231,11 @@ class GradCamMaskLoss(object):
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, gcam_mask, reduction="none")
 
-        # 病灶并集处要分为一组
+        # 舍弃分组吧
+        """
         seg_mask_max = torch.max(gcam_mask, dim=1, keepdim=True)[0]
         seg_mask = seg_mask_max.expand_as(gcam_mask)
-
+        
         pos_num = torch.sum(seg_mask)
         pos_loss_map = loss * seg_mask
         if pos_num != 0:
@@ -249,6 +250,8 @@ class GradCamMaskLoss(object):
         else:
             neg_loss = 0
         total_loss = pos_loss + neg_loss
+        """
+        total_loss = torch.mean(loss)
 
         return total_loss
 
