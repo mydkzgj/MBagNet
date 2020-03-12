@@ -150,9 +150,9 @@ class NegMaskedImgLoss(object):
     def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label):   #output_mask, seg_mask, seg_label
         if not isinstance(neg_masked_logits, torch.Tensor):
             return 0
-        #"""
+        """
         # CJY distribution 1  cross_entropy_loss min
-        # pos_masked区域的img应该更容易区分类别
+        # 
         reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
         loss = F.cross_entropy(neg_masked_logits, reload_label, reduction="none")
 
@@ -162,7 +162,7 @@ class NegMaskedImgLoss(object):
         total_loss = torch.mean(pick_loss)
         # """
 
-        """
+        #"""
         # CJY distribution 2  logits diff min
         # 由pos_masked区域主要提供logit
         origin_logits = origin_logits[origin_logits.shape[0]-neg_masked_logits.shape[0]:origin_logits.shape[0]]
