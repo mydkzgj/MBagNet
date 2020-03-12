@@ -236,7 +236,7 @@ class GradCamMaskLoss(object):
         loss = F.binary_cross_entropy(output_score, gcam_mask, reduction="none")
 
 
-
+        """
         seg_mask_max = torch.max(gcam_mask, dim=1, keepdim=True)[0]
         seg_mask = seg_mask_max.expand_as(gcam_mask)
 
@@ -249,7 +249,7 @@ class GradCamMaskLoss(object):
             pos_loss = 0
 
         # 只取正类损失，实际即为seed-loss。那么剩余部分用neg-masked-img-loss监督以使范围不要太大
-        #"""
+        
         neg_num = torch.sum((1 - seg_mask))
         neg_loss_map = loss * (1 - seg_mask)
         if neg_num != 0:
@@ -257,7 +257,7 @@ class GradCamMaskLoss(object):
         else:
             neg_loss = 0
         #"""
-        total_loss = pos_loss + neg_loss
-
+        #total_loss = pos_loss + neg_loss
+        total_loss = torch.mean(loss)
         return total_loss
 
