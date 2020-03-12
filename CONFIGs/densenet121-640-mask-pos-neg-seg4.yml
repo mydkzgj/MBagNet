@@ -38,7 +38,7 @@ MODEL:
  HOOK_TYPE: "featureReserve"                                           #"featureReserve","rflogitGenerate","none"
  SEGMENTATION_TYPE: "denseFC"                          #"denseFC", "none"
  SEG_NUM_CLASSES: 4
- MASKED_IMG_RELOAD_TYPE: "none"#"seg_mask"     #"none", "seg_mask", "gradcam_mask"
+ MASKED_IMG_RELOAD_TYPE: "seg_mask"     #"none", "seg_mask", "gradcam_mask"
  MASKED_IMG_NUM: 2
  SUPERVISED_TYPE: "self"                       # supervisedType "self", "semi", "self-semi", "none"
 
