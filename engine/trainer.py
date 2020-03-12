@@ -235,12 +235,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if model.segmentationType == "denseFC":
             output_masks = model.base.seg_attention[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
             if model.supervisedType == "self":
-                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0.5).float()
+                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0.8).float()
                 seg_masks = gcam_mask
             elif model.supervisedType == "semi":
                 seg_masks = seg_masks
             elif model.supervisedType == "self-semi":
-                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0.5).float()
+                gcam_mask = torch.gt(gcam[gcam.shape[0] - seg_num:gcam.shape[0]], 0.8).float()
                 seg_masks = torch.cat([seg_masks, gcam_mask], dim=1)
             elif model.supervisedType == "none":
                 seg_masks = None
