@@ -198,6 +198,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             for op in optimizers:
                 op.zero_grad()
 
+            model.inter_output.clear()
+            model.inter_gradient.clear()
+
         #CJY at 2020.3.5 masked img reload
         # 掩膜图像重新输入
         if model.maskedImgReloadType != "none":
