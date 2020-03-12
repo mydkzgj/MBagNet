@@ -348,6 +348,7 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
             overall_cam = overall_cam + cam
 
         overall_cam = overall_cam/np.max(overall_cam)
+        oc = (overall_cam>0)
         # Save mask
         save_class_activation_images(img, overall_cam, "heatmap_" + str(
             save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()))
