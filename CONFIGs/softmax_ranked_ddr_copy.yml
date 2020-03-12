@@ -56,7 +56,7 @@ MODEL:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 LOSS:
- TYPE: 'cross_entropy_loss mask_loss pos_masked_img_loss neg_masked_img_loss' # 
+ TYPE: 'cross_entropy_loss seg_mask_loss gcam_mask_loss pos_masked_img_loss neg_masked_img_loss' # 
  MARGIN_RANK: 1.3 ### R: ALPHA - MARGIN_RANK
  ALPHA: 2.0
  TVAL: 1.0

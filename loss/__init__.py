@@ -15,7 +15,7 @@ from torch.nn import KLDivLoss
 from .margin_loss import MarginLoss
 from .cross_entropy_label_smooth import CrossEntropyLabelSmooth
 from .cross_entropy_multilabel import CrossEntropyMultiLabel
-from .mask_loss import MaskLoss
+from .mask_loss import SegMaskLoss, GradCamMaskLoss
 from .masked_img_loss import PosMaskedImgLoss, NegMaskedImgLoss
 
 
@@ -64,9 +64,12 @@ def make_D_loss(cfg, num_classes):
         elif lossName == "cross_entropy_multilabel_loss":
             cross_entropy_multilabel_loss = CrossEntropyMultiLabel()
             lossClasses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss
-        elif lossName == "mask_loss":
-            mask_loss = MaskLoss()
-            lossClasses["mask_loss"] = mask_loss
+        elif lossName == "seg_mask_loss":
+            seg_mask_loss = SegMaskLoss(cfg.MODEL.SEG_NUM_CLASSES)
+            lossClasses["seg_mask_loss"] = seg_mask_loss
+        elif lossName == "gcam_mask_loss":
+            gcam_mask_loss = GradCamMaskLoss()
+            lossClasses["gcam_mask_loss"] = gcam_mask_loss
         elif lossName == "pos_masked_img_loss":
             pos_masked_img_loss = PosMaskedImgLoss()
             lossClasses["pos_masked_img_loss"] = pos_masked_img_loss
@@ -85,7 +88,7 @@ def make_D_loss(cfg, num_classes):
     """
 
     #计算loss的函数
-    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None, pos_masked_logit=None, neg_masked_logit=None, reload_label=None):
+    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None, gcam_mask=None, pos_masked_logit=None, neg_masked_logit=None, reload_label=None):
         losses = {}
         for lossName in lossKeys:
             if lossName == "similarity_loss":
@@ -108,8 +111,10 @@ def make_D_loss(cfg, num_classes):
                 losses["margin_loss"] = margin_loss(logit, similarity_label)
             elif lossName == "cross_entropy_multilabel_loss":
                 losses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss(logit, multilabel)
-            elif lossName == "mask_loss":
-                losses["mask_loss"] = mask_loss(output_mask, seg_mask, seg_label)
+            elif lossName == "seg_mask_loss":
+                losses["seg_mask_loss"] = seg_mask_loss(output_mask, seg_mask, seg_label)
+            elif lossName == "gcam_mask_loss":
+                losses["gcam_mask_loss"] = gcam_mask_loss(output_mask, gcam_mask, label)
             elif lossName == "pos_masked_img_loss":
                 losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
             elif lossName == "neg_masked_img_loss":

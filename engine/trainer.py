@@ -232,16 +232,18 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 确定分割结果输出类型
         if model.segmentationType == "denseFC":
-            output_masks = model.base.seg_attention[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
+            output_masks = model.base.seg_attention#[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
             if model.segSupervisedType == "strong":
                 seg_masks = seg_masks
+                gcam_masks = None
             elif model.segSupervisedType == "weak":
-                gcam_mask = gcam[gcam.shape[0] - seg_num:gcam.shape[0]]
-                seg_masks = gcam_mask
+                gcam_masks = gcam#[gcam.shape[0] - seg_num:gcam.shape[0]]
+                seg_masks = None
             elif model.segSupervisedType == "joint":
-                gcam_mask = gcam[gcam.shape[0] - seg_num:gcam.shape[0]]
-                seg_masks = torch.cat([seg_masks, gcam_mask], dim=1)
+                gcam_masks = gcam#[gcam.shape[0] - seg_num:gcam.shape[0]]
+                seg_masks = seg_masks#torch.cat([seg_masks, gcam_masks], dim=1)
             elif model.segSupervisedType == "none":
+                gcam_masks = None
                 seg_masks = None
         elif model.segmentationType == "gradCAM":
             output_masks = gcam[gcam.shape[0]-seg_num: gcam.shape[0]]
@@ -250,8 +252,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits,)    #损失词典
-        weight = {"cross_entropy_loss":1, 'similarity_loss':1, "mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0}
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits,)    #损失词典
+        weight = {"cross_entropy_loss":1, 'similarity_loss':1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
@@ -361,9 +363,12 @@ def do_train(
         elif lossName == "cross_entropy_multilabel_loss":
             metrics_train["AVG-" + "cross_entropy_multilabel_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["cross_entropy_multilabel_loss"])
-        elif lossName == "mask_loss":
-            metrics_train["AVG-" + "mask_loss"] = RunningAverage(
-                output_transform=lambda x: x["losses"]["mask_loss"])
+        elif lossName == "seg_mask_loss":
+            metrics_train["AVG-" + "seg_mask_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["seg_mask_loss"])
+        elif lossName == "gcam_mask_loss":
+            metrics_train["AVG-" + "gcam_mask_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["gcam_mask_loss"])
         elif lossName == "pos_masked_img_loss":
             metrics_train["AVG-" + "pos_masked_img_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["pos_masked_img_loss"])

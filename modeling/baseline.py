@@ -90,35 +90,33 @@ class Baseline(nn.Module):
         # Branch Config方式: 若其不为none，那么前面各支路参数的设置将会依据该项进行改写
         # "none", "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe",
         self.branchConfigType = branchConfigType
-        if self.branchConfigType == "weakSu-noneRe":
-            self.segSupervisedType = "weak"
-            self.seg_num_classes = 1
-            self.gradCAMType = "supervise_seg"
-            self.maskedImgReloadType = "none"
-        if self.branchConfigType == "weakSu-segRe":
-            self.segSupervisedType = "weak"
-            self.seg_num_classes = 1
-            self.gradCAMType = "supervise_seg"
-            self.maskedImgReloadType = "seg_mask"
-        elif self.branchConfigType == "strongSu-segRe":
-            self.segSupervisedType = "strong"
-            self.seg_num_classes = self.seg_num_classes
-            self.gradCAMType = "supervise_seg"
-            self.maskedImgReloadType = "seg_mask"
-        elif self.branchConfigType == "jointSu-segRe":
-            self.seg_num_classes = self.seg_num_classes + 1
-            self.segSupervisedType = "joint"
-            self.gradCAMType = "supervise_seg"
-            self.maskedImgReloadType = "seg_mask"
-        elif self.branchConfigType == "strongSu-gcamRe":
-            self.seg_num_classes = self.seg_num_classes
-            self.segSupervisedType = "strong"
-            self.gradCAMType = "reload"
-            self.maskedImgReloadType = "gradcam_mask"
-        elif self.branchConfigType == "noneSu-gcamRe":
-            self.segSupervisedType = "none"
-            self.gradCAMType = "reload"
-            self.maskedImgReloadType = "gradcam_mask"
+        if self.branchConfigType != "none":
+            configList = self.branchConfigType.split("-")
+            configList[0] = configList[0].replace("Su", "")
+            configList[1] = configList[1].replace("Re", "")
+
+            self.segSupervisedType = configList[0]
+            if configList[0] == "weak":
+                self.seg_num_classes = 6
+                self.gradCAMType = "supervise_seg"
+            elif configList[0] == "strong":
+                self.seg_num_classes = 4
+                self.gradCAMType = "none"
+            elif configList[0] == "joint":
+                self.seg_num_classes = 1 + 4
+                self.gradCAMType = "supervise_seg"
+            else:
+                raise Exception("Wrong Branch Config")
+
+            if configList[1] == "seg":
+                self.maskedImgReloadType = "seg_mask"
+            elif configList[1] == "gcam":
+                self.maskedImgReloadType = "gradcam_mask"
+                self.gradCAMType = "reload"
+            elif configList[1] == "none":
+                self.maskedImgReloadType = "none"
+            else:
+                raise Exception("Wrong Branch Config")
 
 
         # 1.Backbone

@@ -102,9 +102,10 @@ class CommonLoss(object):
 """
 
 
-class MaskLoss(object):
+class SegMaskLoss(object):
     "Ranked_List_Loss_for_Deep_Metric_Learning_CVPR_2019_paper"
-    def __init__(self):
+    def __init__(self, seg_num_classes):
+        self.seg_num_classes = seg_num_classes
         pass
 
     def __call__(self, output_mask, seg_mask, seg_label):   #output_mask, seg_mask, seg_label
@@ -143,8 +144,12 @@ class MaskLoss(object):
         if not isinstance(output_mask, torch.Tensor) or not isinstance(seg_mask, torch.Tensor):
             return 0
 
-        #if output_mask.shape[1] >= 4:
-        #    output_mask = output_mask[:, 0:4]
+        # 截断出末尾作为输入
+        if output_mask.shape[0] > seg_label.shape[0]:
+            output_mask = output_mask[output_mask.shape[0]-seg_label.shape[0]:output_mask.shape[0]]
+
+        if output_mask.shape[1] > self.seg_num_classes:
+            output_mask = output_mask[output_mask.shape[1]-self.seg_num_classes:output_mask.shape[1]]
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
@@ -152,6 +157,83 @@ class MaskLoss(object):
         # 病灶并集处要分为一组
         seg_mask_max = torch.max(seg_mask, dim=1, keepdim=True)[0]
         seg_mask = seg_mask_max.expand_as(seg_mask)
+
+        pos_num = torch.sum(seg_mask)
+        pos_loss_map = loss * seg_mask
+        if pos_num != 0:
+            pos_loss = torch.sum(pos_loss_map) / pos_num
+        else:
+            pos_loss = 0
+
+        neg_num = torch.sum((1 - seg_mask))
+        neg_loss_map = loss * (1 - seg_mask)
+        if neg_num != 0:
+            neg_loss = torch.sum(neg_loss_map) / neg_num
+        else:
+            neg_loss = 0
+        total_loss = pos_loss + neg_loss
+
+        return total_loss
+
+class GradCamMaskLoss(object):
+    "Ranked_List_Loss_for_Deep_Metric_Learning_CVPR_2019_paper"
+    def __init__(self):
+        pass
+
+    def __call__(self, output_mask, gcam_mask, label):   #output_mask, seg_mask, seg_label
+        #  CJY distribution 1
+        """
+        if not isinstance(output_mask, torch.Tensor):
+            return 0
+
+        if output_mask.shape[1] >= 4:
+            output_mask = output_mask[:, 0:4]
+
+        output_score = torch.sigmoid(output_mask)
+        loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
+
+        pos_num = torch.sum(seg_mask)
+        pos_loss_map = loss * seg_mask
+        if pos_num != 0:
+            pos_loss = torch.sum(pos_loss_map)/pos_num
+        else:
+            pos_loss = 0
+
+        neg_num = torch.sum((1 - seg_mask))
+        neg_loss_map = loss * (1 - seg_mask)
+        if neg_num != 0:
+            neg_loss = torch.sum(neg_loss_map)/neg_num
+        else:
+            neg_loss = 0
+
+        total_loss = pos_loss + neg_loss
+        #"""
+
+        # CJY distribution 2
+        #"""
+        # 注意：负样本的数量实在太多，会淹没误判的正样本。
+        # 该版本要比第一种好
+        if not isinstance(output_mask, torch.Tensor) or not isinstance(gcam_mask, torch.Tensor):
+            return 0
+
+        if output_mask.shape[0] <= label.shape[0]:
+            label = label[label.shape[0]-output_mask.shape[0]:label.shape[0]]
+        else:
+            raise Exception("output_mask.shape[0] can't match label.shape[0]")
+
+        if output_mask.shape[1] != gcam_mask.shape[1]:  #gcam_mask.shape[1] == 1
+            l = []
+            for i in range(label.shape[0]):
+                l.append(output_mask[i][label[i]].unsqueeze(0).unsqueeze(0))
+            output_mask = torch.cat(l, dim=0)
+            l.clear()
+
+        output_score = torch.sigmoid(output_mask)
+        loss = F.binary_cross_entropy(output_score, gcam_mask, reduction="none")
+
+        # 病灶并集处要分为一组
+        seg_mask_max = torch.max(gcam_mask, dim=1, keepdim=True)[0]
+        seg_mask = seg_mask_max.expand_as(gcam_mask)
 
         pos_num = torch.sum(seg_mask)
         pos_loss_map = loss * seg_mask
