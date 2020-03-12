@@ -68,7 +68,7 @@ def make_D_loss(cfg, num_classes):
             seg_mask_loss = SegMaskLoss(cfg.MODEL.SEG_NUM_CLASSES)
             lossClasses["seg_mask_loss"] = seg_mask_loss
         elif lossName == "gcam_mask_loss":
-            gcam_mask_loss = GradCamMaskLoss()
+            gcam_mask_loss = GradCamMaskLoss(cfg.MODEL.SEG_NUM_CLASSES)
             lossClasses["gcam_mask_loss"] = gcam_mask_loss
         elif lossName == "pos_masked_img_loss":
             pos_masked_img_loss = PosMaskedImgLoss()

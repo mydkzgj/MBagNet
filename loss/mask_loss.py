@@ -148,8 +148,8 @@ class SegMaskLoss(object):
         if output_mask.shape[0] > seg_label.shape[0]:
             output_mask = output_mask[output_mask.shape[0]-seg_label.shape[0]:output_mask.shape[0]]
 
-        if output_mask.shape[1] > self.seg_num_classes:
-            output_mask = output_mask[output_mask.shape[1]-self.seg_num_classes:output_mask.shape[1]]
+        if output_mask.shape[1] > seg_mask.shape[1]:
+            output_mask = output_mask[:, output_mask.shape[1]-seg_mask.shape[1]:output_mask.shape[1]]
 
         output_score = torch.sigmoid(output_mask)
         loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
@@ -177,7 +177,8 @@ class SegMaskLoss(object):
 
 class GradCamMaskLoss(object):
     "Ranked_List_Loss_for_Deep_Metric_Learning_CVPR_2019_paper"
-    def __init__(self):
+    def __init__(self, seg_num_classes):
+        self.seg_num_classes = seg_num_classes
         pass
 
     def __call__(self, output_mask, gcam_mask, label):   #output_mask, seg_mask, seg_label
@@ -220,6 +221,9 @@ class GradCamMaskLoss(object):
             label = label[label.shape[0]-output_mask.shape[0]:label.shape[0]]
         else:
             raise Exception("output_mask.shape[0] can't match label.shape[0]")
+
+        if output_mask.shape[1] > self.seg_num_classes:
+            output_mask = output_mask[:, 0:output_mask.shape[1]-self.seg_num_classes]
 
         if output_mask.shape[1] != gcam_mask.shape[1]:  #gcam_mask.shape[1] == 1
             l = []

@@ -220,12 +220,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             rimgs = imgs[model.batchDistribution[0]:model.batchDistribution[0] + model.batchDistribution[1]]
 
             pos_masked_img = soft_mask * rimgs
-            #neg_masked_img = (1-soft_mask) * rimgs
+            neg_masked_img = (1-soft_mask) * rimgs
             # 3.reload maskedImg
             model.eval()
             model.transimitBatchDistribution(0)
             pm_logits = model(pos_masked_img)
-            nm_logits = None#model(neg_masked_img)
+            nm_logits = model(neg_masked_img)
         else:
             pm_logits = None
             nm_logits = None
