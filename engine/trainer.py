@@ -182,18 +182,15 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = torch.relu(torch.sum(inter_gradient * inter_output, dim=1, keepdim=True))
                 gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 归一化
-                g = gcam.view(gcam.shape[0], -1)
-                gcam_max = torch.max(g, dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 gcam = gcam / gcam_max
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
                 overall_gcam = overall_gcam + gcam * (target_layer_num-i)/target_layer_num
             # 再次归一化
-            og = overall_gcam.view(overall_gcam.shape[0], -1)
-            overall_gcam_max = torch.max(og, dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
-            overall_gcam = overall_gcam/overall_gcam_max
-            gcam = overall_gcam
+            overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
+            gcam = overall_gcam/overall_gcam_max
 
             for op in optimizers:
                 op.zero_grad()
