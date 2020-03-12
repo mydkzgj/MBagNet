@@ -249,16 +249,15 @@ class GradCamMaskLoss(object):
             pos_loss = 0
 
         # 只取正类损失，实际即为seed-loss。那么剩余部分用neg-masked-img-loss监督以使范围不要太大
-        """
+        #"""
         neg_num = torch.sum((1 - seg_mask))
         neg_loss_map = loss * (1 - seg_mask)
         if neg_num != 0:
             neg_loss = torch.sum(neg_loss_map) / neg_num
         else:
             neg_loss = 0
+        #"""
         total_loss = pos_loss + neg_loss
-        """
-        total_loss = pos_loss
 
         return total_loss
 

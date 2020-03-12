@@ -17,6 +17,7 @@ from .cross_entropy_label_smooth import CrossEntropyLabelSmooth
 from .cross_entropy_multilabel import CrossEntropyMultiLabel
 from .mask_loss import SegMaskLoss, GradCamMaskLoss
 from .masked_img_loss import PosMaskedImgLoss, NegMaskedImgLoss
+from .forshow_loss import ForShowLoss
 
 
 
@@ -76,6 +77,9 @@ def make_D_loss(cfg, num_classes):
         elif lossName == "neg_masked_img_loss":
             neg_masked_img_loss = NegMaskedImgLoss()
             lossClasses["neg_masked_img_loss"] = neg_masked_img_loss
+        elif lossName == "for_show_loss":
+            for_show_loss = ForShowLoss()
+            lossClasses["for_show_loss"] = for_show_loss
 
         else:
             raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
@@ -88,7 +92,7 @@ def make_D_loss(cfg, num_classes):
     """
 
     #计算loss的函数
-    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None, gcam_mask=None, pos_masked_logit=None, neg_masked_logit=None, reload_label=None):
+    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None, gcam_mask=None, pos_masked_logit=None, neg_masked_logit=None, reload_label=None, show=0):
         losses = {}
         for lossName in lossKeys:
             if lossName == "similarity_loss":
@@ -119,6 +123,8 @@ def make_D_loss(cfg, num_classes):
                 losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
             elif lossName == "neg_masked_img_loss":
                 losses["neg_masked_img_loss"] = neg_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
+            elif lossName == "for_show_loss":
+                losses["for_show_loss"] = for_show_loss(show=show)
             else:
                 raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                                 'but got {}'.format(cfg.LOSS.TYPE))

@@ -188,7 +188,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 再次归一化
             overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             gcam = overall_gcam/overall_gcam_max
-            gcam = torch.gt(gcam, 1/target_layer_num).float()
+            gcam = torch.gt(gcam, 0.5/target_layer_num).float()
 
             for op in optimizers:
                 op.zero_grad()
@@ -220,12 +220,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             rimgs = imgs[model.batchDistribution[0]:model.batchDistribution[0] + model.batchDistribution[1]]
 
             pos_masked_img = soft_mask * rimgs
-            neg_masked_img = (1-soft_mask) * rimgs
+            #neg_masked_img = (1-soft_mask) * rimgs
             # 3.reload maskedImg
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = None#model(pos_masked_img)
-            nm_logits = model(neg_masked_img)
+            pm_logits = model(pos_masked_img)
+            nm_logits = None#model(neg_masked_img)
         else:
             #pm_logits = None
             nm_logits = None
@@ -250,10 +250,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         else:
             output_masks = None
 
+        # for show loss 计算想查看的loss
+        forShow = torch.mean(soft_mask)
+
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits,)    #损失词典
-        weight = {"cross_entropy_loss":1, 'similarity_loss':1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1}
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
+        weight = {"cross_entropy_loss":1, 'similarity_loss':1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
@@ -375,6 +378,9 @@ def do_train(
         elif lossName == "neg_masked_img_loss":
             metrics_train["AVG-" + "neg_masked_img_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["neg_masked_img_loss"])
+        elif lossName == "for_show_loss":
+            metrics_train["AVG-" + "for_show_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["for_show_loss"])
         else:
             raise Exception('expected METRIC_LOSS_TYPE should be similarity_loss, ranked_loss, cranked_loss'
                             'but got {}'.format(cfg.LOSS.TYPE))
