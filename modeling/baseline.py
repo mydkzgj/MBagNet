@@ -97,7 +97,7 @@ class Baseline(nn.Module):
 
             self.segSupervisedType = configList[0]
             if configList[0] == "weak":
-                self.seg_num_classes = 6
+                self.seg_num_classes = 1
                 self.gradCAMType = "supervise_seg"
             elif configList[0] == "strong":
                 self.seg_num_classes = 4
