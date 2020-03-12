@@ -175,7 +175,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 生成CAM
             overall_gcam = 0
             target_layer_num = len(model.target_layer)
-            for i in  range(target_layer_num):
+            for i in range(target_layer_num):
                 inter_output = model.inter_output[i]  #此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num-i-1]
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
