@@ -339,10 +339,10 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
 
         # 综合所有grad-cam
         overall_cam = 0
-        for cam in cam_list:
-            cam_tensor = torch.Tensor(cam)
-            cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=5, stride=1, padding=2)
-            cam = cam_tensor.numpy()
+        for index, cam in enumerate(cam_list):
+            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)
+            cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
+            cam = cam_tensor.squeeze(0).squeeze(0).numpy()
             overall_cam = overall_cam + cam
 
         overall_cam = overall_cam/len(cam_list)
