@@ -78,6 +78,8 @@ class Baseline(nn.Module):
         self.maskedImgReloadType = maskedImgReloadType
         self.masked_img_num = masked_img_num
 
+        self.reloadImgBD = 0
+
         # 监督方式 "self", "semi", "self-semi", "none"
         self.supervisedType = supervisedType#"self"
 
@@ -181,14 +183,15 @@ class Baseline(nn.Module):
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
         # GradCAM
         if self.gradCAMType == True:
-            self.inter_output = None
-            self.inter_gradient = None
-            self.target_layer = "conv0"#"denseblock3"#"conv0"#"denseblock1"
+            self.inter_output = [] #None
+            self.inter_gradient = [] #None
+            self.target_layer = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"
 
-            if self.target_layer != "":
-                for module_name, module in self.base.features.named_modules():
-                    #if isinstance(module, torch.nn.Conv2d):
-                        if module_name == self.target_layer:#"transition1.conv":
+            if self.target_layer != []:
+                for tl in self.target_layer:
+                    for module_name, module in self.base.features.named_modules():
+                        #if isinstance(module, torch.nn.Conv2d):
+                        if module_name == tl:  #"transition1.conv":
                             print("Grad-CAM hook on ", module_name)
                             module.register_forward_hook(self.forward_hook_fn)
                             module.register_backward_hook(self.backward_hook_fn)
@@ -197,10 +200,22 @@ class Baseline(nn.Module):
 
 
     def forward_hook_fn(self, module, input, output):
-        self.inter_output = output  #将输入图像的梯度获取
+        if self.reloadImgBD != 0:
+            if self.reloadImgBD != 1:
+                self.inter_output.append(output[self.reloadImgBD[0]:self.reloadImgBD[0] + self.reloadImgBD[1]])
+            else:
+                # self.inter_output = output  #将输入图像的梯度获取
+                self.inter_output.append(output)  # 将输入图像的梯度获取
+
 
     def backward_hook_fn(self, module, grad_in, grad_out):
-        self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
+        if self.reloadImgBD != 0:
+            if self.reloadImgBD != 1:
+                self.inter_gradient.append(grad_out[0][self.reloadImgBD[0]:self.reloadImgBD[0] + self.reloadImgBD[1]])
+            else:
+                # self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
+                self.inter_gradient.append(grad_out[0])  # 将输入图像的梯度获取
+
 
     def transmitClassifierWeight(self):   #将线性分类器回传到base中
         if self.segmentationType == "bagFeature" and self.hookType == "rflogitGenerate":
@@ -218,6 +233,10 @@ class Baseline(nn.Module):
         self.base.batchDistribution = BD
 
     def forward(self, x):
+        if self.gradCAMType == True:
+            self.inter_output.clear()
+            self.inter_gradient.clear()
+
         # 分为三种情况：1.base只提供特征 2.base输出logit但需后处理 3
         if self.classifierType == "normal":
             base_out = self.base(x)

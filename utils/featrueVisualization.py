@@ -339,13 +339,15 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
 
         # 综合所有grad-cam
         overall_cam = 0
+        w = 0
         for index, cam in enumerate(cam_list):
-            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)
+            w = w + (len(cam_list)-index)
+            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0) * (len(cam_list)-index)
             cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
             cam = cam_tensor.squeeze(0).squeeze(0).numpy()
             overall_cam = overall_cam + cam
 
-        overall_cam = overall_cam/len(cam_list)
+        overall_cam = overall_cam/np.max(overall_cam)
         # Save mask
         save_class_activation_images(img, overall_cam, "heatmap_" + str(
             save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()))
