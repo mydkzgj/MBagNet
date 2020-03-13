@@ -204,7 +204,7 @@ class Baseline(nn.Module):
         if self.gradCAMType != "none":
             self.inter_output = [] #None
             self.inter_gradient = [] #None
-            self.target_layer = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            self.target_layer = ["denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
 
             if self.target_layer != []:
                 for tl in self.target_layer:
