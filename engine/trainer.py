@@ -187,7 +187,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 overall_gcam = overall_gcam + gcam * (target_layer_num-i)/target_layer_num
             # 再次归一化
             overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
-            gcam = overall_gcam/overall_gcam_max
+            overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
+            gcam = (overall_gcam-overall_gcam_min)/(overall_gcam_max-overall_gcam_min)
             #gcam = torch.gt(gcam, 1/target_layer_num).float()
 
             for op in optimizers:
