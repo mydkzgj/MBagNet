@@ -222,7 +222,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
                 soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
-                soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0]
+                #soft_mask = torch.nn.functional.avg_pool2d(gcam, kernel_size=5, stride=1, padding=2)
+                soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
             else:
                 pass
             # 2.生成masked_img
