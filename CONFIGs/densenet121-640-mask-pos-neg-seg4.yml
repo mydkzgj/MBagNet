@@ -37,7 +37,7 @@ MODEL:
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"           #"f-c","pl-c","fl-n"
 
  # "none", "weakSu-noneRe" "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe", 
- BRANCH_CONFIG_TYPE: "noneSu-gcamRe"                       
+ BRANCH_CONFIG_TYPE: "strongSu-jointRe"#"noneSu-gcamRe"                       
  BRANCH_IMG_NUM: 2
  #(1). Segmentation Branch
  HOOK_TYPE:  "featureReserve"                           #"featureReserve","rflogitGenerate","none" 
