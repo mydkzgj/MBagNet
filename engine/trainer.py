@@ -210,7 +210,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 else:
                     soft_mask = model.base.seg_attention
                 soft_mask = torch.sigmoid(soft_mask)
-                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=31, stride=1, padding=15)
+                #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=31, stride=1, padding=15)
             elif model.maskedImgReloadType == "gradcam_mask":   #生成grad-cam
                 if model.gradCAMType != "reload":
                     raise Exception("segmentationType can't match maskedImgReloadType")
@@ -228,7 +228,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             pm_logits = model(pos_masked_img)
             nm_logits = None#model(neg_masked_img)
         else:
-            #pm_logits = None
+            pm_logits = None
             nm_logits = None
 
         # 确定分割结果输出类型
