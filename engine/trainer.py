@@ -252,7 +252,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             output_masks = None
 
         # for show loss 计算想查看的loss
-        forShow = torch.mean(soft_mask)
+        forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))#torch.mean(soft_mask)
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
