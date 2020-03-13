@@ -116,6 +116,9 @@ class Baseline(nn.Module):
             elif configList[1] == "gcam":
                 self.maskedImgReloadType = "gradcam_mask"
                 self.gradCAMType = "reload"
+            elif configList[1] == "joint":
+                self.maskedImgReloadType = "joint_mask"
+                self.gradCAMType = "reload"
             elif configList[1] == "none":
                 self.maskedImgReloadType = "none"
             else:

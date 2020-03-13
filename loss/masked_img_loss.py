@@ -165,9 +165,6 @@ class NegMaskedImgLoss(object):
         #"""
         # CJY distribution 2  logits diff min
 
-        # 可以先进行 softmax处理 得到score
-        neg_masked_logits = torch.softmax(neg_masked_logits, dim=1)
-
         # 由pos_masked区域主要提供logit
         origin_logits = origin_logits[origin_logits.shape[0]-neg_masked_logits.shape[0]:origin_logits.shape[0]]
         reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
