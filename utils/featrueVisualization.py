@@ -346,8 +346,8 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
             cam = cam_tensor.squeeze(0).squeeze(0).numpy()
             overall_cam = overall_cam + (cam - 0.5) * (cam_num-index)/cam_num
 
-        overall_cam = overall_cam/np.max(overall_cam)
-        overall_cam = (overall_cam > (1/cam_num)) * 0.5 + 0.5
+        overall_cam = (overall_cam-np.min(overall_cam))/(np.max(overall_cam)-np.min(overall_cam))
+        overall_cam = (overall_cam > 1/cam_num) * 0.5 + 0.5
         # Save mask
         save_class_activation_images(img, overall_cam, "heatmap_" + str(
             save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()))

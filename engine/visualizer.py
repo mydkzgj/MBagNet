@@ -114,6 +114,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 return {"logits": logits, "labels": seg_labels}
 
         if model.heatmapType == "GradCAM":
+            model.transimitBatchDistribution(0)  # 所有样本均要生成可视化seg
             seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
             seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
             with torch.no_grad():

@@ -177,7 +177,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 inter_gradient = model.inter_gradient[target_layer_num-i-1]
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                 gcam = torch.relu(torch.sum(inter_gradient * inter_output, dim=1, keepdim=True))
-                gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
+                gcam = torch.nn.functional.avg_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 归一化
                 gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 gcam = gcam / gcam_max
@@ -190,7 +190,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             gcam = (overall_gcam-overall_gcam_min)/(overall_gcam_max-overall_gcam_min).clamp(1E-12)
             #gcam = torch.gt(gcam, 1/target_layer_num).float()
-            sigma = 0.5#0.5
+            sigma = 1/target_layer_num#0.5
             w = 8
             gcam = torch.sigmoid(w * (gcam - sigma))
 
