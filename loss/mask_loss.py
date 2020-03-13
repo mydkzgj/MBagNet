@@ -233,7 +233,9 @@ class GradCamMaskLoss(object):
             l.clear()
 
         output_score = torch.sigmoid(output_mask)
-        loss = F.binary_cross_entropy(output_score, gcam_mask, reduction="none")
+
+        #loss = F.binary_cross_entropy(output_score, gcam_mask, reduction="none")
+        loss = torch.pow(output_score - gcam_mask, 2)
 
 
         """
