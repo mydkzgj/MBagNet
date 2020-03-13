@@ -118,7 +118,7 @@ def make_D_loss(cfg, num_classes):
             elif lossName == "seg_mask_loss":
                 losses["seg_mask_loss"] = seg_mask_loss(output_mask, seg_mask, seg_label)
             elif lossName == "gcam_mask_loss":
-                losses["gcam_mask_loss"] = gcam_mask_loss(output_mask, gcam_mask, label)
+                losses["gcam_mask_loss"] = gcam_mask_loss(output_mask, gcam_mask, label, seg_mask)
             elif lossName == "pos_masked_img_loss":
                 losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
             elif lossName == "neg_masked_img_loss":

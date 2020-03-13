@@ -221,23 +221,20 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "joint_mask":   #生成grad-cam:
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
-                if model.seg_num_classes != 1:
-                    soft_mask = torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]
-                else:
-                    soft_mask = model.base.seg_attention
-                soft_mask = (torch.sigmoid(soft_mask) + gcam)/2
+                soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
+                soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0]
             else:
                 pass
             # 2.生成masked_img
             rimgs = imgs[model.batchDistribution[0]:model.batchDistribution[0] + model.batchDistribution[1]]
 
             pos_masked_img = soft_mask * rimgs
-            #neg_masked_img = (1-soft_mask) * rimgs
+            neg_masked_img = (1-soft_mask) * rimgs
             # 3.reload maskedImg
             model.eval()
             model.transimitBatchDistribution(0)
             pm_logits = model(pos_masked_img)
-            nm_logits = None#model(neg_masked_img)
+            nm_logits = model(neg_masked_img)
         else:
             pm_logits = None
             nm_logits = None
