@@ -190,7 +190,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             gcam = (overall_gcam-overall_gcam_min)/(overall_gcam_max-overall_gcam_min)
             #gcam = torch.gt(gcam, 1/target_layer_num).float()
-            sigma = 0.25
+            sigma = 0.5#0.5
             w = 8
             gcam = torch.sigmoid(w * (gcam - sigma))
 
@@ -217,7 +217,15 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "gradcam_mask":   #生成grad-cam
                 if model.gradCAMType != "reload":
                     raise Exception("segmentationType can't match maskedImgReloadType")
-                soft_mask = gcam[model.batchDistribution[0]:model.batchDistribution[0] + model.batchDistribution[1]]
+                soft_mask = gcam
+            elif model.maskedImgReloadType == "joint_mask":   #生成grad-cam:
+                if model.segmentationType != "denseFC":
+                    raise Exception("segmentationType can't match maskedImgReloadType")
+                if model.seg_num_classes != 1:
+                    soft_mask = torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]
+                else:
+                    soft_mask = model.base.seg_attention
+                soft_mask = (torch.sigmoid(soft_mask) + gcam)/2
             else:
                 pass
             # 2.生成masked_img
