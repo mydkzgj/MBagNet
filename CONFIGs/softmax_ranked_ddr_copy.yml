@@ -92,7 +92,7 @@ SOLVER:
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
   LOSS_LR: 0.05
-  RETRAIN_FROM_HEAD: 1
+  RETRAIN_FROM_HEAD: 0
 
 
 # -----------------------------------------------------------------------------
