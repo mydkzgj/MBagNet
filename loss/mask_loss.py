@@ -235,8 +235,11 @@ class GradCamMaskLoss(object):
         output_score = torch.sigmoid(output_mask)
 
         #loss = F.binary_cross_entropy(output_score, gcam_mask, reduction="none")
-        loss = torch.abs(output_score - gcam_mask)
-
+        #loss = torch.abs(output_score - gcam_mask)
+        # KL
+        #loss = torch.mean(gcam_mask * torch.log(gcam_mask/output_score) + (1-gcam_mask) * torch.log((1-gcam_mask)/(1-output_score)))
+        # cross_entropy_loss 连续
+        loss = -(gcam_mask * torch.log(output_score) + (1 - gcam_mask) * torch.log(1 - output_score))
 
         """
         seg_mask_max = torch.max(gcam_mask, dim=1, keepdim=True)[0]
