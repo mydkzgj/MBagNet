@@ -224,6 +224,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
                 soft_mask = seg_masks#torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
                 soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
+                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=11, stride=1, padding=5)
                 soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
             else:
                 pass
@@ -271,7 +272,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":0, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
