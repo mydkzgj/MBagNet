@@ -37,7 +37,7 @@ MODEL:
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"           #"f-c","pl-c","fl-n"
 
  # "none", "weakSu-noneRe" "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe", 
- BRANCH_CONFIG_TYPE: "strongSu-jointRe"#"noneSu-gcamRe"                       
+ BRANCH_CONFIG_TYPE: "noneSu-noneRe"#"noneSu-gcamRe"                       
  BRANCH_IMG_NUM: 1
  #(1). Segmentation Branch
  HOOK_TYPE:  "featureReserve"                           #"featureReserve","rflogitGenerate","none" 
@@ -84,7 +84,7 @@ SOLVER:
 
  # SCHEDULER configuration
  SCHEDULER:
-  BASE_LR: 0.00001        #0.0001
+  BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
   STEPS: [10, 15, 20]
