@@ -187,10 +187,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
                 gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12)
+                #gcam_min = torch.
+
 
                 gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
 
-                gcam = -torch.celu(-gcam)
+                gcam = torch.tanh(gcam)
 
                 #gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam = gcam / gcam_max
