@@ -186,11 +186,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_gt0 = torch.gt(gcam_flatten, 0).float()
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
-                gcam_mean = gcam_sum/gcam_sum_num.clamp(1E-12)
-                
-                gcam = gcam_norelu/gcam_mean.clamp(1E-12)
+                gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12)
 
-                gcam = torch.tanh(gcam)
+                gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
+
+                gcam = -torch.celu(-gcam)
 
                 #gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam = gcam / gcam_max
@@ -306,7 +306,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
