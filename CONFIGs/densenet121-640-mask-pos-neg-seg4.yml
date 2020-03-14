@@ -38,7 +38,7 @@ MODEL:
 
  # "none", "weakSu-noneRe" "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe", 
  BRANCH_CONFIG_TYPE: "none"#"strongSu-jointRe"#"noneSu-gcamRe"                       
- BRANCH_IMG_NUM: 2
+ BRANCH_IMG_NUM: 1
  #(1). Segmentation Branch
  HOOK_TYPE:  "featureReserve"                           #"featureReserve","rflogitGenerate","none" 
  SEGMENTATION_TYPE:  "denseFC"                     #"denseFC", "bagFeature", "none" 
@@ -114,7 +114,7 @@ TRAIN:
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 1
-  MASK_PER_BATCH: 2
+  MASK_PER_BATCH: 1
   ACCUMULATION_STEP: 4
 
  # Train Trick
