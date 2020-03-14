@@ -123,7 +123,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
     epochs_traverse_optimizers = len(optimizers) * epochs_per_optimizer
 
     def _update(engine, batch):
-        model.eval()
+        model.train()
 
         # 分为D和G不同的优化器（暂时无用）
         schedulers_epochs_index = (engine.state.epoch - 1) // epochs_traverse_optimizers
@@ -235,7 +235,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             pos_masked_img = soft_mask * rimgs
             #neg_masked_img = (1-soft_mask) * rimgs
             # 3.reload maskedImg
-            #model.eval()   #暂时先去除BN的锁死
+            model.eval() 
             model.transimitBatchDistribution(0)
             pm_logits = model(pos_masked_img)
             nm_logits = None#model(neg_masked_img)
