@@ -38,7 +38,7 @@ MODEL:
 
  # "none", "weakSu-noneRe" "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe", 
  BRANCH_CONFIG_TYPE: "none"#"strongSu-jointRe"#"noneSu-gcamRe"                       
- BRANCH_IMG_NUM: 1
+ BRANCH_IMG_NUM: 3
  #(1). Segmentation Branch
  HOOK_TYPE:  "featureReserve"                           #"featureReserve","rflogitGenerate","none" 
  SEGMENTATION_TYPE:  "denseFC"                     #"denseFC", "bagFeature", "none" 
@@ -72,7 +72,7 @@ SOLVER:
  MAX_EPOCHS: 100
  EVAL_PERIOD: 1
  CHECKPOINT_PERIOD: 1
- LOG_PERIOD: 50
+ LOG_PERIOD: 10
  OUTPUT_DIR: "work_space" 
 
  # OPTIMIZER configuration
@@ -84,7 +84,7 @@ SOLVER:
 
  # SCHEDULER configuration
  SCHEDULER:
-  BASE_LR: 0.0001        #0.0001
+  BASE_LR: 0.00001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
   STEPS: [3, 4, 5]#[10, 15, 20]
@@ -92,7 +92,7 @@ SOLVER:
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
   LOSS_LR: 0.05
-  RETRAIN_FROM_HEAD: 1
+  RETRAIN_FROM_HEAD: 0
 
 
 # -----------------------------------------------------------------------------
@@ -113,13 +113,13 @@ TRAIN:
  # Train Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1
+  INSTANCES_PER_CATEGORY_IN_BATCH: 3
   MASK_PER_BATCH: 1
   ACCUMULATION_STEP: 4
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'#'./pretrained/densenet121_model_1.pth'#
+  PRETRAIN_PATH: './pretrained/densenet121_model_1.pth'#'./pretrained/densenet121-a639ec97.pth'#
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
