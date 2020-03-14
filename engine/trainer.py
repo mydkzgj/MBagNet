@@ -123,7 +123,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
     epochs_traverse_optimizers = len(optimizers) * epochs_per_optimizer
 
     def _update(engine, batch):
-        model.train()
+        model.eval()
 
         # 分为D和G不同的优化器（暂时无用）
         schedulers_epochs_index = (engine.state.epoch - 1) // epochs_traverse_optimizers
