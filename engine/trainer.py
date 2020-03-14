@@ -177,7 +177,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 inter_gradient = model.inter_gradient[target_layer_num-i-1]
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                 gcam = torch.relu(torch.sum(inter_gradient * inter_output, dim=1, keepdim=True))
-                gcam = torch.nn.functional.avg_pool2d(gcam, kernel_size=5, stride=1, padding=2)
+                gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 归一化
                 gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 gcam = gcam / gcam_max
@@ -224,7 +224,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
                 soft_mask = seg_masks#torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
                 soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=101, stride=1, padding=50)
-                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=41, stride=1, padding=20)
+                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
                 soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
             else:
                 pass
@@ -272,7 +272,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":0, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
