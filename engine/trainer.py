@@ -185,7 +185,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
                 gcam_mean = gcam_sum/gcam_sum_num.clamp(1E-12)
-                gcam = gcam/gcam_mean
+                gcam = gcam/gcam_mean.clamp(1E-12)
 
                 gcam = torch.tanh(gcam)
 
@@ -195,6 +195,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
                 overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
+                #overall_gcam = overall_gcam + gcam  # * (target_layer_num-i)/target_layer_num
             # 再次归一化
             #overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             #overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
