@@ -14,6 +14,7 @@ from .backbones.resnet import *
 from .backbones.densenet import *
 from .backbones.multi_bagnet import *
 from .backbones.bagnet import *
+from .backbones.vgg import *
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
 
@@ -190,6 +191,9 @@ class Baseline(nn.Module):
                                    seg_num_classes=self.seg_num_classes,
                                    )
             self.in_planes = self.base.num_features
+
+        elif base_name == "vgg19": #(不要BN层)
+            self.base = vgg19(pretrained=True)
 
         # 2.以下是classifier的网络结构（3种）
         # （1）normal-classifier模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
