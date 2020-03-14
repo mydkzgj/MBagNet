@@ -182,20 +182,19 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 归一化
                 #用方差归一化吧
+                """
                 gcam_flatten = gcam.view(gcam.shape[0], -1)
                 gcam_gt0 = torch.gt(gcam_flatten, 0).float()
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
                 gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12)
                 #gcam_min = torch.
-
-
                 gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
-
                 gcam = torch.tanh(gcam)
+                """
 
-                #gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                #gcam = gcam / gcam_max
+                gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                gcam = gcam / gcam_max
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
@@ -219,7 +218,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             gcam = torch.tanh(overall_gcam)
             """
 
-            gcam = overall_gcam/target_layer_num
+            #gcam = overall_gcam/target_layer_num
 
             overall_gcam = torch.cat(og_list, dim=1)
             gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
