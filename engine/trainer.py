@@ -189,10 +189,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             gcam = (overall_gcam-overall_gcam_min)/(overall_gcam_max-overall_gcam_min).clamp(1E-12)   #-overall_gcam_min
-            #gcam = torch.gt(gcam, 1/target_layer_num).float()
+            gcam = torch.gt(gcam, 1/target_layer_num).float()
             sigma = 1/target_layer_num#0.5
             w = 8
-            gcam = torch.sigmoid(w * (gcam - sigma))
+            #gcam = torch.sigmoid(w * (gcam - sigma))
 
             for op in optimizers:
                 op.zero_grad()
@@ -223,7 +223,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     raise Exception("segmentationType can't match maskedImgReloadType")
                 #soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
                 soft_mask = torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
-                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=201, stride=1, padding=100)
+                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=201, stride=1, padding=100)
                 soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
             else:
                 pass
