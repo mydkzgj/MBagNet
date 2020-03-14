@@ -223,8 +223,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     raise Exception("segmentationType can't match maskedImgReloadType")
                 #soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
                 soft_mask = seg_masks#torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
-                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
-                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=21, stride=1, padding=10)
+                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=101, stride=1, padding=50)
+                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=41, stride=1, padding=20)
                 soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
             else:
                 pass
