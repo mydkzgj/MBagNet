@@ -189,7 +189,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
                 gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12)
                 #gcam_min = torch.
-                gcam = gcam/gcam_mean.clamp(min=1E-12)
+                gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
                 gcam = torch.tanh(gcam)
                 #"""
 
