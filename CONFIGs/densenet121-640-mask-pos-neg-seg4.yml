@@ -37,15 +37,15 @@ MODEL:
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"           #"f-c","pl-c","fl-n"
 
  # "none", "weakSu-noneRe" "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe", 
- BRANCH_CONFIG_TYPE: "strongSu-jointRe"#"noneSu-gcamRe"                       
+ BRANCH_CONFIG_TYPE: "none"#"strongSu-jointRe"#"noneSu-gcamRe"                       
  BRANCH_IMG_NUM: 1
  #(1). Segmentation Branch
  HOOK_TYPE:  "featureReserve"                           #"featureReserve","rflogitGenerate","none" 
  SEGMENTATION_TYPE:  "denseFC"                     #"denseFC", "bagFeature", "none" 
  SEG_NUM_CLASSES: 4 
- SEG_SUPERVISED_TYPE: "strong"
+ SEG_SUPERVISED_TYPE: "joint"#"strong"
  #(2). Grad-CAM Branch
- GRAD_CAM_TYPE: "none"                                   #"none", "supervise_seg", "reload"
+ GRAD_CAM_TYPE: "supervise_seg"#"none"                                   #"none", "supervise_seg", "reload"
  #(3). Reload Branch
  MASKED_IMG_RELOAD_TYPE: "none"                 #"none", "seg_mask", "gradcam_mask" 
 

@@ -177,7 +177,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 inter_gradient = model.inter_gradient[target_layer_num-i-1]
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                 gcam = torch.relu(torch.sum(inter_gradient * inter_output, dim=1, keepdim=True))
-                gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
+                #gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 归一化
                 #用方差归一化吧
                 gcam_flatten = gcam.view(gcam.shape[0], -1)
@@ -194,7 +194,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
-                overall_gcam = overall_gcam + gcam * (target_layer_num-i)/target_layer_num
+                overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
             # 再次归一化
             #overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
             #overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
@@ -202,6 +202,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #gcam = torch.gt(gcam, 1/target_layer_num).float()
 
             # 用方差归一化吧
+            """
             overall_gcam_flatten = overall_gcam.view(overall_gcam.shape[0], -1)
             overall_gcam_gt0 = torch.gt(overall_gcam_flatten, 0)
             overall_gcam_sum = torch.sum(overall_gcam_flatten, dim=-1)
@@ -209,6 +210,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             overall_gcam_mean = overall_gcam_sum / overall_gcam_sum_num.clamp(1E-12)
             overall_gcam = overall_gcam / overall_gcam_mean
             gcam = torch.tanh(overall_gcam)
+            """
+
+            gcam = overall_gcam/target_layer_num
 
 
             sigma = 1/target_layer_num#0.5
