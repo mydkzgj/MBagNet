@@ -223,7 +223,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     raise Exception("segmentationType can't match maskedImgReloadType")
                 #soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
                 soft_mask = torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
-                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=101, stride=1, padding=50)
+                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=201, stride=1, padding=100)
                 soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
             else:
                 pass
@@ -262,7 +262,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             output_masks = None
 
         # for show loss 计算想查看的loss
-        forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))#torch.mean(soft_mask)
+        #forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))
+        forShow = torch.mean(soft_mask)
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
