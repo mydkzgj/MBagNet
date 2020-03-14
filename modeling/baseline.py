@@ -227,7 +227,6 @@ class Baseline(nn.Module):
                             break
 
 
-
     def forward_hook_fn(self, module, input, output):
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:

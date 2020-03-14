@@ -176,7 +176,7 @@ class SegMaskLoss(object):
         return total_loss
 
 # 原本是要让分割网络单独输出一层学习网络的CAM，但是现在想想还是放弃了，我新开一个直接监督网络CAM吧
-class GradCamMaskLoss(object):
+class GradCamMaskLoss01(object):
     "Ranked_List_Loss_for_Deep_Metric_Learning_CVPR_2019_paper"
     def __init__(self, seg_num_classes):
         self.seg_num_classes = seg_num_classes
@@ -268,7 +268,7 @@ class GradCamMaskLoss(object):
         return total_loss
 
 
-class GradCamMaskLoss02(object):
+class GradCamMaskLoss(object):
     "Ranked_List_Loss_for_Deep_Metric_Learning_CVPR_2019_paper"
 
     def __init__(self, seg_num_classes):
@@ -282,7 +282,7 @@ class GradCamMaskLoss02(object):
         if not isinstance(seg_mask, torch.Tensor) or not isinstance(gcam_mask, torch.Tensor):
             return 0
 
-        if gcam_mask.shape[0] > seg_mask.shape[0]:
+        if gcam_mask.shape[0] >= seg_mask.shape[0]:
             gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask.shape[0]:gcam_mask.shape[0]]
         else:
             raise Exception("output_mask.shape[0] can't match label.shape[0]")

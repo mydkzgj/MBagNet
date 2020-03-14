@@ -179,17 +179,38 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = torch.relu(torch.sum(inter_gradient * inter_output, dim=1, keepdim=True))
                 gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 归一化
-                gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                gcam = gcam / gcam_max
+                #用方差归一化吧
+                gcam_flatten = gcam.view(gcam.shape[0], -1)
+                gcam_gt0 = torch.gt(gcam_flatten, 0)
+                gcam_sum = torch.sum(gcam_flatten, dim=-1)
+                gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
+                gcam_mean = gcam_sum/gcam_sum_num.clamp(1E-12)
+                gcam = gcam/gcam_mean
+
+                gcam = torch.tanh(gcam)
+
+                #gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                #gcam = gcam / gcam_max
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
                 overall_gcam = overall_gcam + gcam * (target_layer_num-i)/target_layer_num
             # 再次归一化
-            overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
-            overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
-            gcam = (overall_gcam-overall_gcam_min)/(overall_gcam_max-overall_gcam_min).clamp(1E-12)   #-overall_gcam_min
-            gcam = torch.gt(gcam, 1/target_layer_num).float()
+            #overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
+            #overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
+            #gcam = (overall_gcam-overall_gcam_min)/(overall_gcam_max-overall_gcam_min).clamp(1E-12)   #-overall_gcam_min
+            #gcam = torch.gt(gcam, 1/target_layer_num).float()
+
+            # 用方差归一化吧
+            overall_gcam_flatten = overall_gcam.view(overall_gcam.shape[0], -1)
+            overall_gcam_gt0 = torch.gt(overall_gcam_flatten, 0)
+            overall_gcam_sum = torch.sum(overall_gcam_flatten, dim=-1)
+            overall_gcam_sum_num = torch.sum(overall_gcam_gt0, dim=-1)
+            overall_gcam_mean = overall_gcam_sum / overall_gcam_sum_num.clamp(1E-12)
+            overall_gcam = overall_gcam / overall_gcam_mean
+            gcam = torch.tanh(overall_gcam)
+
+
             sigma = 1/target_layer_num#0.5
             w = 8
             #gcam = torch.sigmoid(w * (gcam - sigma))
@@ -264,8 +285,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             output_masks = None
 
         # for show loss 计算想查看的loss
-        #forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))
-        forShow = torch.mean(soft_mask)
+        forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))
+        #forShow = torch.mean(soft_mask)
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
