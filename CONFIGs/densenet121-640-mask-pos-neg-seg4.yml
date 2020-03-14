@@ -38,7 +38,7 @@ MODEL:
 
  # "none", "weakSu-noneRe" "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe", 
  BRANCH_CONFIG_TYPE: "strongSu-jointRe"#"noneSu-gcamRe"                       
- BRANCH_IMG_NUM: 2
+ BRANCH_IMG_NUM: 1
  #(1). Segmentation Branch
  HOOK_TYPE:  "featureReserve"                           #"featureReserve","rflogitGenerate","none" 
  SEGMENTATION_TYPE:  "denseFC"                     #"denseFC", "bagFeature", "none" 
