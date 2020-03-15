@@ -184,11 +184,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #用所有正值的均值归一化吧（如果只用最大值）
                 #"""
 
-                gcam_flatten = gcam.abs().view(gcam.shape[0], -1)   #负的也算上吧
+                gcam_flatten = gcam.view(gcam.shape[0], -1)   #负的也算上吧
                 gcam_gt0 = torch.gt(gcam_flatten, 0).float()
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
-                gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12) * 0.8
+                gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12) * 0.9
 
                 gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
                 gcam = torch.sigmoid(gcam)
