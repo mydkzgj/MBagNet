@@ -309,7 +309,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0.6, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
