@@ -294,9 +294,10 @@ class GradCamMaskLoss(object):
             if label[i] == 1:
                 sm = seg_mask[i:i+1, 2:3]
             elif label[i] == 2:
-                sm1 = seg_mask[i:i+1, 0:2]
-                sm2 = seg_mask[i:i+1, 3:4]
-                sm = torch.cat([sm1, sm2], dim=1)
+                #sm1 = seg_mask[i:i+1, 0:2]
+                #sm2 = seg_mask[i:i+1, 3:4]
+                #sm = torch.cat([sm1, sm2], dim=1)
+                sm = seg_mask[i:i+1, 0:4]
             elif label[i] == 3:
                 sm = seg_mask[i:i+1, 1:2]
             elif label[i] == 4:

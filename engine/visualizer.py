@@ -120,7 +120,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             with torch.no_grad():
                 logits = model(seg_imgs)
             target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if seg_labels[0] == 3:
+            if seg_labels[0] == 2:
                 fv.showGradCAM(model, seg_imgs, seg_labels, target_layers=target_layers, mask=seg_masks[0])
 
             return {"logits": logits, "labels": seg_labels}

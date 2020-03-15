@@ -200,7 +200,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]), mode='bilinear')  #默认最邻近
                 # fusion
-                overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
+                #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
                 og_list.append(gcam)
 
             # 再次归一化
@@ -220,10 +220,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             gcam = torch.tanh(overall_gcam)
             """
 
-            gcam = overall_gcam/target_layer_num
+            #gcam = overall_gcam/target_layer_num
 
-            #overall_gcam = torch.cat(og_list, dim=1)
-            #gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
+            overall_gcam = torch.cat(og_list, dim=1)
+            gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
             og_list.clear()
 
             sigma = 1/target_layer_num#0.5
