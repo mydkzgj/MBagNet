@@ -343,12 +343,12 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
         overall_cam = 0
         cam_num = len(cam_list)
         for index, cam in enumerate(cam_list):
-            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0).clamp(min=0.5)
+            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)#.clamp(min=0.5)
             #cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
             cam = cam_tensor.squeeze(0).squeeze(0).numpy()
-            overall_cam = overall_cam + (cam - 0.5) #* (cam_num-index)/cam_num
+            overall_cam = overall_cam + cam #* (cam_num-index)/cam_num
 
-        overall_cam = overall_cam/cam_num + 0.5
+        overall_cam = overall_cam/cam_num
         #overall_cam = (overall_cam-np.min(overall_cam))/(np.max(overall_cam)-np.min(overall_cam))
         #overall_cam = (overall_cam > 1/cam_num) * 0.5 + 0.5
         #"""
@@ -357,14 +357,16 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
         """
         overall_cam = 0
         cam_num = len(cam_list)
+        cl = []
         for index, cam in enumerate(cam_list):
-            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0).clamp(min=0.5)
+            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)#.clamp(min=0.5)
+            cl.append(cam_tensor)
+            cl = torch.cat(cl, dim=1)
+            cl = [cl]
             # cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
-            cam = cam_tensor.squeeze(0).squeeze(0).numpy()
-            overall_cam = overall_cam + (cam - 0.5)  # * (cam_num-index)/cam_num
-
-        overall_cam = (overall_cam - np.min(overall_cam)) / (np.max(overall_cam) - np.min(overall_cam))
-        overall_cam = (overall_cam > 1 / cam_num) * 0.5 + 0.5
+        ct = torch.max(cl[0], dim=1, keepdim=True)[0]
+        cam = ct.squeeze(0).squeeze(0).numpy()
+        overall_cam = cam
         #"""
 
 
