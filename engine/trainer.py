@@ -180,9 +180,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_norelu = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
                 gcam = torch.relu(gcam_norelu)
                 #gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
-                # 归一化
-                #用方差归一化吧
-                #"""
+                # 1.用正项均值归一化
+                #用所有正值的均值归一化吧（如果只用最大值）
+                """
                 gcam_flatten = gcam.view(gcam.shape[0], -1)
                 gcam_gt0 = torch.gt(gcam_flatten, 0).float()
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
@@ -193,8 +193,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = torch.tanh(gcam)
                 #"""
 
-                #gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                #gcam = gcam / gcam_max
+                # 2. 用最大值归一化
+                gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(
+                    -1).unsqueeze(-1).expand_as(gcam)
+                gcam = gcam / gcam_max
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
@@ -307,7 +310,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.5, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
