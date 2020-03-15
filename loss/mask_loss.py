@@ -288,10 +288,25 @@ class GradCamMaskLoss(object):
         else:
             raise Exception("output_mask.shape[0] can't match label.shape[0]")
 
-        #label = label[label.shape[0] - seg_mask.shape[0]:label.shape[0]]
-        #if label ==
+        label = label[label.shape[0] - seg_mask.shape[0]:label.shape[0]]
+        NewSegMask = []
+        for i in range(label.shape[0]):
+            if label[i] == 1:
+                sm = seg_mask[i:i+1, 2:3]
+            elif label[i] == 2:
+                sm1 = seg_mask[i:i+1, 0:2]
+                sm2 = seg_mask[i:i+1, 3:4]
+                sm = torch.cat([sm1, sm2], dim=1)
+            elif label[i] == 3:
+                sm = seg_mask[i:i+1, 2:3]
+            elif label[i] == 4:
+                sm = seg_mask[i:i+1, 1:2]
+            sm = torch.max(sm, dim=1, keepdim=True)[0]
+            NewSegMask.append(sm)
+
+        seg_mask = torch.cat(NewSegMask, dim=0)
         
-        seg_mask = torch.max(seg_mask, dim=1, keepdim=True)[0]
+        #seg_mask = torch.max(seg_mask, dim=1, keepdim=True)[0]
 
         #loss = torch.pow(seg_mask-gcam_mask, 2)
         loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")
@@ -304,9 +319,10 @@ class GradCamMaskLoss(object):
         else:
             pos_loss = 0
 
-        a = torch.isnan(pos_loss)
-        if a.item() == 1:
-            print("Nan")
+
+        #a = torch.isnan(pos_loss)
+        #if a.item() == 1:
+        #    print("Nan")
 
         total_loss = pos_loss
         #"""
