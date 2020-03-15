@@ -284,9 +284,13 @@ class GradCamMaskLoss(object):
 
         if gcam_mask.shape[0] >= seg_mask.shape[0]:
             gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask.shape[0]:gcam_mask.shape[0]]
+
         else:
             raise Exception("output_mask.shape[0] can't match label.shape[0]")
 
+        #label = label[label.shape[0] - seg_mask.shape[0]:label.shape[0]]
+        #if label ==
+        
         seg_mask = torch.max(seg_mask, dim=1, keepdim=True)[0]
 
         #loss = torch.pow(seg_mask-gcam_mask, 2)
