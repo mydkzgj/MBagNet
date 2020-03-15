@@ -194,10 +194,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #"""
 
                 # 2. 用最大值归一化
-                gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(
-                    -1).unsqueeze(-1).expand_as(gcam)
-                gcam = gcam / gcam_max
+                gcam_max = torch.max(torch.abs(gcam_norelu).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+
+                gcam = gcam_norelu / gcam_max
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
@@ -310,7 +309,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.5, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0.5, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
