@@ -183,14 +183,15 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 # 1.用正项均值归一化
                 #用所有正值的均值归一化吧（如果只用最大值）
                 #"""
-                gcam_flatten = gcam.view(gcam.shape[0], -1)
+
+                gcam_flatten = gcam.abs().view(gcam.shape[0], -1)   #负的也算上吧
                 gcam_gt0 = torch.gt(gcam_flatten, 0).float()
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
                 gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12) * 0.8
-                #gcam_min = torch.
+
                 gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
-                gcam = torch.tanh(gcam)
+                gcam = torch.sigmoid(gcam)
                 #"""
 
                 # 2. 用最大值归一化
@@ -199,7 +200,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))
                 # fusion
-                #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
+                overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
                 og_list.append(gcam)
 
             # 再次归一化
@@ -219,10 +220,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             gcam = torch.tanh(overall_gcam)
             """
 
-            #gcam = overall_gcam/target_layer_num
+            gcam = overall_gcam/target_layer_num
 
-            overall_gcam = torch.cat(og_list, dim=1)
-            gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
+            #overall_gcam = torch.cat(og_list, dim=1)
+            #gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
             og_list.clear()
 
             sigma = 1/target_layer_num#0.5

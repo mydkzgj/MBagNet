@@ -214,10 +214,12 @@ class Baseline(nn.Module):
         if self.gradCAMType != "none":
             self.inter_output = [] #None
             self.inter_gradient = [] #None
+            #self.INLayers = torch.nn.ModuleList()
             self.target_layer = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",
             if self.target_layer != []:
                 for tl in self.target_layer:
+                    #self.LNLayers.append(nn.InstanceNorm2d())
                     for module_name, module in self.base.features.named_modules():
                         #if isinstance(module, torch.nn.Conv2d):
                         if module_name == tl:  #"transition1.conv":
