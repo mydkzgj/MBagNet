@@ -180,6 +180,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                 gcam = torch.sigmoid(gcam)
+                pick_label = labels[grade_num+seg_num-model.branch_img_num:grade_num+seg_num]
+
+                pick_list = []
+                for i in range(pick_label.shape[0]):
+                    pick_list.append(gcam[i, pick_label[i]].unsqueeze(0).unsqueeze(0))
+                gcam = torch.cat(pick_list, dim=0)
+
+
 
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                 #gcam_norelu = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
