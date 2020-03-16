@@ -191,14 +191,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12) * 0.9
 
                 gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
-                gcam = torch.tanh(gcam)
+                gcam = torch.sigmoid(gcam)
                 #"""
 
                 # 2. 用最大值归一化
                 #gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam = gcam / gcam_max
                 # resize
-                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]))  #默认最邻近 ,, mode='bilinear'
+                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
                 # fusion
                 #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
                 og_list.append(gcam)
