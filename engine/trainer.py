@@ -184,7 +184,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 1.用正项均值归一化
                 #用所有正值的均值归一化吧（如果只用最大值）
-                """
+                #"""
 
                 gcam_flatten = gcam.view(gcam.shape[0], -1)   #负的也算上吧
                 gcam_gt0 = torch.gt(gcam_flatten, 0).float()
@@ -193,13 +193,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12) * 0.9
 
                 gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
-                gcam = torch.sigmoid(gcam)
+                gcam = torch.tanh(gcam)
                 #"""
 
                 # 2. 用最大值归一化
-                gcam_max = torch.max(torch.abs(gcam_norelu).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                #gcam_max = torch.max(torch.abs(gcam_norelu).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                gcam = gcam_norelu / gcam_max
+                #gcam = gcam_norelu / gcam_max
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
                 # fusion
