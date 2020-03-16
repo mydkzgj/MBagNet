@@ -159,7 +159,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
         #if model.gradCAMType == True and model.target_layer == "":
         #    imgs.requires_grad_(True)
-        model.base.features.denseblock4.eval()
+        #model.base.features.denseblock4.eval()
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 

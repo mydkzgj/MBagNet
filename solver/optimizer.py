@@ -35,7 +35,7 @@ def make_optimizers(cfg, model):
                 params_dict[gkey].append({"params": [value], "lr": lr, "weight_decay": weight_decay})
                 break
 
-    gkeys_divided_list = [[2]]#,[0,1,2,3]] #[0,1,2,3,4,5,6,7],  3,4,5,6,7,8
+    gkeys_divided_list = [[0,1,2]]#,[0,1,2,3]] #[0,1,2,3,4,5,6,7],  3,4,5,6,7,8
     params_divided_list = []
     for sub in gkeys_divided_list:
         p = []
