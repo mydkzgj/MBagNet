@@ -310,6 +310,7 @@ class GradCamMaskLoss(object):
         #seg_mask = torch.max(seg_mask, dim=1, keepdim=True)[0]
 
         #loss = torch.pow(seg_mask-gcam_mask, 2)
+        #if gcam.shape[-1] !=
         loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")
 
         # 只取正类

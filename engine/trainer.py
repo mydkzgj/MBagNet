@@ -169,7 +169,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             # 回传one-hot向量
-            logits.backward(gradient=one_hot_labels, retain_graph=True, create_graph=True)
+            logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)
             # 生成CAM
             overall_gcam = 0
             og_list = []
@@ -213,10 +213,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam = gcam_norelu / gcam_max
                 # resize
-                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
+                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
                 # fusion
                 #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
-                og_list.append(gcam)
+                #og_list.append(gcam)
 
             # 再次归一化
             #overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
@@ -237,12 +237,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             #gcam = overall_gcam/target_layer_num
 
-            overall_gcam = torch.cat(og_list, dim=1)
-            gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
-            og_list.clear()
+            #overall_gcam = torch.cat(og_list, dim=1)
+            #gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
+            #og_list.clear()
 
-            sigma = 1/target_layer_num#0.5
-            w = 8
+            #sigma = 1/target_layer_num#0.5
+            #w = 8
             #gcam = torch.sigmoid(w * (gcam - sigma))
 
             for op in optimizers:
