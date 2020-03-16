@@ -173,86 +173,68 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 生成CAM
             gcam_list = []
             target_layer_num = len(model.target_layer)
+            maxpool_base_kernel_size = 3 #奇数
             for i in range(target_layer_num):
                 inter_output = model.inter_output[i]  # 此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num - i - 1]
                 if i == target_layer_num-1:   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-                    gcam = torch.sigmoid(gcam)
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
                     for i in range(pick_label.shape[0]):
                         pick_list.append(gcam[i, pick_label[i]].unsqueeze(0).unsqueeze(0))
                     gcam = torch.cat(pick_list, dim=0)
+
+                    # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
+                    maxpool_kernel_size = maxpool_base_kernel_size + (target_layer_num - i - 1) * 2
+                    gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
+                    gcam = torch.sigmoid(gcam)
                 else:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+                    # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
+                    maxpool_kernel_size = maxpool_base_kernel_size + (target_layer_num - i - 1) * 2
+                    gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size//2)
                     #标准化
+                    """
                     gcam_flatten = gcam.view(gcam.shape[0], -1)
-                    gcam_var = torch.var(gcam_flatten, dim=1)
+                    gcam_var = torch.var(gcam_flatten, dim=1).detach()
                     gcam = gcam/gcam_var
                     gcam = torch.sigmoid(gcam)
+                    #"""
+                    #"""
+                    pos = torch.gt(gcam, 0).float()
+                    gcam_pos = gcam * pos
+                    gcam_neg = gcam * (1-pos)
+
+                    gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam) * 0.5
+                    gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+
+                    gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12)) * 0.9
+
+                    gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    gcam = gcam/2 + 0.5
+
+                    #gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                    #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                    #gcam = torch.relu(gcam) / gcam_max.detach()
+                    #"""
+                    """
+                    gcam_flatten = torch.relu(gcam).view(gcam.shape[0], -1)  # 负的也算上吧
+                    gcam_gt0 = torch.gt(gcam_flatten, 0).float()
+                    gcam_sum = torch.sum(gcam_flatten, dim=-1)
+                    gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
+                    gcam_mean = gcam_sum / gcam_sum_num.clamp(min=1E-12) * 0.9
+
+                    gcam = gcam / gcam_mean.clamp(min=1E-12).detach()
+                    gcam = torch.sigmoid(gcam)
+                    #"""
 
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
-
-                # 使用另外的层，进行映射, 简易分割层
-                #gcam = torch.relu(gcam_norelu)
-                #gcam_pro = model.projectors(gcam)
-                #gcam = torch.tanh(gcam_pro)
-
-                #gcam = torch.nn.functional.interpolate(gcam_norelu, (seg_masks.shape[-1], seg_masks.shape[-2]), mode='bilinear')
-                #gcam_norelu_norm = torch.norm(gcam_norelu.view(gcam_norelu.shape[0], -1), p=2, dim=1)
-                #gcam_norelu = gcam_norelu/gcam_norelu_norm
-                #gcam = torch.relu(gcam_norelu)
-                #gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
-                # 1.用正项均值归一化
-                #用所有正值的均值归一化吧（如果只用最大值）
-                """
-
-                gcam_flatten = gcam.view(gcam.shape[0], -1)   #负的也算上吧
-                gcam_gt0 = torch.gt(gcam_flatten, 0).float()
-                gcam_sum = torch.sum(gcam_flatten, dim=-1)
-                gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
-                gcam_mean = gcam_sum/gcam_sum_num.clamp(min=1E-12) * 0.9
-
-                gcam = gcam_norelu/gcam_mean.clamp(min=1E-12)
-                gcam = torch.tanh(gcam)
-                #"""
-
-                # 2. 用最大值归一化
-                #gcam_max = torch.max(torch.abs(gcam_norelu).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                #gcam = gcam_norelu / gcam_max
-                # resize
-                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
-                # fusion
-                #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
-                #og_list.append(gcam)
-
-            # 再次归一化
-            #overall_gcam_max = torch.max(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
-            #overall_gcam_min = torch.min(overall_gcam.view(overall_gcam.shape[0], -1), dim=1)[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(overall_gcam)
-            #gcam = (overall_gcam-overall_gcam_min)/(overall_gcam_max-overall_gcam_min).clamp(1E-12)   #-overall_gcam_min
-            #gcam = torch.gt(gcam, 1/target_layer_num).float()
-
-            # 用方差归一化吧
-            """
-            overall_gcam_flatten = overall_gcam.view(overall_gcam.shape[0], -1)
-            overall_gcam_gt0 = torch.gt(overall_gcam_flatten, 0)
-            overall_gcam_sum = torch.sum(overall_gcam_flatten, dim=-1)
-            overall_gcam_sum_num = torch.sum(overall_gcam_gt0, dim=-1)
-            overall_gcam_mean = overall_gcam_sum / overall_gcam_sum_num.clamp(1E-12)
-            overall_gcam = overall_gcam / overall_gcam_mean
-            gcam = torch.tanh(overall_gcam)
-            """
-
-            #gcam = overall_gcam/target_layer_num
-
-            #overall_gcam = torch.cat(og_list, dim=1)
-            #gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
-            #og_list.clear()
-
+            # GAIN论文中 生成soft_mask的做法
             #sigma = 1/target_layer_num#0.5
             #w = 8
             #gcam = torch.sigmoid(w * (gcam - sigma))
@@ -335,7 +317,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
@@ -343,7 +325,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_loss = 0
                 for index, gl in enumerate(losses[lossKey]):
                     gcam_loss = gcam_loss + gl * gl_weight[index]
-                loss = loss + gcam_loss
+                loss = loss + gcam_loss * weight[lossKey]
             else:
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
