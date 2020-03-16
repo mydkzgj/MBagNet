@@ -180,11 +180,15 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                 gcam_norelu = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-                gcam = torch.relu(gcam_norelu)
+                gcam = torch.nn.functional.interpolate(gcam_norelu, (seg_masks.shape[-1], seg_masks.shape[-2]),
+                                                       mode='bilinear')
+                gcam_norelu_norm = torch.norm(gcam_norelu.view(gcam_norelu.shape[0], -1), p=2, dim=1)
+                gcam_norelu = gcam_norelu/gcam_norelu_norm
+                #gcam = torch.relu(gcam_norelu)
                 #gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 1.用正项均值归一化
                 #用所有正值的均值归一化吧（如果只用最大值）
-                #"""
+                """
 
                 gcam_flatten = gcam.view(gcam.shape[0], -1)   #负的也算上吧
                 gcam_gt0 = torch.gt(gcam_flatten, 0).float()
@@ -201,7 +205,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam = gcam_norelu / gcam_max
                 # resize
-                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
+                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
                 # fusion
                 #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
                 og_list.append(gcam)
