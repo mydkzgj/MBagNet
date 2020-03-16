@@ -15,7 +15,7 @@ def make_optimizers(cfg, model):
         params_dict2[name] = parameters.detach().cpu().numpy()
 
     #model的参数
-    groupKeys = ["norm","bottleneck", "base.conv1", "base.bn1", "base.layer1", "base.layer2", "base.layer3", "classifier", "base.features1.nonlocal2D.cluster_out","others"]
+    groupKeys = ["denseblock4", "classifier","others"]
     params_dict = defaultdict(list)
     parameters = model.named_parameters()
     out_include = []
@@ -35,7 +35,7 @@ def make_optimizers(cfg, model):
                 params_dict[gkey].append({"params": [value], "lr": lr, "weight_decay": weight_decay})
                 break
 
-    gkeys_divided_list = [[0,1,2,3,4,5,6,7,9,8]]#,[0,1,2,3]] #[0,1,2,3,4,5,6,7],  3,4,5,6,7,8
+    gkeys_divided_list = [[2]]#,[0,1,2,3]] #[0,1,2,3,4,5,6,7],  3,4,5,6,7,8
     params_divided_list = []
     for sub in gkeys_divided_list:
         p = []
