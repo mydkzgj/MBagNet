@@ -92,7 +92,7 @@ SOLVER:
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
   LOSS_LR: 0.05
-  RETRAIN_FROM_HEAD: 1
+  RETRAIN_FROM_HEAD: 0
 
 
 # -----------------------------------------------------------------------------
@@ -119,7 +119,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'#'./pretrained/densenet121_model_1.pth'#
+  PRETRAIN_PATH: './pretrained/densenet121_model_1.pth'#'./pretrained/densenet121-a639ec97.pth'#
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
