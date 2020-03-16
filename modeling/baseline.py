@@ -199,14 +199,8 @@ class Baseline(nn.Module):
         # （1）normal-classifier模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
         if self.classifierType == "normal":
             self.gap = nn.AdaptiveAvgPool2d(1)
-            #self.classifier = nn.Linear(self.in_planes, self.num_classes)
-            #self.classifier.apply(weights_init_classifier)
-            # 此处改为非线性网络
-            self.classifier = nn.Sequential(
-                nn.Linear(self.in_planes, self.in_planes//2),
-                nn.Sigmoid(),
-                nn.Linear(self.in_planes//2, self.num_classes)
-            )
+            self.classifier = nn.Linear(self.in_planes, self.num_classes)
+            self.classifier.apply(weights_init_classifier)
 
         #  (2)post-classifier模式: backbone提供的是logits，不需要gap，只需线性classifier即可
         elif self.classifierType == "post":
@@ -222,6 +216,9 @@ class Baseline(nn.Module):
             self.inter_output = [] #None
             self.inter_gradient = [] #None
             #self.INLayers = torch.nn.ModuleList()
+            self.projectors = torch.nn.Conv2d(1,1,kernel_size=1,bias=False)
+            nn.init.constant_(self.projectors.weight, 1)
+
             self.target_layer = ["denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",
             if self.target_layer != []:

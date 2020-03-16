@@ -178,12 +178,20 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 inter_output = model.inter_output[i]  #此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num-i-1]
 
+                gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                gcam = torch.sigmoid(gcam)
+
                 # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
-                gcam_norelu = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-                gcam = torch.nn.functional.interpolate(gcam_norelu, (seg_masks.shape[-1], seg_masks.shape[-2]),
-                                                       mode='bilinear')
-                gcam_norelu_norm = torch.norm(gcam_norelu.view(gcam_norelu.shape[0], -1), p=2, dim=1)
-                gcam_norelu = gcam_norelu/gcam_norelu_norm
+                #gcam_norelu = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+
+                # 使用另外的层，进行映射, 简易分割层
+                #gcam = torch.relu(gcam_norelu)
+                #gcam_pro = model.projectors(gcam)
+                #gcam = torch.tanh(gcam_pro)
+
+                #gcam = torch.nn.functional.interpolate(gcam_norelu, (seg_masks.shape[-1], seg_masks.shape[-2]), mode='bilinear')
+                #gcam_norelu_norm = torch.norm(gcam_norelu.view(gcam_norelu.shape[0], -1), p=2, dim=1)
+                #gcam_norelu = gcam_norelu/gcam_norelu_norm
                 #gcam = torch.relu(gcam_norelu)
                 #gcam = torch.nn.functional.max_pool2d(gcam, kernel_size=5, stride=1, padding=2)
                 # 1.用正项均值归一化
@@ -205,7 +213,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam = gcam_norelu / gcam_max
                 # resize
-                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
+                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
                 # fusion
                 #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
                 og_list.append(gcam)
@@ -316,7 +324,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0.1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         loss = 0
         for lossKey in losses.keys():
             loss += losses[lossKey] * weight[lossKey]
