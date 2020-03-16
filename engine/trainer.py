@@ -171,26 +171,30 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 回传one-hot向量
             logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)
             # 生成CAM
-            overall_gcam = 0
-            og_list = []
+            gcam_list = []
             target_layer_num = len(model.target_layer)
             for i in range(target_layer_num):
-                inter_output = model.inter_output[i]  #此处分离节点，别人皆不分离  .detach()
-                inter_gradient = model.inter_gradient[target_layer_num-i-1]
+                inter_output = model.inter_output[i]  # 此处分离节点，别人皆不分离  .detach()
+                inter_gradient = model.inter_gradient[target_layer_num - i - 1]
+                if i == target_layer_num-1:   #最后一层是denseblock4的输出
+                    gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                    gcam = torch.sigmoid(gcam)
+                    pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
+                    pick_list = []
+                    for i in range(pick_label.shape[0]):
+                        pick_list.append(gcam[i, pick_label[i]].unsqueeze(0).unsqueeze(0))
+                    gcam = torch.cat(pick_list, dim=0)
+                else:
+                    #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
+                    gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+                    #标准化
+                    gcam_flatten = gcam.view(gcam.shape[0], -1)
+                    gcam_var = torch.var(gcam_flatten, dim=1)
+                    gcam = gcam/gcam_var
+                    gcam = torch.sigmoid(gcam)
 
-                gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-                gcam = torch.sigmoid(gcam)
-                pick_label = labels[grade_num+seg_num-model.branch_img_num:grade_num+seg_num]
+                gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
-                pick_list = []
-                for i in range(pick_label.shape[0]):
-                    pick_list.append(gcam[i, pick_label[i]].unsqueeze(0).unsqueeze(0))
-                gcam = torch.cat(pick_list, dim=0)
-
-
-
-                # avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
-                #gcam_norelu = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
 
                 # 使用另外的层，进行映射, 简易分割层
                 #gcam = torch.relu(gcam_norelu)
@@ -221,7 +225,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                 #gcam = gcam_norelu / gcam_max
                 # resize
-                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
+                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
                 # fusion
                 #overall_gcam = overall_gcam + gcam #* (target_layer_num-i)/target_layer_num
                 #og_list.append(gcam)
@@ -312,7 +316,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_masks = gcam#[gcam.shape[0] - seg_num:gcam.shape[0]]
                 seg_masks = None
             elif model.segSupervisedType == "joint":
-                gcam_masks = gcam#[gcam.shape[0] - seg_num:gcam.shape[0]]
+                gcam_masks = gcam_list#[gcam.shape[0] - seg_num:gcam.shape[0]]
                 seg_masks = seg_masks#torch.cat([seg_masks, gcam_masks], dim=1)
             elif model.segSupervisedType == "none":
                 gcam_masks = None
@@ -330,13 +334,20 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
-        pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
-
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
-            loss += losses[lossKey] * weight[lossKey]
+            if lossKey == "gcam_mask_loss":
+                gcam_loss = 0
+                for index, gl in enumerate(losses[lossKey]):
+                    gcam_loss = gcam_loss + gl * gl_weight[index]
+                loss = loss + gcam_loss
+            else:
+                loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
+
         # 反向传播
         loss.backward()
         # 参数优化
@@ -446,8 +457,16 @@ def do_train(
             metrics_train["AVG-" + "seg_mask_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["seg_mask_loss"])
         elif lossName == "gcam_mask_loss":
-            metrics_train["AVG-" + "gcam_mask_loss"] = RunningAverage(
-                output_transform=lambda x: x["losses"]["gcam_mask_loss"])
+            #metrics_train["AVG-" + "gcam_mask_loss"] = RunningAverage(
+            #    output_transform=lambda x: x["losses"]["gcam_mask_loss"])
+            metrics_train["AVG-" + "gcam_mask_loss0"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["gcam_mask_loss"][0])
+            metrics_train["AVG-" + "gcam_mask_loss1"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["gcam_mask_loss"][1])
+            metrics_train["AVG-" + "gcam_mask_loss2"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["gcam_mask_loss"][2])
+            metrics_train["AVG-" + "gcam_mask_loss3"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["gcam_mask_loss"][3])
         elif lossName == "pos_masked_img_loss":
             metrics_train["AVG-" + "pos_masked_img_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["pos_masked_img_loss"])
@@ -579,15 +598,28 @@ def do_train(
             #记录avg-loss
             avg_losses = {}
             for lossName in lossKeys:
-                avg_losses[lossName] = (float("{:.3f}".format(engine.state.metrics["AVG-" + lossName])))
-                scalarDict = {}
-                for i in range(len(optimizers)):
-                    if i != engine.state.optimizer_index:
-                        scalarDict["optimizer" + str(i)] = 0
-                    else:
-                        scalarDict["optimizer" + str(i)] = avg_losses[lossName]
-                    writer_train[i].add_scalar("Loss/" + lossName, scalarDict["optimizer" + str(i)], step)
-                    writer_train[i].flush()
+                if lossName == "gcam_mask_loss":
+                    for i in range(4):
+                        avg_losses[lossName+str(i)] = (float("{:.3f}".format(engine.state.metrics["AVG-" + lossName + str(i)])))
+                        scalarDict = {}
+                        for j in range(len(optimizers)):
+                            if j != engine.state.optimizer_index:
+                                scalarDict["optimizer" + str(j)] = 0
+                            else:
+                                scalarDict["optimizer" + str(j)] = avg_losses[lossName+str(i)]
+                            writer_train[j].add_scalar("Loss/" + lossName + str(i), scalarDict["optimizer" + str(j)], step)
+                            writer_train[j].flush()
+                else:
+                    avg_losses[lossName] = (float("{:.3f}".format(engine.state.metrics["AVG-" + lossName])))
+                    scalarDict = {}
+                    for i in range(len(optimizers)):
+                        if i != engine.state.optimizer_index:
+                            scalarDict["optimizer" + str(i)] = 0
+                        else:
+                            scalarDict["optimizer" + str(i)] = avg_losses[lossName]
+                        writer_train[i].add_scalar("Loss/" + lossName, scalarDict["optimizer" + str(i)], step)
+                        writer_train[i].flush()
+
 
             #记录其余标量
             scalar_list = ["avg_accuracy", "avg_total_loss"]

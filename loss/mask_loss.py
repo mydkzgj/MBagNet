@@ -275,116 +275,61 @@ class GradCamMaskLoss(object):
         self.seg_num_classes = seg_num_classes
         pass
 
-    def __call__(self, output_mask, gcam_mask, label, seg_mask,):  # output_mask, seg_mask, seg_label
+    def __call__(self, output_mask, gcam_mask_list, label, seg_mask,):  # output_mask, seg_mask, seg_label
         #  CJY distribution 1
         # 用真值sef_mask监督CAM
         #"""
-        if not isinstance(seg_mask, torch.Tensor) or not isinstance(gcam_mask, torch.Tensor):
+        if not isinstance(seg_mask, torch.Tensor) or not isinstance(gcam_mask_list, list):
             return 0
 
-        if gcam_mask.shape[0] >= seg_mask.shape[0]:
-            gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask.shape[0]:gcam_mask.shape[0]]
-
-        else:
-            raise Exception("output_mask.shape[0] can't match label.shape[0]")
-
+        # seg_mask 需要根据病灶重新生成分级所需要的掩膜
         label = label[label.shape[0] - seg_mask.shape[0]:label.shape[0]]
         NewSegMask = []
         for i in range(label.shape[0]):
             if label[i] == 1:
-                sm = seg_mask[i:i+1, 2:3]
+                sm = seg_mask[i:i + 1, 2:3]
             elif label[i] == 2:
-                #sm1 = seg_mask[i:i+1, 0:2]
-                #sm2 = seg_mask[i:i+1, 3:4]
-                #sm = torch.cat([sm1, sm2], dim=1)
-                sm = seg_mask[i:i+1, 0:4]
+                # sm1 = seg_mask[i:i+1, 0:2]
+                # sm2 = seg_mask[i:i+1, 3:4]
+                # sm = torch.cat([sm1, sm2], dim=1)
+                sm = seg_mask[i:i + 1, 0:4]
             elif label[i] == 3:
-                sm = seg_mask[i:i+1, 1:2]
+                sm = seg_mask[i:i + 1, 1:2]
             elif label[i] == 4:
-                sm = seg_mask[i:i+1, 1:2]
+                sm = seg_mask[i:i + 1, 1:2]
             sm = torch.max(sm, dim=1, keepdim=True)[0]
             NewSegMask.append(sm)
-
         seg_mask = torch.cat(NewSegMask, dim=0)
-        
-        #seg_mask = torch.max(seg_mask, dim=1, keepdim=True)[0]
 
-        #loss = torch.pow(seg_mask-gcam_mask, 2)
-        #if gcam.shape[-1] != seg_mask.shape[-1]:
-        #    resize_seg_mask = F.adaptive_max_pool2d()
-        loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")
+        total_loss_list = []
+        # 遍历所有生成的gcam_mask
+        for gcam_mask in reversed(gcam_mask_list):
+            if gcam_mask.shape[0] >= seg_mask.shape[0]:
+                gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask.shape[0]:gcam_mask.shape[0]]
+            else:
+                raise Exception("output_mask.shape[0] can't match label.shape[0]")
 
-        # 只取正类
-        pos_num = torch.sum(seg_mask)
-        pos_loss_map = loss * seg_mask
-        if pos_num != 0:
-            pos_loss = torch.sum(pos_loss_map) / pos_num
-        else:
-            pos_loss = 0
+            # 需要将seg_mask根据gcam_mask的大小进行调整
+            if gcam_mask.shape[-1] != seg_mask.shape[-1]:
+                seg_mask = F.adaptive_max_pool2d(seg_mask, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
+            # 计算交叉熵损失
+            loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")
 
-        #a = torch.isnan(pos_loss)
-        #if a.item() == 1:
-        #    print("Nan")
+            # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
+            pos_num = torch.sum(seg_mask)
+            pos_loss_map = loss * seg_mask
+            if pos_num != 0:
+                pos_loss = torch.sum(pos_loss_map) / pos_num
+            else:
+                pos_loss = 0
 
-        total_loss = pos_loss
-        #"""
+            # a = torch.isnan(pos_loss)
+            # if a.item() == 1:
+            #    print("Nan")
+            total_loss_list.append(pos_loss)
 
+        while len(total_loss_list) < 4:
+            total_loss_list.append(0)
 
-
-
-        """
-        if not isinstance(output_mask, torch.Tensor) or not isinstance(gcam_mask, torch.Tensor):
-            return 0
-
-        if output_mask.shape[0] <= label.shape[0]:
-            label = label[label.shape[0] - output_mask.shape[0]:label.shape[0]]
-        else:
-            raise Exception("output_mask.shape[0] can't match label.shape[0]")
-
-        if output_mask.shape[1] > self.seg_num_classes:
-            output_mask = output_mask[:, 0:output_mask.shape[1] - self.seg_num_classes]
-
-        if output_mask.shape[1] != gcam_mask.shape[1]:  # gcam_mask.shape[1] == 1
-            l = []
-            for i in range(label.shape[0]):
-                l.append(output_mask[i][label[i]].unsqueeze(0).unsqueeze(0))
-            output_mask = torch.cat(l, dim=0)
-            l.clear()
-
-        output_score = torch.sigmoid(output_mask)
-
-        # loss = F.binary_cross_entropy(output_score, gcam_mask, reduction="none")
-        # loss = torch.abs(output_score - gcam_mask)
-        # KL
-        loss = gcam_mask * torch.log(gcam_mask / output_score) + (1 - gcam_mask) * torch.log(
-            (1 - gcam_mask) / (1 - output_score))
-        # cross_entropy_loss 连续
-        # loss = -(gcam_mask * torch.log(output_score) + (1 - gcam_mask) * torch.log(1 - output_score))
-        """
-        """
-        seg_mask_max = torch.max(gcam_mask, dim=1, keepdim=True)[0]
-        seg_mask = seg_mask_max.expand_as(gcam_mask)
-
-        # seed-loss
-        pos_num = torch.sum(seg_mask)
-        pos_loss_map = loss * seg_mask
-        if pos_num != 0:
-            pos_loss = torch.sum(pos_loss_map) / pos_num
-        else:
-            pos_loss = 0
-
-        # 只取正类损失，实际即为seed-loss。那么剩余部分用neg-masked-img-loss监督以使范围不要太大
-
-        neg_num = torch.sum((1 - seg_mask))
-        neg_loss_map = loss * (1 - seg_mask)
-        if neg_num != 0:
-            neg_loss = torch.sum(neg_loss_map) / neg_num
-        else:
-            neg_loss = 0
-            
-                # total_loss = pos_loss + neg_loss
-        total_loss = torch.mean(loss)
-        #"""
-
-        return total_loss
+        return total_loss_list
