@@ -195,10 +195,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #"""
 
                 # 2. 用最大值归一化
-                gcam_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(
-                    -1).unsqueeze(-1).expand_as(gcam)
-                gcam = (gcam-gcam_min) / (gcam_max-gcam_min)
+                gcam_max = torch.max(torch.abs(gcam_norelu).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                gcam = gcam_norelu / gcam_max
                 # resize
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-1], seg_masks.shape[-2]) ,mode='bilinear')  #默认最邻近 ,, ,mode='bilinear'
                 # fusion
