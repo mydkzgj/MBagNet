@@ -228,13 +228,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam_neg = gcam * (1-pos)
 
                     gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam) * 0.5
+                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
                     gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
                         -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
 
                     gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12)) * 0.9
 
-                    gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    gcam = gcam_pos/gcam_pos_abs_max.clamp(min=1E-12).detach() + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    #gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
                     gcam = gcam/2 + 0.5
 
                     #gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
@@ -290,18 +291,18 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 soft_mask = torch.sigmoid(soft_mask)
                 #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=31, stride=1, padding=15)
             elif model.maskedImgReloadType == "gradcam_mask":   #生成grad-cam
-                if model.gradCAMType != "reload":
-                    raise Exception("segmentationType can't match maskedImgReloadType")
-                soft_mask = gcam
+                #if model.gradCAMType != "reload":
+                #    raise Exception("segmentationType can't match maskedImgReloadType")
+                soft_mask = overall_gcam
             elif model.maskedImgReloadType == "joint_mask":   #生成grad-cam:
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
                 #soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
-                soft_mask = seg_masks#torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
+                soft_mask = torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
                 soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
 
-                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=501, stride=1, padding=250)
-                soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
+                #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=501, stride=1, padding=250)
+                #soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
             else:
                 pass
             # 2.生成masked_img
@@ -340,7 +341,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             output_masks = None
 
         # for show loss 计算想查看的loss
-        forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))
+        #forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))
+        forShow = torch.mean(overall_gcam)
         #forShow = torch.mean(soft_mask)
 
         # 计算loss
@@ -348,7 +350,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.6, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         gl_weight = [1, 0.8, 0.6, 0.4]
         loss = 0
         for lossKey in losses.keys():
