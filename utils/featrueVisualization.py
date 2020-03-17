@@ -339,7 +339,7 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
 
         # 综合所有grad-cam
         # 1.mean
-        #"""
+        """
         overall_cam = 0
         cam_num = len(cam_list)
         for index, cam in enumerate(cam_list):
@@ -354,7 +354,7 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
         #"""
         #2.max
 
-        """
+        #"""
         overall_cam = 0
         cam_num = len(cam_list)
         cl = []

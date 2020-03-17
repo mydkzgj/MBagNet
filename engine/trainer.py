@@ -44,6 +44,8 @@ from torch.utils.tensorboard import SummaryWriter
 from solver import WarmupMultiStepLR
 
 import torch.nn.functional as F
+import copy
+
 """
 try:
     from tensorboardX import SummaryWriter
@@ -70,6 +72,20 @@ op2loss = {0:"D", 1:"G"}
 
 global weight
 weight = 1
+
+
+global model2
+model2 = None
+
+def transfer_weights(model_from, model_to):
+    wf = copy.deepcopy(model_from.state_dict())
+    wt = model_to.state_dict()
+    for k in wt.keys() :
+        #if (not k in wf)):
+        if ((not k in wf) | (k=='fc.weight') | (k=='fc.bias')):
+            wf[k] = wt[k]
+    model_to.load_state_dict(wf)
+
 
 # 创建multilabel
 def label2multilabel(label):
@@ -120,6 +136,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 if isinstance(v, torch.Tensor):
                     state[k] = v.cuda()
 
+        if model.gradCAMType != "none":
+            model2 = copy.deepcopy(model)
+
     epochs_traverse_optimizers = len(optimizers) * epochs_per_optimizer
 
     def _update(engine, batch):
@@ -160,6 +179,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #if model.gradCAMType == True and model.target_layer == "":
         #    imgs.requires_grad_(True)
         #model.base.features.denseblock4.eval()
+
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 
@@ -287,13 +307,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 2.生成masked_img
             rimgs = imgs[model.batchDistribution[0]:model.batchDistribution[0] + model.batchDistribution[1]]
 
-            pos_masked_img = soft_mask * rimgs
-            #neg_masked_img = (1-soft_mask) * rimgs
+            #pos_masked_img = soft_mask * rimgs
+            neg_masked_img = (1-soft_mask) * rimgs
             # 3.reload maskedImg
-            model.eval() 
-            model.transimitBatchDistribution(0)
-            pm_logits = model(pos_masked_img)
-            nm_logits = None#model(neg_masked_img)
+            transfer_weights(model, model2)
+            model2.eval()
+            model2.transimitBatchDistribution(0)
+            pm_logits = None#model(pos_masked_img)
+            nm_logits = model2(neg_masked_img)
         else:
             pm_logits = None
             nm_logits = None
@@ -327,7 +348,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.6, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 0.8, 0.6, 0.4]
         loss = 0
         for lossKey in losses.keys():

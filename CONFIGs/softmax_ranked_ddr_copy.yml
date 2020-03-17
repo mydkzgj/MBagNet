@@ -47,7 +47,7 @@ MODEL:
  #(2). Grad-CAM Branch
  GRAD_CAM_TYPE: "supervise_seg"                                   #"none", "supervise_seg", "reload"
  #(3). Reload Branch
- MASKED_IMG_RELOAD_TYPE: "none"                  #"none", "seg_mask", "gradcam_mask" 
+ MASKED_IMG_RELOAD_TYPE: "seg_mask"#"none"                  #"none", "seg_mask", "gradcam_mask" 
  
 
 # -----------------------------------------------------------------------------

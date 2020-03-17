@@ -179,6 +179,23 @@ class NegMaskedImgLoss(object):
         total_loss = torch.mean(pick_loss)
         #"""
 
+        #"""
+        # CJY distribution 3  score min
+        score = F.softmax(neg_masked_logits, dim=1)
+
+        # 由pos_masked区域主要提供logit
+        origin_logits = origin_logits[origin_logits.shape[0]-neg_masked_logits.shape[0]:origin_logits.shape[0]]
+        reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
+        one_hot_label = torch.nn.functional.one_hot(reload_label, neg_masked_logits.shape[1]).float()
+
+        loss = score[one_hot_label.bool()]
+
+        # 挑选指定sample的loss
+        pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) #& torch.ne(label, 0)
+        pick_loss = loss[pick_index]
+        total_loss = torch.mean(pick_loss)
+        #"""
+
         return total_loss
 
 
