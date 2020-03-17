@@ -186,15 +186,15 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam = torch.cat(pick_list, dim=0)
 
                     # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
-                    maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
-                    gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
+                    #maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
+                    #gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
                     gcam = torch.sigmoid(gcam)
                 else:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
                     # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
-                    maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
-                    gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size//2)
+                    #maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
+                    #gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size//2)
                     #标准化
                     """
                     gcam_flatten = gcam.view(gcam.shape[0], -1)
@@ -232,7 +232,17 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam = torch.sigmoid(gcam)
                     #"""
 
+                # 插值
+                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
+
+            overall_gcam = torch.cat(gcam_list, dim=1)
+            overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
+            gcam_list = [overall_gcam]
+
+
+
+            # 将这些gcam 扩增 并且 fusion
 
             # GAIN论文中 生成soft_mask的做法
             #sigma = 1/target_layer_num#0.5
