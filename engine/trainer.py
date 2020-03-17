@@ -173,7 +173,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 生成CAM
             gcam_list = []
             target_layer_num = len(model.target_layer)
-            maxpool_base_kernel_size = 3 #奇数
+            maxpool_base_kernel_size = 1 #奇数
             for i in range(target_layer_num):
                 inter_output = model.inter_output[i]  # 此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num - i - 1]
@@ -181,19 +181,19 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
-                    for i in range(pick_label.shape[0]):
-                        pick_list.append(gcam[i, pick_label[i]].unsqueeze(0).unsqueeze(0))
+                    for j in range(pick_label.shape[0]):
+                        pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
                     gcam = torch.cat(pick_list, dim=0)
 
                     # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
-                    maxpool_kernel_size = maxpool_base_kernel_size + (target_layer_num - i - 1) * 2
+                    maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
                     gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
                     gcam = torch.sigmoid(gcam)
                 else:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
                     # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
-                    maxpool_kernel_size = maxpool_base_kernel_size + (target_layer_num - i - 1) * 2
+                    maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
                     gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size//2)
                     #标准化
                     """
@@ -317,7 +317,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0.6, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
