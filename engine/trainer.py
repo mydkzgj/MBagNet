@@ -208,7 +208,25 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
                     #maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
                     #gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
-                    gcam = torch.sigmoid(gcam)
+                    #gcam = torch.sigmoid(gcam)
+                    pos = torch.gt(gcam, 0).float()
+                    gcam_pos = gcam * pos
+                    gcam_neg = gcam * (1 - pos)
+
+                    gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                    gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(
+                        1E-12).unsqueeze(
+                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+
+                    gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12)) * 0.9
+
+                    sigma = 0.5
+                    gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(
+                        min=1E-12).detach() * sigma) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    # gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    gcam = gcam / 2 + 0.5
+
                 else:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
