@@ -253,7 +253,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12)) * 0.9
 
                     sigma = 0.5
-                    gcam = (1-torch.relu(-gcam_pos/(gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma)+1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    gcam = (1-torch.relu(-gcam_pos/(gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma)+1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
                     #gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
                     #gcam = gcam/2 + 0.5
 
@@ -273,8 +273,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     #"""
 
                 # 插值
-                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
+
+            # 进行特定的插值
+            for i in reversed(range(target_layer_num)):
+                if i == 0:
+                    pass
 
             overall_gcam = torch.cat(gcam_list, dim=1)
             overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
@@ -370,7 +375,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         gl_weight = [1, 0.8, 0.6, 0.4]
         loss = 0
         for lossKey in losses.keys():
