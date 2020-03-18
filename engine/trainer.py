@@ -209,7 +209,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     #maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
                     #gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
                     #gcam = torch.sigmoid(gcam)
-                    #"""
+                    gcam = torch.tanh(torch.relu(gcam))
+                    """
                     pos = torch.gt(gcam, 0).float()
                     gcam_pos = gcam * pos
                     gcam_neg = gcam * (1 - pos)
@@ -223,7 +224,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12)) * 0.9
 
                     w = 3
-                    gcam = torch.tanh(w * gcam_pos/gcam_pos_abs_max.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    gcam = torch.tanh(gcam_pos/gcam_pos_abs_max.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
                     # gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
                     gcam = gcam / 2 + 0.5
                     #"""
@@ -274,7 +275,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     #"""
 
                 # 插值
-                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
