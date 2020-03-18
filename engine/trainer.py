@@ -273,13 +273,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     #"""
 
                 # 插值
-                #gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
-            for i in reversed(range(target_layer_num)):
-                if i == 0:
-                    pass
+            #for i in reversed(range(target_layer_num)):
+            #    if i == 0:
+            #        pass
 
             overall_gcam = torch.cat(gcam_list, dim=1)
             overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
