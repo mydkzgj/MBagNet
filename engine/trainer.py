@@ -197,7 +197,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             for i in range(target_layer_num):
                 inter_output = model.inter_output[i]  # 此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num - i - 1]
-                if i == target_layer_num-1:   #最后一层是denseblock4的输出
+                if i == 100:#target_layer_num-1:   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
