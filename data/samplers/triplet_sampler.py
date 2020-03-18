@@ -235,9 +235,9 @@ class RandomSamplerForSegmentation(Sampler):
         if self.is_train == True:
             num_categories_th = self.num_categories_per_batch - 1
             selected_categories = [0]
-            while len(copy_categories) > num_categories_th:   #若其小于每个batch需要抽取的class则停止
+            while len(copy_categories) > 2:#num_categories_th:   #若其小于每个batch需要抽取的class则停止
                 if self.is_train == True:
-                    if selected_categories[0] < 4:   #顺序挑选
+                    if selected_categories[0] < 2: #4  #顺序挑选  #我先改为2吧
                         selected_categories[0] = selected_categories[0] + 1
                     else:
                         selected_categories[0] = 1

@@ -308,7 +308,7 @@ def showBagNetEvidence():
     bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
 # CJY Grad-CAM可视化
-def showGradCAM(model, imgs, labels, target_layers, mask=None):
+def showGradCAM(model, imgs, labels, p_labels, target_layers, mask=None):
     # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
     # visualization
     from utils.visualisation.gradcam import GradCam
@@ -335,7 +335,7 @@ def showGradCAM(model, imgs, labels, target_layers, mask=None):
             # plt.show()
             # Save mask
             save_class_activation_images(img, cam, "heatmap_" + str(
-                save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(labels[0].item()))
+                save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(labels[0].item()) + "_PL"+ str(p_labels[0].item()))
 
         # 综合所有grad-cam
         # 1.mean

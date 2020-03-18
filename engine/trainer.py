@@ -209,6 +209,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     #maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
                     #gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
                     #gcam = torch.sigmoid(gcam)
+                    #"""
                     pos = torch.gt(gcam, 0).float()
                     gcam_pos = gcam * pos
                     gcam_neg = gcam * (1 - pos)
@@ -221,11 +222,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                     gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12)) * 0.9
 
-                    sigma = 0.5
-                    gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(
-                        min=1E-12).detach() * sigma) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+                    gcam = gcam_pos/gcam_pos_abs_max.clamp(min=1E-12).detach() + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
                     # gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
                     gcam = gcam / 2 + 0.5
+                    #"""
 
                 else:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)

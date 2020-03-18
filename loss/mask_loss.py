@@ -324,10 +324,17 @@ class GradCamMaskLoss(object):
             else:
                 pos_loss = 0
 
+            neg_num = torch.sum((1 - seg_mask))
+            neg_loss_map = loss * (1 - seg_mask)
+            if neg_num != 0:
+                neg_loss = torch.sum(neg_loss_map) / neg_num
+            else:
+                neg_loss = 0
+
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss)
+            total_loss_list.append(pos_loss + neg_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
