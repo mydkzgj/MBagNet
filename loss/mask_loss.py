@@ -334,7 +334,7 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss + neg_loss)
+            total_loss_list.append(loss.mean())
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
