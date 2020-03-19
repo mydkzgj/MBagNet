@@ -197,79 +197,60 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             for i in range(target_layer_num):
                 inter_output = model.inter_output[i]  # 此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num - i - 1]
-                if i == 100:#target_layer_num-1:   #最后一层是denseblock4的输出
+                if i == target_layer_num-1:   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
                     for j in range(pick_label.shape[0]):
                         pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
                     gcam = torch.cat(pick_list, dim=0)
-
-                    # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
-                    #maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
-                    #gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size // 2)
-                    #gcam = torch.sigmoid(gcam)
-
-                    pos = torch.gt(gcam, 0).float()
-                    gcam_pos = gcam * pos
-                    gcam_neg = gcam * (1 - pos)
-
-                    gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                    gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(
-                        1E-12).unsqueeze(
-                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-
-                    gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
-
-                    gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach()) + gcam_neg / gcam_neg_abs_max.clamp(
-                        min=1E-12).detach()  # [-1,+1]
-
-
                 else:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-                    # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
-                    #maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
-                    #gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size//2)
-                    #标准化
-                    """
-                    gcam_flatten = gcam.view(gcam.shape[0], -1)
-                    gcam_var = torch.var(gcam_flatten, dim=1).detach()
-                    gcam = gcam/gcam_var
-                    gcam = torch.sigmoid(gcam)
-                    #"""
-                    #"""
-                    pos = torch.gt(gcam, 0).float()
-                    gcam_pos = gcam * pos
-                    gcam_neg = gcam * (1-pos)
 
-                    gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                    gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-                        -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
+                # maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
+                # gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size//2)
+                # 标准化
+                """
+                gcam_flatten = gcam.view(gcam.shape[0], -1)
+                gcam_var = torch.var(gcam_flatten, dim=1).detach()
+                gcam = gcam/gcam_var
+                gcam = torch.sigmoid(gcam)
+                #"""
+                # """
+                pos = torch.gt(gcam, 0).float()
+                gcam_pos = gcam * pos
+                gcam_neg = gcam * (1 - pos)
 
-                    gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
+                gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
 
-                    gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach()) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
-                    #gcam = (1-torch.relu(-gcam_pos/(gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma)+1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
-                    #gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
-                    #gcam = gcam/2 + 0.5
+                gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
 
-                    #gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                    #gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-                    #gcam = torch.relu(gcam) / gcam_max.detach()
-                    #"""
-                    """
-                    gcam_flatten = torch.relu(gcam).view(gcam.shape[0], -1)  # 负的也算上吧
-                    gcam_gt0 = torch.gt(gcam_flatten, 0).float()
-                    gcam_sum = torch.sum(gcam_flatten, dim=-1)
-                    gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
-                    gcam_mean = gcam_sum / gcam_sum_num.clamp(min=1E-12) * 0.9
+                sigma = 0.8
+                # gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach()) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
+                gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(
+                    min=1E-12).detach() * sigma) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+                # gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+                # gcam = gcam/2 + 0.5
 
-                    gcam = gcam / gcam_mean.clamp(min=1E-12).detach()
-                    gcam = torch.sigmoid(gcam)
-                    #"""
+                # gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                # gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                # gcam = torch.relu(gcam) / gcam_max.detach()
+                # """
+                """
+                gcam_flatten = torch.relu(gcam).view(gcam.shape[0], -1)  # 负的也算上吧
+                gcam_gt0 = torch.gt(gcam_flatten, 0).float()
+                gcam_sum = torch.sum(gcam_flatten, dim=-1)
+                gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
+                gcam_mean = gcam_sum / gcam_sum_num.clamp(min=1E-12) * 0.9
+
+                gcam = gcam / gcam_mean.clamp(min=1E-12).detach()
+                gcam = torch.sigmoid(gcam)
+                #"""
 
                 # 插值
                 gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
@@ -282,8 +263,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             overall_gcam = torch.cat(gcam_list, dim=1)
             overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
-            overall_gcam = torch.relu(overall_gcam)
+            #overall_gcam = torch.relu(overall_gcam)  # 只保留正值
             #overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
+            #overall_gcam = torch.relu(overall_gcam)
             gcam_list = [overall_gcam]
 
 

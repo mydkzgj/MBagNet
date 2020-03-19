@@ -202,6 +202,14 @@ class Baseline(nn.Module):
             self.classifier = nn.Linear(self.in_planes, self.num_classes)
             self.classifier.apply(weights_init_classifier)
 
+            # 为每个hook增加一个classifier
+            self.db1_clr = nn.Linear(self.in_planes//4, self.num_classes)
+            self.db1_clr.apply(weights_init_classifier)
+            self.db2_clr = nn.Linear(self.in_planes//2, self.num_classes)
+            self.db2_clr.apply(weights_init_classifier)
+            self.db3_clr = nn.Linear(self.in_planes, self.num_classes)
+            self.db3_clr.apply(weights_init_classifier)
+
         #  (2)post-classifier模式: backbone提供的是logits，不需要gap，只需线性classifier即可
         elif self.classifierType == "post":
             self.finalClassifier = nn.Linear(self.baseOutChannels, self.num_classes)
@@ -219,7 +227,7 @@ class Baseline(nn.Module):
             self.projectors = torch.nn.Conv2d(1,1,kernel_size=1,bias=False)
             nn.init.constant_(self.projectors.weight, 1)
 
-            self.target_layer = ["denseblock1"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            self.target_layer = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",
             if self.target_layer != []:
                 for tl in self.target_layer:

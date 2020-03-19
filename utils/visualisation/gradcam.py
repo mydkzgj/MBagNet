@@ -121,15 +121,33 @@ class GradCam():
         #cam = (cam - np.min(cam)) / (np.max(cam) - np.min(cam))  # Normalize between 0-1
 
         #CJY 用abs来归一化
-        #"""
+        """
         cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
-
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1
         else:
             cam = cam + 0.5
         #"""
+
+        #"""
+        pcam = np.maximum(cam, 0)
+        ncam = np.minimum(cam, 0)
+
+        pmax = np.max(np.abs(pcam)) * 2
+        nmax = np.max(np.abs(ncam)) * 2
+
+        if pmax != 0 and nmax != 0:
+            cam = pcam/pmax + ncam/nmax + 0.5# Normalize between 0-1
+        elif pmax != 0 and nmax == 0:
+            cam = pcam / pmax + 0.5  # Normalize between 0-1
+        elif pmax == 0 and nmax != 0:
+            cam = ncam/nmax + 0.5  # Normalize between 0-1
+        else:
+            cam = cam + 0.5
+
+        #"""
+
 
         cam = np.uint8(cam * 255)  # Scale between 0-255 to visualize
         cam = np.uint8(Image.fromarray(cam).resize((input_image.shape[2],
