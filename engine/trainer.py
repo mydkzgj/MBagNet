@@ -189,7 +189,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             # 回传one-hot向量
-            logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)
+            logits.backward(gradient=one_hot_labels, retain_graph=True, create_graph=True)
             # 生成CAM
             gcam_list = []
             target_layer_num = len(model.target_layer)
@@ -197,7 +197,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             for i in range(target_layer_num):
                 inter_output = model.inter_output[i]  # 此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num - i - 1]
-                if i == target_layer_num-1:   #最后一层是denseblock4的输出
+                if i == target_layer_num-1 and model.target_layer[0] == "denseblock4":   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
@@ -265,8 +265,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
             #overall_gcam = torch.relu(overall_gcam)  # 只保留正值
             #overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
-            overall_gcam = torch.relu(overall_gcam)
-            gcam_list = [overall_gcam]
+            #overall_gcam = torch.relu(overall_gcam)
+            #gcam_list = [overall_gcam]
 
 
 
@@ -357,7 +357,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         gl_weight = [1, 0.8, 0.6, 0.4]
         loss = 0
         for lossKey in losses.keys():
