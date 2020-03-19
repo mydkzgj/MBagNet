@@ -326,7 +326,7 @@ class GradCamMaskLoss(object):
             else:
                 pos_loss = 0
 
-            """
+            #"""
             neg_num = torch.sum((1 - seg_mask))
             neg_loss_map = loss * (1 - seg_mask)
             if neg_num != 0:

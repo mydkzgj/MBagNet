@@ -265,7 +265,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
             #overall_gcam = torch.relu(overall_gcam)  # 只保留正值
             #overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
-            #overall_gcam = torch.relu(overall_gcam)
+            overall_gcam = torch.relu(overall_gcam)
             gcam_list = [overall_gcam]
 
 
