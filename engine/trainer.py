@@ -189,7 +189,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             # 回传one-hot向量
-            logits.backward(gradient=one_hot_labels, retain_graph=True, create_graph=True)
+            logits.backward(gradient=one_hot_labels, retain_graph=True)
             # 生成CAM
             gcam_list = []
             target_layer_num = len(model.target_layer)

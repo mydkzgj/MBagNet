@@ -53,12 +53,12 @@ class _MBagLayer(nn.Sequential):
 
         if self.preAct == True:
             self.add_module('norm1', nn.BatchNorm2d(num_input_features)),   #改变norm
-            self.add_module('relu1', nn.Sigmoid()),#nn.ReLU(inplace=True)),
+            self.add_module('relu1', nn.ReLU(inplace=True)),
             self.add_module('conv1', Conv2d(num_input_features, bn_size *
                                             growth_rate, kernel_size=1, stride=1,
                                             bias=False)),
             self.add_module('norm2', nn.BatchNorm2d(bn_size * growth_rate)),
-            self.add_module('relu2', nn.Sigmoid()),#nn.ReLU(inplace=True)),
+            self.add_module('relu2', nn.ReLU(inplace=True)),
             self.add_module('conv2', Conv2d(bn_size * growth_rate, growth_rate,
                                             kernel_size=3, stride=1, padding=1,
                                             bias=False)),
@@ -67,7 +67,7 @@ class _MBagLayer(nn.Sequential):
                 self.add_module('meditation', torch.nn.Sequential())
             for i in range(self.complexity):
                 self.meditation.add_module('norm'+str(i+3), nn.BatchNorm2d(growth_rate)),
-                self.meditation.add_module('relu'+str(i+3), nn.Sigmoid()),#nn.ReLU(inplace=True)),
+                self.meditation.add_module('relu'+str(i+3), nn.ReLU(inplace=True)),
                 self.meditation.add_module('conv'+str(i+3), Conv2d(growth_rate, growth_rate,
                                                                    kernel_size=1, stride=1, padding=0,
                                                                    bias=False)),
@@ -77,12 +77,12 @@ class _MBagLayer(nn.Sequential):
                                             growth_rate, kernel_size=1, stride=1,
                                             bias=False)),
             self.add_module('norm1', nn.BatchNorm2d(bn_size * growth_rate)),  # 改变norm
-            self.add_module('relu1', nn.Sigmoid()),#nn.ReLU(inplace=True)),
+            self.add_module('relu1', nn.ReLU(inplace=True)),
             self.add_module('conv2', Conv2d(bn_size * growth_rate, growth_rate,
                                             kernel_size=3, stride=1, padding=1,
                                             bias=False)),
             self.add_module('norm2', nn.BatchNorm2d(growth_rate)),
-            self.add_module('relu2', nn.Sigmoid()),#nn.ReLU(inplace=True)),
+            self.add_module('relu2', nn.ReLU(inplace=True)),
 
             # CJY at 2020.1.1  增加结构复杂度complexity这一参数，即增加多层1*1卷积
             if self.complexity > 0:
@@ -92,7 +92,7 @@ class _MBagLayer(nn.Sequential):
                                                                        kernel_size=1, stride=1, padding=0,
                                                                        bias=False)),
                 self.meditation.add_module('norm' + str(i + 3), nn.BatchNorm2d(growth_rate)),
-                self.meditation.add_module('relu' + str(i + 3), nn.Sigmoid()),#nn.ReLU(inplace=True)),
+                self.meditation.add_module('relu' + str(i + 3), nn.ReLU(inplace=True)),
 
         if reduction == 1:
             self.add_module('reduction1', nn.Identity())#nn.AvgPool2d(kernel_size=1, stride=1))
@@ -196,7 +196,7 @@ class _Transition(nn.Sequential):
 
         elif transitionType == "non-linear":
             self.add_module('norm', nn.BatchNorm2d(num_input_features))
-            self.add_module('relu', nn.Sigmoid()),#nn.ReLU(inplace=True))
+            self.add_module('relu', nn.ReLU(inplace=True))
             self.add_module('conv', Conv2d(num_input_features, num_output_features,
                                            kernel_size=1, stride=1, bias=False))
             self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
@@ -277,7 +277,7 @@ class MultiBagNet(nn.Module):
             ('conv0', Conv2d(3, num_init_features, kernel_size=7, stride=2,
                                 padding=3, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.Sigmoid()),#nn.ReLU(inplace=True)),
+            ('relu0', nn.ReLU(inplace=True)),
             ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
         ]))
         self.num_features = num_init_features
@@ -465,7 +465,7 @@ class MultiBagNet(nn.Module):
              nn.ConvTranspose2d(self.seg_num_features, self.seg_num_last_features, kernel_size=3, stride=2, padding=1,
                                 output_padding=1, bias=False)),
             ('norm0', nn.BatchNorm2d(self.seg_num_last_features)),
-            ('relu0', nn.Sigmoid()),#nn.ReLU(inplace=True)),
+            ('relu0', nn.ReLU(inplace=True)),
             ('tranconv1',
              nn.ConvTranspose2d(self.seg_num_last_features, self.seg_num_last_features, kernel_size=7, stride=2, padding=3,
                                 output_padding=1, bias=False)),
