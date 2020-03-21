@@ -302,16 +302,17 @@ class GradCamMaskLoss(object):
         seg_mask = torch.cat(NewSegMask, dim=0)
 
         total_loss_list = []
+        seg_mask_c = seg_mask
         # 遍历所有生成的gcam_mask
         for gcam_mask in reversed(gcam_mask_list):
-            if gcam_mask.shape[0] >= seg_mask.shape[0]:
-                gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask.shape[0]:gcam_mask.shape[0]]
+            if gcam_mask.shape[0] >= seg_mask_c.shape[0]:
+                gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask_c.shape[0]:gcam_mask.shape[0]]
             else:
                 raise Exception("output_mask.shape[0] can't match label.shape[0]")
 
             # 需要将seg_mask根据gcam_mask的大小进行调整
-            if gcam_mask.shape[-1] != seg_mask.shape[-1]:
-                seg_mask = F.adaptive_max_pool2d(seg_mask, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
+            if gcam_mask.shape[-1] != seg_mask_c.shape[-1]:
+                seg_mask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
             gcam_mask_p = gcam_mask * seg_mask
             gcam_mask_n = torch.relu(gcam_mask * (1 - seg_mask))

@@ -261,6 +261,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #    if i == 0:
             #        pass
 
+            """
             overall_gcam = torch.cat(gcam_list, dim=1)
             #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
             #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
@@ -273,6 +274,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
             #overall_gcam = torch.relu(overall_gcam)
             gcam_list = [overall_gcam]
+            #"""
 
 
 
@@ -355,7 +357,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # for show loss 计算想查看的loss
         #forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))
-        forShow = torch.mean(overall_gcam)
+        forShow = 0#torch.mean(overall_gcam)
         #forShow = torch.mean(soft_mask)
 
         # 计算loss
