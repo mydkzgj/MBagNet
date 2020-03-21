@@ -331,7 +331,7 @@ class GradCamMaskLoss(object):
                 pos_loss = 0
 
             # """
-            region2 = 1 - F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
+            region2 = 1 - seg_mask#F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
             neg_num = torch.sum(region2)
             neg_loss_map = loss * (region2)
             if neg_num != 0:
