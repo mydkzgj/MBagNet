@@ -322,7 +322,7 @@ def showGradCAM(model, imgs, labels, p_labels, target_layers, mask=None):
             # Grad cam
             grad_cam = GradCam(model, target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             # Generate cam mask
-            cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])
+            cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])  #显示显示其他的标签
             cam_list.append(cam)
             # original_image
             mean = np.array([0.4914, 0.4822, 0.4465])
