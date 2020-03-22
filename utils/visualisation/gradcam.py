@@ -121,7 +121,7 @@ class GradCam():
         #cam = (cam - np.min(cam)) / (np.max(cam) - np.min(cam))  # Normalize between 0-1
 
         #CJY 用abs来归一化
-        """
+        #"""
         cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
@@ -130,7 +130,7 @@ class GradCam():
             cam = cam + 0.5
         #"""
 
-        #"""
+        """
         pcam = np.maximum(cam, 0)
         ncam = np.minimum(cam, 0)
 

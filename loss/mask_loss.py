@@ -322,6 +322,7 @@ class GradCamMaskLoss(object):
             #loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")
             loss = torch.pow(gcam_mask - seg_mask, 2)
 
+
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
             region1 = seg_mask #* torch.gt(gcam_mask, 1)
             pos_num = torch.sum(region1)
@@ -344,7 +345,7 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss)
+            total_loss_list.append(pos_loss+neg_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
