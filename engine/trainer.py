@@ -260,7 +260,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #    if i == 0:
             #        pass
 
-            """
+            #"""
             overall_gcam = torch.cat(gcam_list, dim=1)
             #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
             #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
