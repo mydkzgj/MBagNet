@@ -219,7 +219,7 @@ class Baseline(nn.Module):
             self.projectors = torch.nn.Conv2d(1,1,kernel_size=1,bias=False)
             nn.init.constant_(self.projectors.weight, 1)
 
-            self.target_layer = ["denseblock1", "denseblock2", "denseblock3"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            self.target_layer = ["denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",
             if self.target_layer != []:
                 for tl in self.target_layer:
