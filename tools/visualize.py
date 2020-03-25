@@ -87,7 +87,7 @@ def main():
     num_classes = len(classes_list)
 
     model = build_model(cfg, num_classes)
-    model.load_param("Base", cfg.TEST.WEIGHT)  #Overall
+    model.load_param("Overall", cfg.TEST.WEIGHT)  #Overall
 
     #CJY 可视化  densenet层与层之间的联系
     #showWeight(model)

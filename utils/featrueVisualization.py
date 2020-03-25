@@ -316,63 +316,66 @@ def showGradCAM(model, imgs, labels, p_labels, target_layers, mask=None):
     from PIL import Image
     import matplotlib.pyplot as plt
     global save_img_index
-    if isinstance(target_layers, list):
-        cam_list = []  # 求总的cam
-        for target_layer in target_layers:
-            # Grad cam
-            grad_cam = GradCam(model, target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            # Generate cam mask
-            cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), labels[0])  #显示显示其他的标签
-            cam_list.append(cam)
-            # original_image
-            mean = np.array([0.4914, 0.4822, 0.4465])
-            var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
-            img = imgs[0].cpu().detach().numpy()
-            img = np.transpose(img, (1, 2, 0))
-            img = (img * var + mean) * 255  # 去标准化
-            img = Image.fromarray(img.astype('uint8')).convert('RGB')
-            # plt.imshow(img)
-            # plt.show()
+    for show_label in range(6):
+        if isinstance(target_layers, list):
+            cam_list = []  # 求总的cam
+            for target_layer in target_layers:
+                # Grad cam
+                grad_cam = GradCam(model,
+                                   target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+                # Generate cam mask
+                cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), show_label)  # labels[0])  #显示显示其他的标签
+                cam_list.append(cam)
+                # original_image
+                mean = np.array([0.4914, 0.4822, 0.4465])
+                var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
+                img = imgs[0].cpu().detach().numpy()
+                img = np.transpose(img, (1, 2, 0))
+                img = (img * var + mean) * 255  # 去标准化
+                img = Image.fromarray(img.astype('uint8')).convert('RGB')
+                # plt.imshow(img)
+                # plt.show()
+                # Save mask
+                save_class_activation_images(img, cam, "heatmap_" + str(
+                    save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(
+                    labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
+
+            # 综合所有grad-cam
+            # 1.mean
+            """
+            overall_cam = 0
+            cam_num = len(cam_list)
+            for index, cam in enumerate(cam_list):
+                cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)#.clamp(min=0.5)
+                #cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
+                cam = cam_tensor.squeeze(0).squeeze(0).numpy()
+                overall_cam = overall_cam + cam #* (cam_num-index)/cam_num
+
+            overall_cam = overall_cam/cam_num
+            #overall_cam = (overall_cam-np.min(overall_cam))/(np.max(overall_cam)-np.min(overall_cam))
+            #overall_cam = (overall_cam > 1/cam_num) * 0.5 + 0.5
+            #"""
+            # 2.max
+
+            # """
+            overall_cam = 0
+            cam_num = len(cam_list)
+            cl = []
+            for index, cam in enumerate(cam_list):
+                cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)  # .clamp(min=0.5)
+                cl.append(cam_tensor)
+                cl = torch.cat(cl, dim=1)
+                cl = [cl]
+                # cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
+            ct = torch.max(cl[0], dim=1, keepdim=True)[0]
+            cam = ct.squeeze(0).squeeze(0).numpy()
+            overall_cam = cam
+            # """
+
             # Save mask
-            save_class_activation_images(img, cam, "heatmap_" + str(
-                save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(labels[0].item()) + "_PL"+ str(p_labels[0].item()))
+            save_class_activation_images(img, overall_cam, "heatmap_" + str(
+                save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
 
-        # 综合所有grad-cam
-        # 1.mean
-        """
-        overall_cam = 0
-        cam_num = len(cam_list)
-        for index, cam in enumerate(cam_list):
-            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)#.clamp(min=0.5)
-            #cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
-            cam = cam_tensor.squeeze(0).squeeze(0).numpy()
-            overall_cam = overall_cam + cam #* (cam_num-index)/cam_num
-
-        overall_cam = overall_cam/cam_num
-        #overall_cam = (overall_cam-np.min(overall_cam))/(np.max(overall_cam)-np.min(overall_cam))
-        #overall_cam = (overall_cam > 1/cam_num) * 0.5 + 0.5
-        #"""
-        #2.max
-
-        #"""
-        overall_cam = 0
-        cam_num = len(cam_list)
-        cl = []
-        for index, cam in enumerate(cam_list):
-            cam_tensor = torch.Tensor(cam).unsqueeze(0).unsqueeze(0)#.clamp(min=0.5)
-            cl.append(cam_tensor)
-            cl = torch.cat(cl, dim=1)
-            cl = [cl]
-            # cam_tensor = torch.nn.functional.max_pool2d(cam_tensor, kernel_size=index * 10 + 1, stride=1, padding=index * 5)
-        ct = torch.max(cl[0], dim=1, keepdim=True)[0]
-        cam = ct.squeeze(0).squeeze(0).numpy()
-        overall_cam = cam
-        #"""
-
-
-        # Save mask
-        save_class_activation_images(img, overall_cam, "heatmap_" + str(
-            save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()))
 
     # img save
     img.save(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_OriImage' + '.png')
