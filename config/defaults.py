@@ -79,7 +79,8 @@ _C.MODEL.PRE_ACTIVATION = 1
 _C.MODEL.FUSION_TYPE = "concat"
 # baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
 _C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
-
+# 是否使用层级结构的classifier
+_C.MODEL.HIRERARCHY_CLASSIFIER = 0
 
 # supervisedType 3个支路的调配方案  若改变该项，则下述选项设定将无效    # S: - G: - R:
 # "none", "weakSu-segRe", "strongSu-segRe", "strongSu-gcamRe", "gcamRe"

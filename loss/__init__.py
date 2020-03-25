@@ -11,6 +11,7 @@ from .cluster_loss import ClusterLoss
 from .one_vs_rest_loss import OneVsRestLoss
 from .attention_loss import AttentionLoss
 from torch.nn import CrossEntropyLoss
+from torch.nn import NLLLoss
 from torch.nn import KLDivLoss
 from .margin_loss import MarginLoss
 from .cross_entropy_label_smooth import CrossEntropyLabelSmooth
@@ -18,6 +19,7 @@ from .cross_entropy_multilabel import CrossEntropyMultiLabel
 from .mask_loss import SegMaskLoss, GradCamMaskLoss
 from .masked_img_loss import PosMaskedImgLoss, NegMaskedImgLoss
 from .forshow_loss import ForShowLoss
+
 
 
 
@@ -45,7 +47,10 @@ def make_D_loss(cfg, num_classes):
                 cross_entropy_Labelsmooth_loss = CrossEntropyLabelSmooth(num_classes=num_classes)  # new add by luo
                 lossClasses["cross_entropy_loss"] = cross_entropy_Labelsmooth_loss
             else:
-                cross_entropy_loss = CrossEntropyLoss()
+                if cfg.MODEL.HIRERARCHY_CLASSIFIER == 0:
+                    cross_entropy_loss = CrossEntropyLoss()
+                else:
+                    cross_entropy_loss = NLLLoss()
                 lossClasses["cross_entropy_loss"] = cross_entropy_loss
         elif lossName == "cluster_loss":
             cluster_loss = ClusterLoss(num_classes=6, feat_dim=2048, r_outer=5, io_ratio=4, distance_type="cos", use_gpu=True)

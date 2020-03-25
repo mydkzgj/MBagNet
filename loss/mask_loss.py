@@ -314,9 +314,9 @@ class GradCamMaskLoss(object):
             if gcam_mask.shape[-1] != seg_mask_c.shape[-1]:
                 gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
-            gcam_mask_p = gcam_mask * gcam_gtmask
-            gcam_mask_n = torch.relu(gcam_mask * (1 - gcam_gtmask))
-            gcam_mask = gcam_mask_p + gcam_mask_n
+            #gcam_mask_p = gcam_mask * gcam_gtmask
+            #gcam_mask_n = torch.relu(gcam_mask * (1 - gcam_gtmask))
+            #gcam_mask = gcam_mask_p + gcam_mask_n
 
             # 计算交叉熵损失
             #loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")

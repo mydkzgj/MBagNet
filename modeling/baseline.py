@@ -42,7 +42,7 @@ def weights_init_classifier(m):
 class Baseline(nn.Module):
     def __init__(self, base_name, num_classes,
                  preAct=True, fusionType="concat",
-                 base_classifier_Type="f-c",
+                 base_classifier_Type="f-c", hierarchy_classifier=0,
                  hookType="none", segmentationType="none", seg_num_classes=1, segSupervisedType="none",
                  gcamSupervisedType="none",
                  maskedImgReloadType="none",
@@ -71,7 +71,7 @@ class Baseline(nn.Module):
 
 
         # CJY 分类器是否采用hierachy的结构
-        self.hierarchyClassifier = False
+        self.hierarchyClassifier = hierarchy_classifier
 
         # 下面为3个支路设置参数
         # bracnh used samples including seg, gracam, reload
@@ -95,6 +95,8 @@ class Baseline(nn.Module):
         self.gcamSupervisedType = gcamSupervisedType
         if self.gcamSupervisedType != "none":
             self.gcamState = True
+            if self.gcamSupervisedType == "seg_mask":
+                self.segState = True
         else:
             self.gcamState = False
 
@@ -230,7 +232,18 @@ class Baseline(nn.Module):
                 self.classifier = nn.Linear(self.in_planes, self.num_classes)
                 self.classifier.apply(weights_init_classifier)
             else:
-                
+                self.classifier1 = nn.Linear(self.in_planes, 2)
+                self.classifier1.apply(weights_init_classifier)
+                self.classifier2 = nn.Linear(self.in_planes, 2)
+                self.classifier2.apply(weights_init_classifier)
+                self.classifier3 = nn.Linear(self.in_planes, 2)
+                self.classifier3.apply(weights_init_classifier)
+                self.classifier4 = nn.Linear(self.in_planes, 2)
+                self.classifier4.apply(weights_init_classifier)
+                self.classifier5 = nn.Linear(self.in_planes, 2)
+                self.classifier5.apply(weights_init_classifier)
+                self.classifier6 = nn.Linear(self.in_planes, 2)
+                self.classifier6.apply(weights_init_classifier)
 
         #  (2)post-classifier模式: backbone提供的是logits，不需要gap，只需线性classifier即可
         elif self.classifierType == "post":
@@ -273,7 +286,32 @@ class Baseline(nn.Module):
             base_out = self.base(x)
             global_feat = self.gap(base_out)  # (b, ?, 1, 1)
             feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-            final_logits = self.classifier(feat)
+            if self.hierarchyClassifier == False:
+                final_logits = self.classifier(feat)
+            else:
+                logits1 = self.classifier1(feat)  # 画质（0，1，2，3，4，）Vs 5
+                score1 = F.softmax(logits1, dim=-1)
+                logits2 = self.classifier2(feat)  # 正常 0， （1，2，3，4）
+                score2 = F.softmax(logits2, dim=-1)
+                logits3 = self.classifier3(feat)  # 病灶 1, (2，3，4)
+                score3 = F.softmax(logits3, dim=-1)
+                logits4 = self.classifier4(feat)  # 病灶 2, (3，4)
+                score4 = F.softmax(logits4, dim=-1)
+                logits5 = self.classifier5(feat)  # 病灶 3, (4)
+                score5 = F.softmax(logits5, dim=-1)
+
+                score_c5 = score1[:, 1:2]
+                score_L2 = score1[:, 0:1] * score2  # 0,(1,2,3,4)
+                score_c0 = score_L2[:, 0:1]
+                score_L3 = score_L2[:, 1:2] * score3  # 1,(2,3,4)
+                score_c1 = score_L3[:, 0:1]
+                score_L4 = score_L3[:, 1:2] * score4  # 2,(3,4)
+                score_c2 = score_L4[:, 0:1]
+                score_L5 = score_L4[:, 1:2] * score5  # 3,(4)
+
+                final_logits = torch.cat([score_c0, score_c1, score_c2, score_L5, score_c5], dim=1)
+                final_logits = torch.log(final_logits)
+
         elif self.classifierType == "post":
             logits = self.base(x)
             final_logits = self.finalClassifier(logits)
