@@ -108,7 +108,7 @@ class SegMaskLoss(object):
         self.seg_num_classes = seg_num_classes
         pass
 
-    def __call__(self, output_mask, seg_mask, seg_label):   #output_mask, seg_mask, seg_label
+    def __call__(self, seg_mask, seg_gtmask, seg_label):
         #  CJY distribution 1
         """
         if not isinstance(output_mask, torch.Tensor):
@@ -141,32 +141,31 @@ class SegMaskLoss(object):
         #"""
         # 注意：负样本的数量实在太多，会淹没误判的正样本。
         # 该版本要比第一种好
-        if not isinstance(output_mask, torch.Tensor) or not isinstance(seg_mask, torch.Tensor):
+        if not isinstance(seg_mask, torch.Tensor) or not isinstance(seg_gtmask, torch.Tensor):
             return 0
 
         # 截断出末尾作为输入
-        if output_mask.shape[0] > seg_label.shape[0]:
-            output_mask = output_mask[output_mask.shape[0]-seg_label.shape[0]:output_mask.shape[0]]
+        if seg_mask.shape[0] > seg_label.shape[0]:
+            seg_mask = seg_mask[seg_mask.shape[0] - seg_label.shape[0]:seg_mask.shape[0]]
 
-        if output_mask.shape[1] > seg_mask.shape[1]:
-            output_mask = output_mask[:, output_mask.shape[1]-seg_mask.shape[1]:output_mask.shape[1]]
+        if seg_mask.shape[1] > seg_gtmask.shape[1]:
+            seg_mask = seg_mask[:, seg_mask.shape[1] - seg_gtmask.shape[1]:seg_mask.shape[1]]
 
-        output_score = torch.sigmoid(output_mask)
-        loss = F.binary_cross_entropy(output_score, seg_mask, reduction="none")
+        loss = F.binary_cross_entropy(seg_mask, seg_gtmask, reduction="none")
 
         # 病灶并集处要分为一组
-        seg_mask_max = torch.max(seg_mask, dim=1, keepdim=True)[0]
-        seg_mask = seg_mask_max.expand_as(seg_mask)
+        seg_mask_max = torch.max(seg_gtmask, dim=1, keepdim=True)[0]
+        seg_gtmask = seg_mask_max.expand_as(seg_gtmask)
 
-        pos_num = torch.sum(seg_mask)
-        pos_loss_map = loss * seg_mask
+        pos_num = torch.sum(seg_gtmask)
+        pos_loss_map = loss * seg_gtmask
         if pos_num != 0:
             pos_loss = torch.sum(pos_loss_map) / pos_num
         else:
             pos_loss = 0
 
-        neg_num = torch.sum((1 - seg_mask))
-        neg_loss_map = loss * (1 - seg_mask)
+        neg_num = torch.sum((1 - seg_gtmask))
+        neg_loss_map = loss * (1 - seg_gtmask)
         if neg_num != 0:
             neg_loss = torch.sum(neg_loss_map) / neg_num
         else:
@@ -275,34 +274,35 @@ class GradCamMaskLoss(object):
         self.seg_num_classes = seg_num_classes
         pass
 
-    def __call__(self, output_mask, gcam_mask_list, label, seg_mask, ):  # output_mask, seg_mask, seg_label
+    def __call__(self, gcam_mask_list, gcam_gtmask, gcam_label):  # output_mask, seg_mask, seg_label
         #  CJY distribution 1
         # 用真值sef_mask监督CAM
         # """
-        if not isinstance(seg_mask, torch.Tensor) or not isinstance(gcam_mask_list, list):
-            return 0
+        if not isinstance(gcam_gtmask, torch.Tensor) or not isinstance(gcam_mask_list, list):
+            return [0, 0, 0, 0]
 
         # seg_mask 需要根据病灶重新生成分级所需要的掩膜
-        label = label[label.shape[0] - seg_mask.shape[0]:label.shape[0]]
         NewSegMask = []
-        for i in range(label.shape[0]):
-            if label[i] == 1:
-                sm = seg_mask[i:i + 1, 2:3]
-            elif label[i] == 2:
-                sm1 = seg_mask[i:i+1, 0:2]
-                sm2 = seg_mask[i:i+1, 3:4]
+        for i in range(gcam_label.shape[0]):
+            if gcam_label[i] == 1:
+                sm = gcam_gtmask[i:i + 1, 2:3]
+            elif gcam_label[i] == 2:
+                sm1 = gcam_gtmask[i:i + 1, 0:2]
+                sm2 = gcam_gtmask[i:i + 1, 3:4]
                 sm = torch.cat([sm1, sm2], dim=1)
                 #sm = seg_mask[i:i + 1, 0:4]  #还是应该去除2
-            elif label[i] == 3:
-                sm = seg_mask[i:i + 1, 1:2]
-            elif label[i] == 4:
-                sm = seg_mask[i:i + 1, 1:2]
+            elif gcam_label[i] == 3:
+                sm = gcam_gtmask[i:i + 1, 1:2]
+            elif gcam_label[i] == 4:
+                sm = gcam_gtmask[i:i + 1, 1:2]
+            else:  # 如果不是1-4级，就不要用于监督了，放弃该样本
+                continue
             sm = torch.max(sm, dim=1, keepdim=True)[0]
             NewSegMask.append(sm)
-        seg_mask = torch.cat(NewSegMask, dim=0)
+        gcam_gtmask = torch.cat(NewSegMask, dim=0)
 
         total_loss_list = []
-        seg_mask_c = seg_mask
+        seg_mask_c = gcam_gtmask
         # 遍历所有生成的gcam_mask
         for gcam_mask in reversed(gcam_mask_list):
             if gcam_mask.shape[0] >= seg_mask_c.shape[0]:
@@ -312,19 +312,19 @@ class GradCamMaskLoss(object):
 
             # 需要将seg_mask根据gcam_mask的大小进行调整
             if gcam_mask.shape[-1] != seg_mask_c.shape[-1]:
-                seg_mask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
+                gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
-            gcam_mask_p = gcam_mask * seg_mask
-            gcam_mask_n = torch.relu(gcam_mask * (1 - seg_mask))
+            gcam_mask_p = gcam_mask * gcam_gtmask
+            gcam_mask_n = torch.relu(gcam_mask * (1 - gcam_gtmask))
             gcam_mask = gcam_mask_p + gcam_mask_n
 
             # 计算交叉熵损失
             #loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")
-            loss = torch.pow(gcam_mask - seg_mask, 2)
+            loss = torch.pow(gcam_mask - gcam_gtmask, 2)
 
 
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
-            region1 = seg_mask #* torch.gt(gcam_mask, 1)
+            region1 = gcam_gtmask #* torch.gt(gcam_mask, 1)
             pos_num = torch.sum(region1)
             pos_loss_map = loss * region1
             if pos_num != 0:
@@ -333,7 +333,7 @@ class GradCamMaskLoss(object):
                 pos_loss = 0
 
             # """
-            region2 = 1 - seg_mask#F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
+            region2 = 1 - gcam_gtmask#F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
             neg_num = torch.sum(region2)
             neg_loss_map = loss * (region2)
             if neg_num != 0:

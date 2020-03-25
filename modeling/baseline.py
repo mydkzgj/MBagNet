@@ -43,8 +43,8 @@ class Baseline(nn.Module):
     def __init__(self, base_name, num_classes,
                  preAct=True, fusionType="concat",
                  base_classifier_Type="f-c",
-                 hookType="none", segmentationType="none", seg_num_classes=1, segSupervisedType="strong",
-                 gradcamType="none",
+                 hookType="none", segmentationType="none", seg_num_classes=1, segSupervisedType="none",
+                 gcamSupervisedType="none",
                  maskedImgReloadType="none",
                  branch_img_num=0, branchConfigType="none",
                  accumulation_steps=1,
@@ -69,6 +69,10 @@ class Baseline(nn.Module):
         else:
             self.baseOutChannels = self.num_classes
 
+
+        # CJY 分类器是否采用hierachy的结构
+        self.hierarchyClassifier = False
+
         # 下面为3个支路设置参数
         # bracnh used samples including seg, gracam, reload
         self.branch_img_num = branch_img_num
@@ -81,13 +85,35 @@ class Baseline(nn.Module):
         self.segmentationType = segmentationType
         self.seg_num_classes = seg_num_classes
         self.segSupervisedType = segSupervisedType
+        if self.segSupervisedType != "none":
+            self.segState = True
+        else:
+            self.segState = False
 
         # Branch2: gradcamType
-        self.gradCAMType = gradcamType
+        #self.gradCAMType = gradcamType
+        self.gcamSupervisedType = gcamSupervisedType
+        if self.gcamSupervisedType != "none":
+            self.gcamState = True
+        else:
+            self.gcamState = False
 
-        # Branch3: MaskedImgReloadType  "none", "seg_mask", "gradcam_mask"
+        # Branch3: MaskedImgReloadType  "none", "seg_mask", "gcam_mask"
         self.maskedImgReloadType = maskedImgReloadType
+        if self.maskedImgReloadType != "none":
+            self.reloadState = True
+            if self.maskedImgReloadType == "seg_mask":
+                self.segState = True
+            elif self.maskedImgReloadType == "gcam_mask":
+                self.gcamState = True
+            elif self.maskedImgReloadType == "joint":
+                self.segState = True
+                self.gcamState = True
+        else:
+            self.reloadState = False
 
+
+        """
         # Branch Config方式: 若其不为none，那么前面各支路参数的设置将会依据该项进行改写
         # "none", "weakSu-segRe", "strongSu-segRe", "jointSu-segRe", "strongSu-gcamRe", "noneSu-gcamRe",
         self.branchConfigType = branchConfigType
@@ -124,6 +150,7 @@ class Baseline(nn.Module):
                 self.maskedImgReloadType = "none"
             else:
                 raise Exception("Wrong Branch Config")
+        """
 
 
         # 1.Backbone
@@ -199,8 +226,11 @@ class Baseline(nn.Module):
         # （1）normal-classifier模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
         if self.classifierType == "normal":
             self.gap = nn.AdaptiveAvgPool2d(1)
-            self.classifier = nn.Linear(self.in_planes, self.num_classes)
-            self.classifier.apply(weights_init_classifier)
+            if self.hierarchyClassifier == False:
+                self.classifier = nn.Linear(self.in_planes, self.num_classes)
+                self.classifier.apply(weights_init_classifier)
+            else:
+                
 
         #  (2)post-classifier模式: backbone提供的是logits，不需要gap，只需线性classifier即可
         elif self.classifierType == "post":
@@ -212,12 +242,12 @@ class Baseline(nn.Module):
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
         # GradCAM 如果其不为none，那么就设置hook
-        if self.gradCAMType != "none":
+        if self.gcamState == True:
             self.inter_output = [] #None
             self.inter_gradient = [] #None
             #self.INLayers = torch.nn.ModuleList()
-            self.projectors = torch.nn.Conv2d(1,1,kernel_size=1,bias=False)
-            nn.init.constant_(self.projectors.weight, 1)
+            #self.projectors = torch.nn.Conv2d(1,1,kernel_size=1,bias=False)
+            #nn.init.constant_(self.projectors.weight, 1)
 
             self.target_layer = ["denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",
@@ -231,6 +261,26 @@ class Baseline(nn.Module):
                             module.register_forward_hook(self.forward_hook_fn)
                             module.register_backward_hook(self.backward_hook_fn)
                             break
+
+
+    def forward(self, x):
+        if self.gcamSupervisedType != "none":
+            self.inter_output.clear()
+            self.inter_gradient.clear()
+
+        # 分为三种情况：1.base只提供特征 2.base输出logit但需后处理 3
+        if self.classifierType == "normal":
+            base_out = self.base(x)
+            global_feat = self.gap(base_out)  # (b, ?, 1, 1)
+            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+            final_logits = self.classifier(feat)
+        elif self.classifierType == "post":
+            logits = self.base(x)
+            final_logits = self.finalClassifier(logits)
+        elif self.classifierType == "none":
+            final_logits = self.base(x)
+
+        return final_logits   # 其他参数可以用model的成员变量来传递
 
 
     def forward_hook_fn(self, module, input, output):
@@ -267,24 +317,26 @@ class Baseline(nn.Module):
         self.batchDistribution = BD
         self.base.batchDistribution = BD
 
-    def forward(self, x):
-        if self.gradCAMType != "none":
-            self.inter_output.clear()
-            self.inter_gradient.clear()
-
-        # 分为三种情况：1.base只提供特征 2.base输出logit但需后处理 3
-        if self.classifierType == "normal":
-            base_out = self.base(x)
-            global_feat = self.gap(base_out)  # (b, ?, 1, 1)
-            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-            final_logits = self.classifier(feat)
-        elif self.classifierType == "post":
-            logits = self.base(x)
-            final_logits = self.finalClassifier(logits)
-        elif self.classifierType == "none":
-            final_logits = self.base(x)
-
-        return final_logits   # 其他参数可以用model的成员变量来传递
+    def lesionFusion(self, LesionMask, GradeLabel):
+        MaskList = []
+        for i in range(GradeLabel.shape[0]):
+            if GradeLabel[i] == 1:
+                lm = LesionMask[i:i + 1, 2:3]
+            elif GradeLabel[i] == 2:
+                lm1 = LesionMask[i:i + 1, 0:2]
+                lm2 = LesionMask[i:i + 1, 3:4]
+                lm = torch.cat([lm1, lm2], dim=1)
+                #sm = seg_mask[i:i + 1, 0:4]  #还是应该去除2
+            elif GradeLabel[i] == 3:
+                lm = LesionMask[i:i + 1, 1:2]
+            elif GradeLabel[i] == 4:
+                lm = LesionMask[i:i + 1, 1:2]
+            else:
+                continue
+            lm = torch.max(lm, dim=1, keepdim=True)[0]
+            MaskList.append(lm)
+        FusionMask = torch.cat(MaskList, dim=0)
+        return FusionMask
 
 
     # 载入参数

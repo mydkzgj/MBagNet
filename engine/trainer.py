@@ -136,7 +136,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 if isinstance(v, torch.Tensor):
                     state[k] = v.cuda()
 
-        if model.gradCAMType != "none":
+        if model.reloadState == True:
             model2 = copy.deepcopy(model)
 
     epochs_traverse_optimizers = len(optimizers) * epochs_per_optimizer
@@ -155,11 +155,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         engine.state.losstype = op2loss[engine.state.optimizer_index]
 
         # 获取数据
-        grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
-        #seg_masks = torch.gt(seg_masks, 0).float()
+        grade_imgs, grade_labels, seg_imgs, seg_gtmasks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
+        #seg_gtmasks = torch.gt(seg_gtmasks, 0).float()
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0]
-        seg_num = seg_masks.shape[0]
+        seg_num = seg_gtmasks.shape[0]
         # 将grade和seg样本concat起来
         imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
         labels = torch.cat([grade_labels, seg_labels], dim=0)
@@ -168,23 +168,25 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
         grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 else grade_labels
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-        seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
+        seg_gtmasks = seg_gtmasks.to(device) if torch.cuda.device_count() >= 1 else seg_gtmasks
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
 
-        # 运行模型
+        # Master 0 运行模型  (内置运行 Branch 1 Segmentation)
         # 设定有多少样本需要进行支路的运算
         model.transimitBatchDistribution((grade_num+seg_num-model.branch_img_num, model.branch_img_num))
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
-        #if model.gradCAMType == True and model.target_layer == "":
-        #    imgs.requires_grad_(True)
-        #model.base.features.denseblock4.eval()
-
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 
-        # 生成Grad-CAM
-        if model.gradCAMType != "none":
+        # Branch 1 Segmentation
+        if model.segState == True:
+            seg_masks = torch.sigmoid(model.base.seg_attention)  # [model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
+        else:
+            seg_masks = None
+
+        # Branch 2 Grad-CAM
+        if model.gcamState == True:
             # 将label转为one - hot
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
@@ -248,28 +250,23 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_sum = torch.sum(gcam_flatten, dim=-1)
                 gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
                 gcam_mean = gcam_sum / gcam_sum_num.clamp(min=1E-12) * 0.9
-
                 gcam = gcam / gcam_mean.clamp(min=1E-12).detach()
                 gcam = torch.sigmoid(gcam)
                 #"""
 
-
                 # 插值
-                gcam = torch.nn.functional.interpolate(gcam, (seg_masks.shape[-2], seg_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                gcam = torch.nn.functional.interpolate(gcam, (seg_gtmasks.shape[-2], seg_gtmasks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
-            #for i in reversed(range(target_layer_num)):
-            #    if i == 0:
-            #        pass
-
-            #"""
+            """
             overall_gcam = torch.cat(gcam_list, dim=1)
             #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
             #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
             overall_gcam_index = torch.max(overall_gcam.abs(), dim=1, keepdim=True)[1]
-
             overall_gcam_index_onehot = torch.nn.functional.one_hot(overall_gcam_index.permute(0, 2, 3, 1), target_layer_num).squeeze(3).permute(0, 3, 1, 2)
+            if overall_gcam_index_onehot.shape[1] == 1:
+                overall_gcam_index_onehot = overall_gcam_index_onehot +1
             overall_gcam = overall_gcam * overall_gcam_index_onehot
             overall_gcam = torch.sum(overall_gcam, dim=1, keepdim=True)
             #overall_gcam = torch.relu(overall_gcam)  # 只保留正值
@@ -278,10 +275,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             gcam_list = [overall_gcam]
             #"""
 
-
-
             # 将这些gcam 扩增 并且 fusion
-
             # GAIN论文中 生成soft_mask的做法
             #sigma = 1/target_layer_num#0.5
             #w = 8
@@ -293,82 +287,83 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.inter_output.clear()
             model.inter_gradient.clear()
 
+            if model.gcamSupervisedType == "seg_gtmask":
+                gcam_gtmasks = seg_gtmasks
+                gcam_labels = seg_labels
+                gcam_masks = gcam_list
+            elif model.gcamSupervisedType == "seg_mask":
+                gcam_gtmasks = seg_masks
+                gcam_labels = labels[labels.shape[0]-gcam_gtmasks.shape[0]:labels.shape[0]]
+                gcam_masks = gcam_list
+            elif model.gcamSupervisedType == "none":
+                gcam_masks = None
+                gcam_gtmasks = None
+                gcam_labels = None
+        else:
+            gcam_masks = None
+            gcam_gtmasks = None
+            gcam_labels = None
 
-        #CJY at 2020.3.5 masked img reload
-        # 掩膜图像重新输入
-        if model.maskedImgReloadType != "none":
-            #1.生成soft_mask
+            # Branch 3 Masked Img Reload
+        if model.reloadState == True:
+            #(1).生成soft_mask
             if model.maskedImgReloadType == "seg_mask":
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
-                if model.seg_num_classes != 1:
-                    soft_mask = torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]
-                else:
-                    soft_mask = model.base.seg_attention
-                soft_mask = torch.sigmoid(soft_mask)
+                soft_mask = seg_masks
+                soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
                 #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=31, stride=1, padding=15)
-            elif model.maskedImgReloadType == "gradcam_mask":   #生成grad-cam
-                #if model.gradCAMType != "reload":
-                #    raise Exception("segmentationType can't match maskedImgReloadType")
+            elif model.maskedImgReloadType == "gcam_mask":
                 soft_mask = overall_gcam
-            elif model.maskedImgReloadType == "joint_mask":   #生成grad-cam:
+            elif model.maskedImgReloadType == "seg_gtmask":
+                soft_mask = seg_gtmasks
+                soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
+            elif model.maskedImgReloadType == "joint":
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
                 #soft_mask = torch.cat([torch.sigmoid(model.base.seg_attention), gcam], dim=1)
-                soft_mask = torch.cat([seg_masks, gcam], dim=1)   # 将分割结果替换成真正标签
+                soft_mask = torch.cat([seg_gtmasks, overall_gcam], dim=1)   # 将分割结果替换成真正标签
                 soft_mask = torch.max(soft_mask, dim=1, keepdim=True)[0].detach()
-
                 #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=501, stride=1, padding=250)
                 #soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
             else:
                 pass
-            # 2.生成masked_img
-            rimgs = imgs[model.batchDistribution[0]:model.batchDistribution[0] + model.batchDistribution[1]]
 
+            # (2).生成masked_img
+            rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
             #pos_masked_img = soft_mask * rimgs
             neg_masked_img = (1-soft_mask) * rimgs
-            # 3.reload maskedImg
+
+            # (3).reload maskedImg
+            # 使用参数相同的网络，但是不回传
+            #"""
             transfer_weights(model, model2)
             model2.eval()
             model2.transimitBatchDistribution(0)
             pm_logits = None#model(pos_masked_img)
             nm_logits = model2(neg_masked_img)
+            #"""
+            # 使用同一个网络，回传梯度
+            """
+            model.eval()
+            model.transimitBatchDistribution(0)
+            pm_logits = None#model(pos_masked_img)
+            nm_logits = model(neg_masked_img)
+            #"""
         else:
             pm_logits = None
             nm_logits = None
 
-        # 确定分割结果输出类型
-        if model.segmentationType == "denseFC":
-            output_masks = model.base.seg_attention#[model.base.seg_attention.shape[0]-seg_num: model.base.seg_attention.shape[0]]
-            if model.segSupervisedType == "strong":
-                seg_masks = seg_masks
-                gcam_masks = None
-            elif model.segSupervisedType == "weak":
-                gcam_masks = gcam#[gcam.shape[0] - seg_num:gcam.shape[0]]
-                seg_masks = None
-            elif model.segSupervisedType == "joint":
-                gcam_masks = gcam_list#[gcam.shape[0] - seg_num:gcam.shape[0]]
-                seg_masks = seg_masks#torch.cat([seg_masks, gcam_masks], dim=1)
-            elif model.segSupervisedType == "none":
-                gcam_masks = None
-                seg_masks = None
-        elif model.segmentationType == "gradCAM":
-            output_masks = gcam[gcam.shape[0]-seg_num: gcam.shape[0]]
-        else:
-            output_masks = None
-
         # for show loss 计算想查看的loss
-        #forShow = torch.mean(torch.sigmoid(torch.max(model.base.seg_attention, dim=1, keepdim=True)[0]))
-        forShow = 0#torch.mean(overall_gcam)
-        #forShow = torch.mean(soft_mask)
+        forShow = 0
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, output_mask=output_masks, seg_mask=seg_masks, seg_label=seg_labels, gcam_mask=gcam_masks, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, seg_mask=seg_masks, seg_gtmask=seg_gtmasks, seg_label=seg_labels, gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":0, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 0.8, 0.6, 0.4]
         loss = 0
         for lossKey in losses.keys():

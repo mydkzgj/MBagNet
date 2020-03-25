@@ -92,7 +92,7 @@ def make_D_loss(cfg, num_classes):
     """
 
     #计算loss的函数
-    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, output_mask=None, seg_mask=None, seg_label=None, gcam_mask=None, pos_masked_logit=None, neg_masked_logit=None, reload_label=None, show=0):
+    def D_loss_func(feat=None, logit=None, label=None, feat_attention=None, similarity=None, similarity_label=None, multilabel=None, seg_mask=None, seg_gtmask=None, seg_label=None, gcam_mask=None, gcam_gtmask=None, gcam_label=None, pos_masked_logit=None, neg_masked_logit=None, show=0):
         losses = {}
         for lossName in lossKeys:
             if lossName == "similarity_loss":
@@ -116,9 +116,9 @@ def make_D_loss(cfg, num_classes):
             elif lossName == "cross_entropy_multilabel_loss":
                 losses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss(logit, multilabel)
             elif lossName == "seg_mask_loss":
-                losses["seg_mask_loss"] = seg_mask_loss(output_mask, seg_mask, seg_label)
+                losses["seg_mask_loss"] = seg_mask_loss(seg_mask, seg_gtmask, seg_label)
             elif lossName == "gcam_mask_loss":
-                losses["gcam_mask_loss"] = gcam_mask_loss(output_mask, gcam_mask, label, seg_mask)
+                losses["gcam_mask_loss"] = gcam_mask_loss(gcam_mask, gcam_gtmask, gcam_label)
             elif lossName == "pos_masked_img_loss":
                 losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, logit, label)
             elif lossName == "neg_masked_img_loss":
