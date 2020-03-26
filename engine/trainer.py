@@ -280,8 +280,6 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             gcam_list = [overall_gcam]
             #"""
 
-
-
             for op in optimizers:
                 op.zero_grad()
 

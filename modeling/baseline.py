@@ -232,6 +232,7 @@ class Baseline(nn.Module):
                 self.classifier = nn.Linear(self.in_planes, self.num_classes)
                 self.classifier.apply(weights_init_classifier)
             else:
+                """
                 self.classifier1 = nn.Linear(self.in_planes, 2)
                 self.classifier1.apply(weights_init_classifier)
                 self.classifier2 = nn.Linear(self.in_planes, 2)
@@ -243,6 +244,19 @@ class Baseline(nn.Module):
                 self.classifier5 = nn.Linear(self.in_planes, 2)
                 self.classifier5.apply(weights_init_classifier)
                 self.classifier6 = nn.Linear(self.in_planes, 2)
+                self.classifier6.apply(weights_init_classifier)
+                #"""
+                self.classifier1 = nn.Linear(self.in_planes, 1)
+                self.classifier1.apply(weights_init_classifier)
+                self.classifier2 = nn.Linear(self.in_planes, 1)
+                self.classifier2.apply(weights_init_classifier)
+                self.classifier3 = nn.Linear(self.in_planes, 1)
+                self.classifier3.apply(weights_init_classifier)
+                self.classifier4 = nn.Linear(self.in_planes, 1)
+                self.classifier4.apply(weights_init_classifier)
+                self.classifier5 = nn.Linear(self.in_planes, 1)
+                self.classifier5.apply(weights_init_classifier)
+                self.classifier6 = nn.Linear(self.in_planes, 1)
                 self.classifier6.apply(weights_init_classifier)
 
         #  (2)post-classifier模式: backbone提供的是logits，不需要gap，只需线性classifier即可
@@ -289,6 +303,7 @@ class Baseline(nn.Module):
             if self.hierarchyClassifier == False:
                 final_logits = self.classifier(feat)
             else:
+                """
                 logits1 = self.classifier1(feat)  # 画质（0，1，2，3，4，）Vs 5
                 score1 = F.softmax(logits1, dim=-1)
                 logits2 = self.classifier2(feat)  # 正常 0， （1，2，3，4）
@@ -310,6 +325,33 @@ class Baseline(nn.Module):
                 score_L5 = score_L4[:, 1:2] * score5  # 3,(4)
 
                 final_logits = torch.cat([score_c0, score_c1, score_c2, score_L5, score_c5], dim=1)
+                final_logits = torch.log(final_logits)
+                #"""
+
+                # 注：对于2分类问题，不应该用softmax，因为classifier会有2个超平面，而实际上只需要一个超平面
+                logits1 = self.classifier1(feat)  # 画质（0，1，2，3，4，）Vs 5
+                score1 = F.sigmoid(logits1)
+                logits2 = self.classifier2(feat)  # 正常 0， （1，2，3，4）
+                score2 = F.sigmoid(logits2)
+                logits3 = self.classifier3(feat)  # 病灶 1, (2，3，4)
+                score3 = F.sigmoid(logits3)
+                logits4 = self.classifier4(feat)  # 病灶 2, (3，4)
+                score4 = F.sigmoid(logits4)
+                logits5 = self.classifier5(feat)  # 病灶 3, (4)
+                score5 = F.sigmoid(logits5)
+
+                score_c5 = score1
+                score_L0 = 1-score1
+                score_c0 = score_L0 * score2
+                score_L1 = score_L0 * (1-score2)
+                score_c1 = score_L1 * score3
+                score_L2 = score_L1 * (1-score3)
+                score_c2 = score_L2 * score4
+                score_L3 = score_L2 * (1-score4)
+                score_c3 = score_L3 * score5
+                score_c4 = score_L3 * (1 - score5)
+
+                final_logits = torch.cat([score_c0, score_c1, score_c2, score_c3, score_c4, score_c5], dim=1)
                 final_logits = torch.log(final_logits)
 
         elif self.classifierType == "post":
