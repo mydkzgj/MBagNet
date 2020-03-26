@@ -308,7 +308,7 @@ def showBagNetEvidence():
     bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
 # CJY Grad-CAM可视化
-def showGradCAM(model, imgs, labels, p_labels, target_layers, mask=None):
+def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None):
     # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
     # visualization
     from utils.visualisation.gradcam import GradCam
@@ -373,12 +373,12 @@ def showGradCAM(model, imgs, labels, p_labels, target_layers, mask=None):
             # """
 
             # Save mask
-            save_class_activation_images(img, overall_cam, "heatmap_" + str(
-                save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
+            #save_class_activation_images(img, overall_cam, "heatmap_" + str(save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
 
 
     # img save
-    img.save(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_OriImage' + '.png')
+    scores_str = '0-{:.2f}, 1-{:.2f}, 2-{:.2f}, 3-{:.2f}, 4-{:.2f}, 5-{:.2f}'.format(scores[0][0].item(), scores[0][1].item(), scores[0][2].item(), scores[0][3].item(), scores[0][4].item(), scores[0][5].item())
+    img.save(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_OriImage'+"_"+ scores_str + '.png')
 
     # mask save
     if isinstance(mask, torch.Tensor):
