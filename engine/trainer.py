@@ -206,11 +206,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 inter_gradient = model.inter_gradient[target_layer_num - i - 1]
                 if i == target_layer_num-1 and model.target_layer[0] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                    gcam = F.softmax(gcam, dim=1)
+                    #"""
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
                     for j in range(pick_label.shape[0]):
                         pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
                     gcam = torch.cat(pick_list, dim=0)
+                    #"""
                 else:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
@@ -225,7 +228,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = gcam/gcam_var
                 gcam = torch.sigmoid(gcam)
                 #"""
-                #"""
+                """
                 pos = torch.gt(gcam, 0).float()
                 gcam_pos = gcam * pos
                 gcam_neg = gcam * (1 - pos)
@@ -264,7 +267,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
-            #"""
+            """
             overall_gcam = torch.cat(gcam_list, dim=1)
             #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
             #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]

@@ -324,8 +324,8 @@ class GradCamMaskLoss(object):
             #gcam_mask = gcam_mask_p + gcam_mask_n
 
             # 计算交叉熵损失
-            #loss = F.binary_cross_entropy(gcam_mask, seg_mask, reduction="none")
-            loss = torch.pow(gcam_mask - gcam_gtmask, 2)
+            loss = F.binary_cross_entropy(gcam_mask, gcam_gtmask, reduction="none")
+            #loss = torch.pow(gcam_mask - gcam_gtmask, 2)
 
 
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
