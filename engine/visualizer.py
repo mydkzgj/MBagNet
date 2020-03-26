@@ -115,16 +115,16 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
         if model.heatmapType == "GradCAM":
             model.transimitBatchDistribution(0)  # 所有样本均要生成可视化seg
-            seg_imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-            seg_labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-            #seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-            #seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
+            #seg_imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
+            #seg_labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+            seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+            seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
             with torch.no_grad():
                 logits = model(seg_imgs)
                 scores = torch.softmax(logits, dim=-1)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
             target_layers = ["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if seg_labels[0] != p_labels[0]:
+            if 1:#seg_labels[0] != p_labels[0]:
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
 
             return {"logits": logits, "labels": seg_labels}

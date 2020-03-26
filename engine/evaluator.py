@@ -176,6 +176,7 @@ def do_inference(
     #不一定要送入score（概率化后的值），只要confidengce与score等是正相关即可（单调递增）
 
     # Compute ROC curve and ROC area for each class
+    """
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
@@ -195,6 +196,9 @@ def do_inference(
     logger.info("ROC_AUC: {}".format(roc_auc))
 
     metrics["roc_auc"] = roc_auc
+    #"""
+
+
     # 好像绘制，在服务器上会出错，先取消吧
     """
     if num_classes == 2:
