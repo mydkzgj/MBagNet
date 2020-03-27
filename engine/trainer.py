@@ -264,7 +264,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 # 插值
                 gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
-                gcam = torch.softmax(gcam, dim=1)
+                gcam = torch.softmax(gcam * 4, dim=1)
                 # CJY 挑选
                 #"""
                 pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
