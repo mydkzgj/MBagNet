@@ -352,7 +352,7 @@ class Baseline(nn.Module):
                 score_c4 = score_L3 * (1 - score5)
 
                 final_logits = torch.cat([score_c0, score_c1, score_c2, score_c3, score_c4, score_c5], dim=1)
-                final_logits = torch.log(final_logits)
+                #final_logits = torch.log(final_logits)
 
         elif self.classifierType == "post":
             logits = self.base(x)

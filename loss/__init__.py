@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import torch.nn.functional as F
-
+import torch
 from .reanked_loss import RankedLoss
 from .reanked_clu_loss import CRankedLoss
 from .common_loss import CommonLoss
@@ -107,7 +107,10 @@ def make_D_loss(cfg, num_classes):
             elif lossName == "cranked_loss":
                 losses["cranked_loss"] = cranked_loss(feat, label)  # cranked_loss
             elif lossName == "cross_entropy_loss":
-                losses["cross_entropy_loss"] = lossClasses["cross_entropy_loss"](logit, label)
+                if cfg.MODEL.HIRERARCHY_CLASSIFIER == 0:
+                    losses["cross_entropy_loss"] = lossClasses["cross_entropy_loss"](logit, label)
+                else:
+                    losses["cross_entropy_loss"] = lossClasses["cross_entropy_loss"](torch.log(logit), label)
             elif lossName == "cluster_loss":
                 losses["cluster_loss"] = cluster_loss(feat, label)
             elif lossName == "one_vs_rest_loss":
