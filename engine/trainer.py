@@ -207,7 +207,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 if i == target_layer_num-1 and model.target_layer[0] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                     #gcam = F.softmax(gcam, dim=1)  # CJY 2020.3.27
-                    """
+                    #"""
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
                     for j in range(pick_label.shape[0]):
@@ -264,16 +264,6 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 # 插值
                 gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
-                gcam = torch.softmax(gcam * 4, dim=1)
-                # CJY 挑选
-                #"""
-                pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
-                pick_list = []
-                for j in range(pick_label.shape[0]):
-                    pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
-                gcam = torch.cat(pick_list, dim=0)
-                #"""
-
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
