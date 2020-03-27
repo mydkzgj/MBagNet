@@ -196,7 +196,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             # 回传one-hot向量
-            logits.backward(gradient=one_hot_labels, retain_graph=True)
+            logits.backward(gradient=one_hot_labels, retain_graph=True, create_graph=True)
             # 生成CAM
             gcam_list = []
             target_layer_num = len(model.target_layer)
@@ -214,15 +214,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                         pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
                     gcam = torch.cat(pick_list, dim=0)
                     #"""
-                else:# model.hierarchyClassifier==0:
+                else:# model.hierarchyClassifier == 0:
                     #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-                #elif model.hierarchyClassifier==1:
-                #    gcam1 = F.conv2d(inter_output, model.classifier1.weight.unsqueeze(-1).unsqueeze(-1))  # 5的激活图
-                #    gcam2 = F.conv2d(inter_output, model.classifier2.weight.unsqueeze(-1).unsqueeze(-1))  # 0的激活图
-                #    gcam3 = F.conv2d(inter_output, model.classifier3.weight.unsqueeze(-1).unsqueeze(-1))  # 1的激活图
-                #    gcam4 = F.conv2d(inter_output, model.classifier4.weight.unsqueeze(-1).unsqueeze(-1))  # 2的激活图
-                #    gcam5 = F.conv2d(inter_output, model.classifier5.weight.unsqueeze(-1).unsqueeze(-1))  # 3的激活图
+
 
                 # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
                 # maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
@@ -249,7 +244,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 sigma = 0.8
                 #gcam = torch.relu(torch.tanh(gcam))
                 # gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach()) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
-                gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+                gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
                 #gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_mean.clamp(min=1E-12).detach()) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
                 #gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
                 # gcam = gcam/2 + 0.5
