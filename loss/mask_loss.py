@@ -301,10 +301,10 @@ class GradCamMaskLoss(object):
             sm = torch.max(sm, dim=1, keepdim=True)[0]
             NewSegMask.append(sm)
         gcam_gtmask = torch.cat(NewSegMask, dim=0)
-        """
+        #"""
         # CJY at 2020.3.26
         # 或许，我不该挑出单独的病灶，因为对于高级别的病，也会有低级别的病灶，这样科恩那个会产生混淆
-        gcam_gtmask = torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
+        #gcam_gtmask = torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
 
         total_loss_list = []
         seg_mask_c = gcam_gtmask
