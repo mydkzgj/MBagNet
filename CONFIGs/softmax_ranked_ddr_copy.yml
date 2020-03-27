@@ -35,7 +35,7 @@ MODEL:
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"            #"f-c","pl-c","fl-n"
- HIRERARCHY_CLASSIFIER: 1                             # 0, 1
+ HIRERARCHY_CLASSIFIER: 1                            # 0, 1
  
  BRANCH_CONFIG_TYPE: "none"                   
  BRANCH_IMG_NUM: 1
