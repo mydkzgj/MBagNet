@@ -286,19 +286,40 @@ class GradCamMaskLoss(object):
         NewSegMask = []
         for i in range(gcam_label.shape[0]):
             if gcam_label[i] == 1:
-                sm = gcam_gtmask[i:i + 1, 2:3]
+                sm_p = gcam_gtmask[i:i + 1, 2:3]
+
+                sm_n1 = gcam_gtmask[i:i + 1, 0:2]
+                sm_n2 = gcam_gtmask[i:i + 1, 3:4]
+                sm_n = torch.cat([sm_n1, sm_n2], dim=1)
+
             elif gcam_label[i] == 2:
-                sm1 = gcam_gtmask[i:i + 1, 0:2]
-                sm2 = gcam_gtmask[i:i + 1, 3:4]
-                sm = torch.cat([sm1, sm2], dim=1)
-                #sm = seg_mask[i:i + 1, 0:4]  #还是应该去除2
+                sm_p1 = gcam_gtmask[i:i + 1, 0:2]
+                sm_p2 = gcam_gtmask[i:i + 1, 3:4]
+                sm_p = torch.cat([sm_p1, sm_p2], dim=1)
+                #sm = seg_mask[i:i + 1, 0:4]  #还是应该去除2  #但是有一个样本有问题，他只有MA，但是分为了grade2
+
+                sm_n = gcam_gtmask[i:i + 1, 2:3]
+
             elif gcam_label[i] == 3:
-                sm = gcam_gtmask[i:i + 1, 1:2]
+                sm_p = gcam_gtmask[i:i + 1, 1:2]
+
+                sm_n1 = gcam_gtmask[i:i + 1, 0:1]
+                sm_n2 = gcam_gtmask[i:i + 1, 2:4]
+                sm_n = torch.cat([sm_n1, sm_n2], dim=1)
+
             elif gcam_label[i] == 4:
-                sm = gcam_gtmask[i:i + 1, 1:2]
+                sm_p = gcam_gtmask[i:i + 1, 1:2]
+
+                sm_n1 = gcam_gtmask[i:i + 1, 0:1]
+                sm_n2 = gcam_gtmask[i:i + 1, 2:4]
+                sm_n = torch.cat([sm_n1, sm_n2], dim=1)
             else:  # 如果不是1-4级，就不要用于监督了，放弃该样本
                 continue
-            sm = torch.max(sm, dim=1, keepdim=True)[0]
+
+            sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]
+            sm_n = torch.max(sm_n, dim=1, keepdim=True)[0]
+            sm = sm_p - sm_n   # 那么sm就是-1：抑制  1：激活  0：未知
+            sm = (sm + 1)/2    #0 0.5未知 1
             NewSegMask.append(sm)
         gcam_gtmask = torch.cat(NewSegMask, dim=0)
         #"""
@@ -329,7 +350,7 @@ class GradCamMaskLoss(object):
 
 
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
-            region1 = gcam_gtmask #* torch.gt(gcam_mask, 1)
+            region1 = torch.eq(gcam_gtmask, 1).float() #* torch.gt(gcam_mask, 1)
             pos_num = torch.sum(region1)
             pos_loss_map = loss * region1
             if pos_num != 0:
@@ -338,7 +359,7 @@ class GradCamMaskLoss(object):
                 pos_loss = 0
 
             # """
-            region2 = 1 - gcam_gtmask#F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
+            region2 = torch.eq(gcam_gtmask, 0).float() #F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
             neg_num = torch.sum(region2)
             neg_loss_map = loss * (region2)
             if neg_num != 0:
@@ -350,7 +371,7 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss)
+            total_loss_list.append(pos_loss + neg_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)

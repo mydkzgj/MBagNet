@@ -195,11 +195,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 将label转为one - hot
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
-            # 回传one-hot向量
-            #logits.backward(gradient=one_hot_labels, retain_graph=True, create_graph=True)  #这样会对所有w求取梯度，且建立回传图会很大
-            # CJY
-            inter_gradient = torch.autograd.grad(outputs=logits, inputs=model.inter_output[0], grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
-            model.inter_gradient.append(inter_gradient[0])
+            if model.hierarchyClassifier == 0:
+                # 回传one-hot向量
+                logits.backward(gradient=one_hot_labels, retain_graph=True, create_graph=True)  # 这样会对所有w求取梯度，且建立回传图会很大
+            else:
+                # CJY
+                inter_gradient = torch.autograd.grad(outputs=logits, inputs=model.inter_output[0],
+                                                     grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
+                model.inter_gradient.append(inter_gradient[0])
 
             # 生成CAM
             gcam_list = []
@@ -246,13 +249,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
                 gcam_neg_mean = (torch.sum(gcam_neg) / torch.sum(1-pos).clamp(min=1E-12))
 
-                sigma = 0.5#0.8
+                sigma = 0.6#0.8
                 #gcam = torch.relu(torch.tanh(gcam))
                 # gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach()) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
-                #gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # cjy
+                gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # cjy
                 #gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_mean.clamp(min=1E-12).detach()) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
                 #gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
-                gcam = gcam_pos / gcam_pos_mean.clamp(min=1E-12).detach() + gcam_neg / gcam_neg_mean.clamp(min=1E-12).detach()
+                #gcam = gcam_pos / gcam_pos_mean.clamp(min=1E-12).detach() + gcam_neg / gcam_neg_mean.clamp(min=1E-12).detach()
                 # gcam = gcam/2 + 0.5
 
                 # gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
@@ -269,7 +272,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = torch.sigmoid(gcam)
                 #"""
 
-                gcam = torch.sigmoid(gcam*4)
+                #gcam = torch.sigmoid(gcam*4)
                 # 插值
                 gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
@@ -376,7 +379,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
