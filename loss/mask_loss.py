@@ -282,7 +282,7 @@ class GradCamMaskLoss(object):
             return [0, 0, 0, 0]
 
         # seg_mask 需要根据病灶重新生成分级所需要的掩膜
-        """
+        #"""
         NewSegMask = []
         for i in range(gcam_label.shape[0]):
             if gcam_label[i] == 1:
