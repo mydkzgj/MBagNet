@@ -291,7 +291,7 @@ class GradCamMaskLoss(object):
                 sm_n1 = gcam_gtmask[i:i + 1, 0:2]
                 sm_n2 = gcam_gtmask[i:i + 1, 3:4]
                 sm_n = torch.cat([sm_n1, sm_n2], dim=1)
-                sm_n = 1-sm_p
+                sm_n = 1 - sm_p
 
                 sm_un = sm_p #1-torch.max(gcam_gtmask)[0]
 
@@ -311,8 +311,7 @@ class GradCamMaskLoss(object):
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
-                sm_n = torch.cat([sm_n1, sm_n2], dim=1)
-                sm_n = sm_p  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
+                sm_n = torch.cat([sm_n1, sm_n2], dim=1)  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
 
                 sm_un = 1-torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
 
@@ -321,8 +320,7 @@ class GradCamMaskLoss(object):
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
-                sm_n = torch.cat([sm_n1, sm_n2], dim=1)
-                sm_n = sm_p  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
+                sm_n = torch.cat([sm_n1, sm_n2], dim=1)  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
 
                 sm_un = 1 - torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
             else:  # 如果不是1-4级，就不要用于监督了，放弃该样本
