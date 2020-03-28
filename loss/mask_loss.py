@@ -307,7 +307,7 @@ class GradCamMaskLoss(object):
                 sm_un = sm_p  # 1-torch.max(gcam_gtmask)[0]
 
             elif gcam_label[i] == 3:
-                #return [0,0,0,0]
+                return [0,0,0,0]
                 sm_p = gcam_gtmask[i:i + 1, 1:2]
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
@@ -317,7 +317,7 @@ class GradCamMaskLoss(object):
                 sm_un = 1-torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
 
             elif gcam_label[i] == 4:
-                #return [0,0,0,0]
+                return [0,0,0,0]
                 sm_p = gcam_gtmask[i:i + 1, 1:2]
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
@@ -355,7 +355,7 @@ class GradCamMaskLoss(object):
                 gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.5
+            p_sigma = 0
             n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
