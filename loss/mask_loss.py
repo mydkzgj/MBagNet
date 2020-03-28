@@ -354,7 +354,7 @@ class GradCamMaskLoss(object):
 
 
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
-            region1 = torch.eq(gcam_gtmask, 1).float() #* torch.gt(gcam_mask, 1)
+            region1 = torch.ne(gcam_gtmask, -1).float() #* torch.gt(gcam_mask, 1)
             pos_num = torch.sum(region1)
             pos_loss_map = loss * region1
             if pos_num != 0:
@@ -375,7 +375,7 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss + neg_loss)
+            total_loss_list.append(pos_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
