@@ -355,7 +355,7 @@ class GradCamMaskLoss(object):
                 gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.25
+            p_sigma = 0.5
             n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
@@ -366,7 +366,7 @@ class GradCamMaskLoss(object):
 
             # 计算交叉熵损失
             #loss = F.binary_cross_entropy(gcam_mask, gcam_gtmask, reduction="none")
-            loss = torch.pow(gcam_mask - gcam_gtmask, 2)
+            loss = torch.pow(gcam_mask - gcam_gtmask * gcam_mask_sigma, 2)
 
 
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
