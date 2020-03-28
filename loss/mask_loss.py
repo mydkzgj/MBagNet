@@ -308,6 +308,7 @@ class GradCamMaskLoss(object):
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
                 sm_n = torch.cat([sm_n1, sm_n2], dim=1)
+                sm_n = sm_p  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
 
             elif gcam_label[i] == 4:
                 sm_p = gcam_gtmask[i:i + 1, 1:2]
@@ -315,6 +316,7 @@ class GradCamMaskLoss(object):
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
                 sm_n = torch.cat([sm_n1, sm_n2], dim=1)
+                sm_n = sm_p  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
             else:  # 如果不是1-4级，就不要用于监督了，放弃该样本
                 continue
 
