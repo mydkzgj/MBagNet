@@ -355,7 +355,7 @@ class GradCamMaskLoss(object):
                 gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
             # 依据pos和neg设置阈值
-            p_sigma = 0
+            p_sigma = 0.8
             n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
@@ -366,13 +366,13 @@ class GradCamMaskLoss(object):
 
             # 计算交叉熵损失
             #loss = F.binary_cross_entropy(gcam_mask, gcam_gtmask, reduction="none")
-            loss = torch.pow(gcam_mask - gcam_gtmask * gcam_mask_sigma, 2)
+            loss = torch.pow(gcam_mask - gcam_gtmask * p_sigma, 2)
 
 
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
-            region1 = torch.ne(gcam_gtmask, 0.5).float() #* torch.gt(gcam_mask, 1)
+            region1 = torch.eq(gcam_gtmask, 1).float()  #torch.ne(gcam_gtmask, 0.5).float()
             pos_num = torch.sum(region1)
-            pos_loss_map = loss * region1 * gcam_mask_sigma
+            pos_loss_map = loss * region1 * gcam_mask_p_ltsigma
             if pos_num != 0:
                 pos_loss = torch.sum(pos_loss_map) / pos_num
             else:
@@ -381,7 +381,7 @@ class GradCamMaskLoss(object):
             # """
             region2 = torch.eq(gcam_gtmask, 0).float() #F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
             neg_num = torch.sum(region2)
-            neg_loss_map = loss * (region2)
+            neg_loss_map = loss * region2 * gcam_mask_n_gtsigma
             if neg_num != 0:
                 neg_loss = torch.sum(neg_loss_map) / neg_num
             else:
@@ -391,7 +391,7 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss)
+            total_loss_list.append(pos_loss + neg_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
