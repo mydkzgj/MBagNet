@@ -320,8 +320,10 @@ class GradCamMaskLoss(object):
 
             sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]
             sm_n = torch.max(sm_n, dim=1, keepdim=True)[0]
-            sm = sm_p - sm_n   # 那么sm就是-1：抑制  1：激活  0：未知
-            sm = (sm + 1)/2    #0 0.5未知 1
+
+            sm = torch.cat([sm_p, sm_n*0.5], dim=1)
+            sm = torch.max(sm, dim=1, keepdim=True)[0]  # 那么sm就是-1：抑制  1：激活  0：未知
+            sm = sm * 2 - 1
             NewSegMask.append(sm)
         gcam_gtmask = torch.cat(NewSegMask, dim=0)
         #"""
