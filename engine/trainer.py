@@ -386,17 +386,18 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         """
         l1 = losses["cross_entropy_loss"]
-        l1.backward(retain_graph=True)
-        for op in optimizers:
-            op.zero_grad()
         l2 = losses["gcam_mask_loss"][0]
         if isinstance(l2, torch.Tensor):
+            l1.backward(retain_graph=True)
+            for op in optimizers:
+                op.zero_grad()
             l2.backward(retain_graph=True)
-        for op in optimizers:
-            op.zero_grad()
-        """
+            for op in optimizers:
+                op.zero_grad()
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.01, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        #"""
+
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
