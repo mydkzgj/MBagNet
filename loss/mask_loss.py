@@ -359,8 +359,8 @@ class GradCamMaskLoss(object):
 
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.1#0.8
-            n_sigma = 0
+            p_sigma = 0.4#0.8
+            n_sigma = 0.2
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
             gcam_mask_n = gcam_mask * (1 - gcam_gtmask)
@@ -370,7 +370,8 @@ class GradCamMaskLoss(object):
 
             # 计算交叉熵损失
             #loss = F.binary_cross_entropy(gcam_mask, gcam_gtmask, reduction="none")
-            loss = torch.pow(gcam_mask - gcam_gtmask * p_sigma, 2)
+            gcam_gtscore = gcam_gtmask * p_sigma + (1-gcam_gtmask) * n_sigma
+            loss = torch.pow(gcam_mask - gcam_gtscore, 2)
 
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
             region1 = torch.eq(gcam_gtmask, 1).float()  #torch.ne(gcam_gtmask, 0.5).float()
@@ -398,7 +399,7 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(neg_loss)
+            total_loss_list.append(pos_loss+neg_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
