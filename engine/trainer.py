@@ -253,8 +253,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 sigma = 1#0.8#0.8
                 #gcam = torch.relu(torch.tanh(gcam))
-                gcam = gcam/gcam_abs_max
-                #gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
+                #gcam = gcam/gcam_abs_max
+                gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
                 #gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # cjy
                 #gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_mean.clamp(min=1E-12).detach()) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
                 #gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
