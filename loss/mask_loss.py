@@ -359,7 +359,7 @@ class GradCamMaskLoss(object):
 
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.4#0.8
+            p_sigma = 0.1#0.8
             n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
@@ -381,9 +381,8 @@ class GradCamMaskLoss(object):
             else:
                 pos_loss = 0
 
-
             # 由于决策位置与病灶并不一定一一对应，所以要给决策图留下一定的空余
-            gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=21, stride=1, padding=10)
+            gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=31, stride=1, padding=15)
 
             # """
             region2 = torch.eq(gcam_gtmask, 0).float() #F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
@@ -398,7 +397,7 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss + neg_loss)
+            total_loss_list.append(neg_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
