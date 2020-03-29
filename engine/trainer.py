@@ -376,13 +376,25 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # for show loss 计算想查看的loss
         forShow = 0#gcam_loss_weight
 
+
+
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
         losses = loss_fn[engine.state.losstype](logit=logits, label=labels, seg_mask=seg_masks, seg_gtmask=seg_gtmasks, seg_label=seg_labels, gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        l1 = losses["cross_entropy_loss"]
+        l1.backward(retain_graph=True)
+        for op in optimizers:
+            op.zero_grad()
+        l2 = losses["gcam_mask_loss"][0]
+        if isinstance(l2, torch.Tensor):
+            l2.backward(retain_graph=True)
+        for op in optimizers:
+            op.zero_grad()
+
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.001, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
