@@ -356,7 +356,7 @@ class GradCamMaskLoss(object):
             if gcam_mask.shape[-1] != seg_mask_c.shape[-1]:
                 gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
-            gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=21, stride=1, padding=10)
+
 
             # 依据pos和neg设置阈值
             p_sigma = 0.4#0.8
@@ -372,7 +372,6 @@ class GradCamMaskLoss(object):
             #loss = F.binary_cross_entropy(gcam_mask, gcam_gtmask, reduction="none")
             loss = torch.pow(gcam_mask - gcam_gtmask * p_sigma, 2)
 
-
             # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
             region1 = torch.eq(gcam_gtmask, 1).float()  #torch.ne(gcam_gtmask, 0.5).float()
             pos_num = torch.sum(region1)
@@ -381,6 +380,10 @@ class GradCamMaskLoss(object):
                 pos_loss = torch.sum(pos_loss_map) / pos_num
             else:
                 pos_loss = 0
+
+
+            # 由于决策位置与病灶并不一定一一对应，所以要给决策图留下一定的空余
+            gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=21, stride=1, padding=10)
 
             # """
             region2 = torch.eq(gcam_gtmask, 0).float() #F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
