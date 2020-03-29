@@ -355,7 +355,7 @@ class GradCamMaskLoss(object):
                 gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.2#0.8
+            p_sigma = 0.8#0.8
             n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
