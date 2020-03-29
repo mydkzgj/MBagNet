@@ -374,7 +374,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             nm_logits = None
 
         # for show loss 计算想查看的loss
-        forShow = 0#gcam_loss_weight
+        forShow = gcam_pos_abs_max.mean()#gcam_loss_weight
 
 
 
@@ -384,6 +384,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
+        """
         l1 = losses["cross_entropy_loss"]
         l1.backward(retain_graph=True)
         for op in optimizers:
@@ -393,8 +394,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             l2.backward(retain_graph=True)
         for op in optimizers:
             op.zero_grad()
+        """
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.001, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0.01, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
