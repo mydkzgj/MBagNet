@@ -374,7 +374,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             nm_logits = None
 
         # for show loss 计算想查看的loss
-        forShow = gcam_loss_weight
+        forShow = 0#gcam_loss_weight
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
