@@ -211,7 +211,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             for i in range(target_layer_num):
                 inter_output = model.inter_output[i][model.inter_output[i].shape[0]-model.batchDistribution[1]:model.inter_output[i].shape[0]]  # 此处分离节点，别人皆不分离  .detach()
                 inter_gradient = model.inter_gradient[target_layer_num - i - 1][model.inter_gradient[i].shape[0]-model.batchDistribution[1]:model.inter_gradient[i].shape[0]]
-                if i == target_layer_num-1 and model.target_layer[0] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出
+                if False:#i == target_layer_num-1 and model.target_layer[0] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
                     #gcam = F.softmax(gcam, dim=1)  # CJY 2020.3.27
                     #"""
@@ -384,7 +384,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
-        """
+        #"""
         l1 = losses["cross_entropy_loss"]
         l2 = losses["gcam_mask_loss"][0]
         if isinstance(l2, torch.Tensor):
