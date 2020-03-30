@@ -285,7 +285,7 @@ class Baseline(nn.Module):
                         #if isinstance(module, torch.nn.Conv2d):
                         if module_name == tl:  #"transition1.conv":
                             print("Grad-CAM hook on ", module_name)
-                            module.register_forward_hook(self.forward_hook_fn)
+                            #module.register_forward_hook(self.forward_hook_fn)
                             #module.register_backward_hook(self.backward_hook_fn)
                             break
 
