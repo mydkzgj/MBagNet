@@ -346,7 +346,7 @@ class GradCamMaskLoss(object):
         total_loss_list = []
         seg_mask_c = gcam_gtmask
         # 遍历所有生成的gcam_mask
-        for gcam_mask in reversed(gcam_mask_list):
+        for index, gcam_mask in enumerate(reversed(gcam_mask_list)):
             if gcam_mask.shape[0] >= seg_mask_c.shape[0]:
                 gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask_c.shape[0]:gcam_mask.shape[0]]
             else:
@@ -398,7 +398,10 @@ class GradCamMaskLoss(object):
             # a = torch.isnan(pos_loss)
             # if a.item() == 1:
             #    print("Nan")
-            total_loss_list.append(pos_loss+neg_loss)
+            if index == len(gcam_mask_list)-1:
+                total_loss_list.append(pos_loss+neg_loss)
+            else:
+                total_loss_list.append(pos_loss)
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
