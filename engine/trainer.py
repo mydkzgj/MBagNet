@@ -400,8 +400,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
+        for op in optimizers:
+            op.zero_grad()
         for lossKey in losses.keys():
             if lossKey == "gcam_mask_loss":
+                continue
                 gcam_loss = 0
                 for index, gl in enumerate(losses[lossKey]):
                     gcam_loss = gcam_loss + gl * gl_weight[index]
