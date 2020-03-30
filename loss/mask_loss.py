@@ -359,8 +359,8 @@ class GradCamMaskLoss(object):
 
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.4#0.8
-            n_sigma = 0.2
+            p_sigma = 0.6#0.8
+            n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
             gcam_mask_n = gcam_mask * (1 - gcam_gtmask)
