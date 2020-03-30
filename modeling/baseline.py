@@ -269,13 +269,14 @@ class Baseline(nn.Module):
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
         # GradCAM 如果其不为none，那么就设置hook
-        if False:#self.gcamState == True:
+        if self.gcamState == True:
             self.inter_output = [] #None
             self.inter_gradient = [] #None
             #self.INLayers = torch.nn.ModuleList()
             #self.projectors = torch.nn.Conv2d(1,1,kernel_size=1,bias=False)
             #nn.init.constant_(self.projectors.weight, 1)
 
+            """
             self.target_layer = ["denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",
             if self.target_layer != []:
@@ -288,6 +289,7 @@ class Baseline(nn.Module):
                             #module.register_forward_hook(self.forward_hook_fn)
                             #module.register_backward_hook(self.backward_hook_fn)
                             break
+            """
 
 
     def forward(self, x):
