@@ -197,7 +197,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             if model.hierarchyClassifier == 0:
                 # 回传one-hot向量
-                logits.backward(gradient=one_hot_labels, retain_graph=True)  # 这样会对所有w求取梯度，且建立回传图会很大
+                pass
+                #logits.backward(gradient=one_hot_labels, retain_graph=True)  # 这样会对所有w求取梯度，且建立回传图会很大
             else:
                 # CJY
                 inter_gradient = torch.autograd.grad(outputs=logits, inputs=model.inter_output[0],
@@ -205,7 +206,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 model.inter_gradient.append(inter_gradient[0])
 
 
-            
+
 
             # 进行特定的插值
             """
