@@ -270,23 +270,19 @@ class Baseline(nn.Module):
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
         # GradCAM 如果其不为none，那么就设置hook
         if self.gcamState == True:
-            self.inter_output = [] #None
-            self.inter_gradient = [] #None
-            #self.INLayers = torch.nn.ModuleList()
-            #self.projectors = torch.nn.Conv2d(1,1,kernel_size=1,bias=False)
-            #nn.init.constant_(self.projectors.weight, 1)
+            self.inter_output = []
+            self.inter_gradient = []
 
-            self.target_layer = ["denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            self.target_layer = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",
             if self.target_layer != []:
                 for tl in self.target_layer:
-                    #self.LNLayers.append(nn.InstanceNorm2d())
                     for module_name, module in self.base.features.named_modules():
                         #if isinstance(module, torch.nn.Conv2d):
                         if module_name == tl:  #"transition1.conv":
                             print("Grad-CAM hook on ", module_name)
                             module.register_forward_hook(self.forward_hook_fn)
-                            module.register_backward_hook(self.backward_hook_fn)
+                            #module.register_backward_hook(self.backward_hook_fn)  不以backward求取gcam了
                             break
 
 
@@ -304,31 +300,6 @@ class Baseline(nn.Module):
             if self.hierarchyClassifier == False:
                 final_logits = self.classifier(feat)
             else:
-                """
-                logits1 = self.classifier1(feat)  # 画质（0，1，2，3，4，）Vs 5
-                score1 = F.softmax(logits1, dim=-1)
-                logits2 = self.classifier2(feat)  # 正常 0， （1，2，3，4）
-                score2 = F.softmax(logits2, dim=-1)
-                logits3 = self.classifier3(feat)  # 病灶 1, (2，3，4)
-                score3 = F.softmax(logits3, dim=-1)
-                logits4 = self.classifier4(feat)  # 病灶 2, (3，4)
-                score4 = F.softmax(logits4, dim=-1)
-                logits5 = self.classifier5(feat)  # 病灶 3, (4)
-                score5 = F.softmax(logits5, dim=-1)
-
-                score_c5 = score1[:, 1:2]
-                score_L2 = score1[:, 0:1] * score2  # 0,(1,2,3,4)
-                score_c0 = score_L2[:, 0:1]
-                score_L3 = score_L2[:, 1:2] * score3  # 1,(2,3,4)
-                score_c1 = score_L3[:, 0:1]
-                score_L4 = score_L3[:, 1:2] * score4  # 2,(3,4)
-                score_c2 = score_L4[:, 0:1]
-                score_L5 = score_L4[:, 1:2] * score5  # 3,(4)
-
-                final_logits = torch.cat([score_c0, score_c1, score_c2, score_L5, score_c5], dim=1)
-                final_logits = torch.log(final_logits)
-                #"""
-
                 # 注：对于2分类问题，不应该用softmax，因为classifier会有2个超平面，而实际上只需要一个超平面
                 logits1 = self.classifier1(feat)  # 画质（0，1，2，3，4，）Vs 5
                 score1 = F.sigmoid(logits1)
@@ -365,21 +336,9 @@ class Baseline(nn.Module):
 
 
     def forward_hook_fn(self, module, input, output):
-        self.inter_output.append(output)  # 为了求其梯度，所以需要保存该模块输出的所有值
-        """
-        if self.hierarchyClassifier == 0:
-            if self.batchDistribution != 0:
-                if self.batchDistribution != 1:
-                    self.inter_output.append(
-                        output[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
-                else:
-                    # self.inter_output = output  #将输入图像的梯度获取
-                    self.inter_output.append(output)  # 将输入图像的梯度获取
-        else:
-            self.inter_output.append(output)   #为了求其梯度，所以需要保存该模块输出的所有值
-        """
+        self.inter_output.append(output)
 
-
+    """
     def backward_hook_fn(self, module, grad_in, grad_out):
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:
@@ -387,6 +346,7 @@ class Baseline(nn.Module):
             else:
                 # self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
                 self.inter_gradient.append(grad_out[0])  # 将输入图像的梯度获取
+    """
 
 
     def transmitClassifierWeight(self):   #将线性分类器回传到base中
