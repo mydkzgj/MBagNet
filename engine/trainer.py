@@ -307,6 +307,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_gtmasks = seg_gt_masks
                 gcam_labels = seg_labels
                 gcam_masks = gcam_list
+
+                gcam_masks = None
+                gcam_gtmasks = None
+                gcam_labels = None
             elif model.gcamSupervisedType == "seg_mask":
                 gcam_gtmasks = seg_masks
                 gcam_labels = labels[labels.shape[0]-gcam_gtmasks.shape[0]:labels.shape[0]]
