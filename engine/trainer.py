@@ -374,7 +374,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             nm_logits = None
 
         # for show loss 计算想查看的loss
-        forShow = gcam_pos_abs_max.mean()#gcam_loss_weight
+        forShow = 0#gcam_pos_abs_max.mean()#gcam_loss_weight
 
 
 
