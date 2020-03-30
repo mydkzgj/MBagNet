@@ -197,16 +197,91 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
             if model.hierarchyClassifier == 0:
                 # 回传one-hot向量
-                pass
                 #logits.backward(gradient=one_hot_labels, retain_graph=True)  # 这样会对所有w求取梯度，且建立回传图会很大
+                inter_gradient = torch.autograd.grad(outputs=logits, inputs=model.inter_output[0],
+                                                     grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
+                model.inter_gradient.append(inter_gradient[0])
             else:
                 # CJY
                 inter_gradient = torch.autograd.grad(outputs=logits, inputs=model.inter_output[0],
                                                      grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
                 model.inter_gradient.append(inter_gradient[0])
 
+            # 生成CAM
+            gcam_list = []
+            target_layer_num = len(model.target_layer)
+            maxpool_base_kernel_size = 1 #奇数
+            for i in range(target_layer_num):
+                inter_output = model.inter_output[i][model.inter_output[i].shape[0]-model.batchDistribution[1]:model.inter_output[i].shape[0]]  # 此处分离节点，别人皆不分离  .detach()
+                inter_gradient = model.inter_gradient[target_layer_num - i - 1][model.inter_gradient[i].shape[0]-model.batchDistribution[1]:model.inter_gradient[i].shape[0]]
+                if i == target_layer_num-1 and model.target_layer[0] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出
+                    gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                    #gcam = F.softmax(gcam, dim=1)  # CJY 2020.3.27
+                    #"""
+                    pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
+                    pick_list = []
+                    for j in range(pick_label.shape[0]):
+                        pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
+                    gcam = torch.cat(pick_list, dim=0)
+                    #"""
+                else:# model.hierarchyClassifier == 0:
+                    #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
+                    gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
 
 
+                # 为了降低与掩膜对齐的强硬度，特地增加了Maxpool操作
+                # maxpool_kernel_size = maxpool_base_kernel_size + pow(2, (target_layer_num - i))
+                # gcam = F.max_pool2d(gcam, kernel_size=maxpool_kernel_size, stride=1, padding=maxpool_kernel_size//2)
+                # 标准化
+                """
+                gcam_flatten = gcam.view(gcam.shape[0], -1)
+                gcam_var = torch.var(gcam_flatten, dim=1).detach()
+                gcam = gcam/gcam_var
+                gcam = torch.sigmoid(gcam)
+                #"""
+                #"""
+                pos = torch.gt(gcam, 0).float()
+                gcam_pos = gcam * pos
+                gcam_neg = gcam * (1 - pos)
+
+                gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+                    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+
+                gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
+                gcam_neg_mean = (torch.sum(gcam_neg) / torch.sum(1-pos).clamp(min=1E-12))
+
+                sigma = 1#0.8#0.8
+                #gcam = torch.relu(torch.tanh(gcam))
+                #gcam = gcam/gcam_abs_max
+                gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
+                #gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # cjy
+                #gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_mean.clamp(min=1E-12).detach()) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+                #gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+                #gcam = gcam_pos / gcam_pos_mean.clamp(min=1E-12).detach() #+ gcam_neg / gcam_neg_mean.clamp(min=1E-12).detach()
+                # gcam = gcam/2 + 0.5
+
+                # gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                # gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+                # gcam = torch.relu(gcam) / gcam_max.detach()
+                # """
+                """
+                gcam_flatten = torch.relu(gcam).view(gcam.shape[0], -1)  # 负的也算上吧
+                gcam_gt0 = torch.gt(gcam_flatten, 0).float()
+                gcam_sum = torch.sum(gcam_flatten, dim=-1)
+                gcam_sum_num = torch.sum(gcam_gt0, dim=-1)
+                gcam_mean = gcam_sum / gcam_sum_num.clamp(min=1E-12) * 0.9
+                gcam = gcam / gcam_mean.clamp(min=1E-12).detach()
+                gcam = torch.sigmoid(gcam)
+                #"""
+
+                #gcam = torch.tanh(gcam*4)
+                # 插值
+                #gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
             """
@@ -232,13 +307,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             model.inter_gradient.clear()
 
             if model.gcamSupervisedType == "seg_gtmask":
-                #gcam_gtmasks = seg_gt_masks
-                #gcam_labels = seg_labels
-                #gcam_masks = gcam_list
-
-                gcam_masks = None
-                gcam_gtmasks = None
-                gcam_labels = None
+                gcam_gtmasks = seg_gt_masks
+                gcam_labels = seg_labels
+                gcam_masks = gcam_list
             elif model.gcamSupervisedType == "seg_mask":
                 gcam_gtmasks = seg_masks
                 gcam_labels = labels[labels.shape[0]-gcam_gtmasks.shape[0]:labels.shape[0]]
