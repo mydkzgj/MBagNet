@@ -191,7 +191,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             seg_gtmasks = None
 
             # Branch 2 Grad-CAM
-        if False:#model.gcamState == True:
+        if model.gcamState == True:
             # 将label转为one - hot
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
@@ -225,8 +225,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             gcam_list = [overall_gcam]
             #"""
 
-            for op in optimizers:
-                op.zero_grad()
+            #for op in optimizers:
+            #    op.zero_grad()
 
             model.inter_output.clear()
             model.inter_gradient.clear()
