@@ -205,29 +205,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 model.inter_gradient.append(inter_gradient[0])
 
 
-            # 生成CAM
-            gcam_list = []
-            target_layer_num = len(model.target_layer)
-            maxpool_base_kernel_size = 1 #奇数
-            for i in range(target_layer_num):
-                inter_output = model.inter_output[i][model.inter_output[i].shape[0]-model.batchDistribution[1]:model.inter_output[i].shape[0]]  # 此处分离节点，别人皆不分离  .detach()
-                inter_gradient = model.inter_gradient[target_layer_num - i - 1][model.inter_gradient[i].shape[0]-model.batchDistribution[1]:model.inter_gradient[i].shape[0]]
-                if False:#i == target_layer_num-1 and model.target_layer[0] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出
-                    gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-                    #gcam = F.softmax(gcam, dim=1)  # CJY 2020.3.27
-                    #"""
-                    pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
-                    pick_list = []
-                    for j in range(pick_label.shape[0]):
-                        pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
-                    gcam = torch.cat(pick_list, dim=0)
-                    #"""
-                else:# model.hierarchyClassifier == 0:
-                    #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(model.inter_gradient, 1)
-                    gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-
-
-
+            
 
             # 进行特定的插值
             """
