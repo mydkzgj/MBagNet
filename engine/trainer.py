@@ -191,7 +191,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             seg_gtmasks = None
 
             # Branch 2 Grad-CAM
-        if False:#model.gcamState == True:
+        if #model.gcamState == True:
             # 将label转为one - hot
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
@@ -277,7 +277,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 #gcam = torch.tanh(gcam*4)
                 # 插值
-                gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                #gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
