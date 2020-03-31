@@ -150,7 +150,7 @@ class NegMaskedImgLoss(object):
     def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label):   #output_mask, seg_mask, seg_label
         if not isinstance(neg_masked_logits, torch.Tensor):
             return 0
-        #"""
+        """
         # CJY distribution 1  cross_entropy_loss min
         # 
         reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
@@ -162,7 +162,7 @@ class NegMaskedImgLoss(object):
         total_loss = torch.mean(pick_loss)
         # """
 
-        """
+        #"""
         # CJY distribution 2  logits diff min
 
         # 由pos_masked区域主要提供logit
@@ -171,15 +171,17 @@ class NegMaskedImgLoss(object):
         one_hot_label = torch.nn.functional.one_hot(reload_label, neg_masked_logits.shape[1]).float()
         ori_logits = origin_logits[one_hot_label.bool()]
         nm_logits = neg_masked_logits[one_hot_label.bool()]
-        loss = torch.abs(nm_logits)#/torch.abs(ori_logits).clamp(min=1E-12)    #相对距离
+        loss = torch.abs(nm_logits)/torch.abs(ori_logits).clamp(min=1E-12)    #相对距离
 
         # 挑选指定sample的loss
-        pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) #& torch.ne(label, 0)
+        pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)
+        if pick_index.sum() == 0:
+            return 0
         pick_loss = loss[pick_index]
         total_loss = torch.mean(pick_loss)
         #"""
 
-        #"""
+        """
         # CJY distribution 3  score min
         score = F.softmax(neg_masked_logits, dim=1)
 
