@@ -340,8 +340,8 @@ class GradCamMaskLoss(object):
             #sm_n = torch.max(sm_n, dim=1, keepdim=True)[0]
             #sm_n = 1 - sm_p
 
-            sm = torch.cat([sm_p*3, sm_un*2, sm_n], dim=1)
-            sm = torch.max(sm, dim=1, keepdim=True)[0]  # 那么sm就是-1：抑制  1：激活  0：未知
+            sm = sm_p*3 + sm_un*2 + sm_n  #torch.cat([sm_p*3, sm_un*2, sm_n], dim=1)
+            #sm = torch.max(sm, dim=1, keepdim=True)[0]  # 那么sm就是-1：抑制  1：激活  0：未知
             sm = (sm - 1)/2
             #sm = sm_p
             NewSegMask.append(sm)
@@ -366,7 +366,7 @@ class GradCamMaskLoss(object):
 
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.5#0.8
+            p_sigma = 0.6#0.8
             n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
