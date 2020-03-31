@@ -383,7 +383,7 @@ class GradCamMaskLoss(object):
                 pos_loss = 0
 
             # 由于决策位置与病灶并不一定一一对应，所以要给决策图留下一定的空余
-            gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=81, stride=1, padding=40)
+            #gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=81, stride=1, padding=40)
 
             # """
             region2 = torch.eq(gcam_gtmask, 0).float() #F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
