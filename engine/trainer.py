@@ -328,7 +328,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             # (2).生成masked_img
             rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
-            #pos_masked_img = soft_mask * rimgs
+            pos_masked_img = soft_mask * rimgs
             neg_masked_img = (1-soft_mask) * rimgs
 
             # (3).reload maskedImg
@@ -344,8 +344,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = None#model(pos_masked_img)
-            nm_logits = model(neg_masked_img)
+            pm_logits = model(pos_masked_img)
+            nm_logits = None#model(neg_masked_img)
             #"""
         else:
             pm_logits = None
