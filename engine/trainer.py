@@ -199,7 +199,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # 求取model.inter_output对应的gradient
             # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
             inter_gradients = torch.autograd.grad(outputs=logits, inputs=model.inter_output,
-                                                     grad_outputs=one_hot_labels, retain_graph=True)#, create_graph=True)
+                                                     grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
             model.inter_gradient = list(inter_gradients)
 
             # 生成CAM
