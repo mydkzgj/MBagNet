@@ -291,51 +291,59 @@ class GradCamMaskLoss(object):
                 #sm_n1 = gcam_gtmask[i:i + 1, 0:2]
                 #sm_n2 = gcam_gtmask[i:i + 1, 3:4]
                 #sm_n = torch.cat([sm_n1, sm_n2], dim=1)
-                #sm_n = 1 - sm_p
+                sm_n = 1 - sm_p
 
-                #sm_un = sm_p #1-torch.max(gcam_gtmask)[0]
+                sm_un = 1 - (sm_p + sm_n)
 
             elif gcam_label[i] == 2:
                 sm_p1 = gcam_gtmask[i:i + 1, 0:2]
                 sm_p2 = gcam_gtmask[i:i + 1, 3:4]
                 sm_p = torch.cat([sm_p1, sm_p2], dim=1)
+                sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]
                 #sm = seg_mask[i:i + 1, 0:4]  #还是应该去除2  #但是有一个样本有问题，他只有MA，但是分为了grade2
 
                 #sm_n = gcam_gtmask[i:i + 1, 2:3]
-                #sm_n = 1 - sm_p
+                sm_n = 1 - sm_p
 
-                #sm_un = sm_p  # 1-torch.max(gcam_gtmask)[0]
+                sm_un = 1 - (sm_p + sm_n)
 
             elif gcam_label[i] == 3:
-                return [0,0,0,0]
+                #return [0,0,0,0]
                 sm_p = gcam_gtmask[i:i + 1, 1:2]
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
                 sm_n = torch.cat([sm_n1, sm_n2], dim=1)  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
+                sm_n = torch.max(sm_n, dim=1, keepdim=True)[0]
+                sm_n = sm_n * (1-sm_p)
 
-                sm_un = 1-torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
+                sm_un = 1 - sm_n
+
+                sm_p = sm_p * 0
 
             elif gcam_label[i] == 4:
-                return [0,0,0,0]
+                #return [0,0,0,0]
                 sm_p = gcam_gtmask[i:i + 1, 1:2]
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
                 sm_n = torch.cat([sm_n1, sm_n2], dim=1)  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
+                sm_n = sm_n * (1 - sm_p)
 
-                sm_un = 1 - torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
+                sm_un = 1 - sm_n
+
+                sm_p = sm_p * 0
             else:  # 如果不是1-4级，就不要用于监督了，放弃该样本
                 continue
 
-            sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]
+            #sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]
             #sm_n = torch.max(sm_n, dim=1, keepdim=True)[0]
-            sm_n = 1 - sm_p
+            #sm_n = 1 - sm_p
 
-            #sm = torch.cat([sm_p*3, sm_un*2, sm_n], dim=1)
-            #sm = torch.max(sm, dim=1, keepdim=True)[0]  # 那么sm就是-1：抑制  1：激活  0：未知
-            #sm = (sm - 1)/2
-            sm = sm_p
+            sm = torch.cat([sm_p*3, sm_un*2, sm_n], dim=1)
+            sm = torch.max(sm, dim=1, keepdim=True)[0]  # 那么sm就是-1：抑制  1：激活  0：未知
+            sm = (sm - 1)/2
+            #sm = sm_p
             NewSegMask.append(sm)
         gcam_gtmask = torch.cat(NewSegMask, dim=0)
         #"""
