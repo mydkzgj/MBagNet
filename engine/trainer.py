@@ -258,7 +258,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 #gcam = torch.tanh(gcam*4)
                 # 插值
-                #gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
@@ -333,7 +333,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             # (3).reload maskedImg
             # 使用参数相同的网络，但是不回传
-            #"""
+            """
             transfer_weights(model, model2)
             model2.eval()
             model2.transimitBatchDistribution(0)
@@ -341,7 +341,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             nm_logits = model2(neg_masked_img)
             #"""
             # 使用同一个网络，回传梯度
-            """
+            #"""
             model.eval()
             model.transimitBatchDistribution(0)
             pm_logits = None#model(pos_masked_img)
@@ -373,7 +373,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":0, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():

@@ -191,7 +191,9 @@ class NegMaskedImgLoss(object):
         loss = score[one_hot_label.bool()]
 
         # 挑选指定sample的loss
-        pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) #& torch.ne(label, 0)
+        pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)
+        if pick_index.sum() == 0:
+            return 0
         pick_loss = loss[pick_index]
         total_loss = torch.mean(pick_loss)
         #"""
