@@ -185,7 +185,7 @@ class NegMaskedImgLoss(object):
 
         #"""
         # CJY distribution 3  score min
-        score = F.softmax(neg_masked_logits, dim=1)
+        score = torch.sigmoid(neg_masked_logits)#F.softmax(neg_masked_logits, dim=1)
 
         # 由pos_masked区域主要提供logit
         origin_logits = origin_logits[origin_logits.shape[0]-neg_masked_logits.shape[0]:origin_logits.shape[0]]
