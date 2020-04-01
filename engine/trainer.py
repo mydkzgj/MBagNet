@@ -211,6 +211,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 inter_gradient = model.inter_gradient[i][model.inter_gradient[i].shape[0]-model.batchDistribution[1]:model.inter_gradient[i].shape[0]]
                 if model.target_layer[i] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                    gcam = torch.softmax(gcam, dim=-1)
                     pick_label = labels[grade_num + seg_num - model.branch_img_num:grade_num + seg_num]
                     pick_list = []
                     for j in range(pick_label.shape[0]):
@@ -226,7 +227,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = gcam/gcam_var
                 gcam = torch.sigmoid(gcam)
                 #"""
-                #"""
+                """
                 pos = torch.gt(gcam, 0).float()
                 gcam_pos = gcam * pos
                 gcam_neg = gcam * (1 - pos)

@@ -308,7 +308,7 @@ class GradCamMaskLoss(object):
                 sm_un = 1 - (sm_p + sm_n)
 
             elif gcam_label[i] == 3:
-                #return [0,0,0,0]
+                return [0,0,0,0]
                 sm_p = gcam_gtmask[i:i + 1, 1:2]
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
@@ -322,7 +322,7 @@ class GradCamMaskLoss(object):
                 sm_p = sm_p * 0
 
             elif gcam_label[i] == 4:
-                #return [0,0,0,0]
+                return [0,0,0,0]
                 sm_p = gcam_gtmask[i:i + 1, 1:2]
 
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
@@ -366,7 +366,7 @@ class GradCamMaskLoss(object):
 
 
             # 依据pos和neg设置阈值
-            p_sigma = 0.6#0.8
+            p_sigma = 0.5#0.8
             n_sigma = 0
             gcam_mask_p = gcam_mask * gcam_gtmask
             gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
@@ -406,7 +406,7 @@ class GradCamMaskLoss(object):
             # if a.item() == 1:
             #    print("Nan")
             if index == len(gcam_mask_list)-1:
-                total_loss_list.append(pos_loss+neg_loss)
+                total_loss_list.append(pos_loss)#+neg_loss)
             else:
                 total_loss_list.append(pos_loss)
 
