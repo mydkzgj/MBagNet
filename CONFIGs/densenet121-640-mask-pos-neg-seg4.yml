@@ -88,12 +88,12 @@ SOLVER:
   BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [5, 7, 9, 10]#[8, 12, 16, 20]
+  STEPS: [2, 3, 4, 5]#[8, 12, 16, 20]
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
   LOSS_LR: 0.05
-  RETRAIN_FROM_HEAD: 1
+  RETRAIN_FROM_HEAD: 0
 
 
 # -----------------------------------------------------------------------------
