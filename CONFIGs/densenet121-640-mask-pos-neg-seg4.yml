@@ -36,7 +36,7 @@ MODEL:
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
  BASE_CLASSIFIER_COMBINE_TYPE: "f-c"           #"f-c","pl-c","fl-n"
 
- HIRERARCHY_CLASSIFIER: 1                               # 0, 1
+ HIRERARCHY_CLASSIFIER: 0                               # 0, 1
  
  BRANCH_CONFIG_TYPE: "none"                   
  BRANCH_IMG_NUM: 1
@@ -48,7 +48,7 @@ MODEL:
  #(2). Grad-CAM Branch 
  GCAM_SUPERVISED_TYPE: "none"                                 #"none", "seg_gtmask", "seg_mask" 
  #(3). Reload Branch
- MASKED_IMG_RELOAD_TYPE: "none"             #"none", "seg_gtmask", "seg_mask", "gcam_mask",  "joint"
+ MASKED_IMG_RELOAD_TYPE: "seg_gtmask"             #"none", "seg_gtmask", "seg_mask", "gcam_mask",  "joint"
 
 
 # -----------------------------------------------------------------------------
@@ -57,7 +57,7 @@ MODEL:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 LOSS:
- TYPE: 'cross_entropy_multilabel_loss seg_mask_loss gcam_mask_loss pos_masked_img_loss neg_masked_img_loss for_show_loss' 
+ TYPE: 'cross_entropy_loss seg_mask_loss gcam_mask_loss pos_masked_img_loss neg_masked_img_loss for_show_loss' 
  MARGIN_RANK: 1.3 ### R: ALPHA - MARGIN_RANK
  ALPHA: 2.0
  TVAL: 1.0
