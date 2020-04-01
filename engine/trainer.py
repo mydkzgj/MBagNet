@@ -346,8 +346,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = model(pos_masked_img)
-            nm_logits = None#model(neg_masked_img)
+            pm_logits = None#model(pos_masked_img)
+            nm_logits = model(neg_masked_img)
             #"""
         else:
             pm_logits = None

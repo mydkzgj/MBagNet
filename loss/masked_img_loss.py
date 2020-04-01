@@ -164,7 +164,7 @@ class NegMaskedImgLoss(object):
         total_loss = torch.mean(pick_loss)
         # """
 
-        #"""
+        """
         # CJY distribution 2  logits diff min
 
         # 由pos_masked区域主要提供logit
@@ -183,7 +183,7 @@ class NegMaskedImgLoss(object):
         total_loss = torch.mean(pick_loss)
         #"""
 
-        """
+        #"""
         # CJY distribution 3  score min
         score = F.softmax(neg_masked_logits, dim=1)
 
