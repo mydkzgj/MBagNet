@@ -171,6 +171,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         seg_gt_masks = seg_gt_masks.to(device) if torch.cuda.device_count() >= 1 else seg_gt_masks
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+        # 将label转为one - hot
+        one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
+        one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
 
         # Master 0 运行模型  (内置运行 Branch 1 Segmentation)
         # 设定有多少样本需要进行支路的运算
@@ -193,8 +196,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # Branch 2 Grad-CAM
         if model.gcamState == True:
             # 将label转为one - hot
-            one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
+            #one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
+            #one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
 
             # 求取model.inter_output对应的gradient
             # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
@@ -358,7 +361,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, seg_mask=seg_masks, seg_gtmask=seg_gtmasks, seg_label=seg_labels, gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, multilabel=one_hot_labels, seg_mask=seg_masks, seg_gtmask=seg_gtmasks, seg_label=seg_labels, gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
@@ -375,7 +378,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():

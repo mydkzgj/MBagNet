@@ -2,6 +2,7 @@
 
 import torch
 from torch import nn
+
 class CrossEntropyMultiLabel(nn.Module):
     """Cross entropy loss with label smoothing regularizer.
 
@@ -16,7 +17,9 @@ class CrossEntropyMultiLabel(nn.Module):
     def __init__(self):
         super(CrossEntropyMultiLabel, self).__init__()
         #self.num_classes = num_classes
-        self.logsoftmax = nn.LogSoftmax(dim=1)
+        #self.logsoftmax = nn.LogSoftmax(dim=1)
+        self.BCEL = torch.nn.BCEWithLogitsLoss()
+
 
     def forward(self, inputs, targets):
         """
@@ -25,10 +28,13 @@ class CrossEntropyMultiLabel(nn.Module):
             targets: ground truth labels with shape (num_classes)
         """
 
-        log_probs = self.logsoftmax(inputs)
+        #log_probs = self.logsoftmax(inputs)
 
         #计算多标签对应的label
-        targets = targets/torch.sum(targets, dim=1, keepdim=True)
+        #targets = targets/torch.sum(targets, dim=1, keepdim=True)
 
-        loss = (- targets * log_probs).mean(0).sum()
+        #loss = (- targets * log_probs).mean(0).sum()
+
+        loss = self.BCEL(inputs, targets)
+
         return loss

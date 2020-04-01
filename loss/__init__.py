@@ -12,6 +12,7 @@ from .one_vs_rest_loss import OneVsRestLoss
 from .attention_loss import AttentionLoss
 from torch.nn import CrossEntropyLoss
 from torch.nn import NLLLoss
+from torch.nn import BCEWithLogitsLoss
 from torch.nn import KLDivLoss
 from .margin_loss import MarginLoss
 from .cross_entropy_label_smooth import CrossEntropyLabelSmooth
