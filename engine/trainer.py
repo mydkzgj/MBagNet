@@ -319,7 +319,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "seg_gtmask":
                 soft_mask = seg_gt_masks
                 soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
-                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=31, stride=1, padding=15)
+                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
             elif model.maskedImgReloadType == "joint":
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
@@ -349,8 +349,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = None#model(pos_masked_img)
-            nm_logits = model(neg_masked_img)
+            pm_logits = model(pos_masked_img)
+            nm_logits = None#model(neg_masked_img)
             #"""
         else:
             pm_logits = None
