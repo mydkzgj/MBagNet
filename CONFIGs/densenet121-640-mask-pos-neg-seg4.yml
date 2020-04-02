@@ -120,7 +120,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet121_model_1.pth'#'./pretrained/densenet121-a639ec97.pth'#
+  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'#'./pretrained/densenet121_model_1.pth'#
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 

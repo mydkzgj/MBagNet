@@ -142,7 +142,7 @@ class GradCam():
             cam = np.zeros(target.shape[1:], dtype=np.float32)  # 此处原本用one矩阵，但是由于梯度太小，导致增加量较少而被1稀释，所以改用0
             # Multiply each weight with its conv output and then, sum
             for i, w in enumerate(weights):
-                w = np.clip(w, a_min=0)
+                w = np.maximum(w, 0)
                 cam += w * target[i, :, :]
 
         # 2. Grad-CAM++   smooth function is exp(x)
