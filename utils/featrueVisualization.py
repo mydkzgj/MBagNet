@@ -3,6 +3,7 @@
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+
 import torch
 import random
 
@@ -313,6 +314,8 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     # visualization
     from utils.visualisation.gradcam import GradCam
     from utils.visualisation.misc_functions import save_class_activation_images
+    import utils.visualisation.guided_gradcam as gg
+    from utils.visualisation.misc_functions import (convert_to_grayscale, save_gradient_images)
     from PIL import Image
     import matplotlib.pyplot as plt
     global save_img_index
@@ -340,6 +343,24 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
                 save_class_activation_images(img, cam, "heatmap_" + str(
                     save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(
                     labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
+
+                # 是否展示guided-
+                file_name_to_export = "heatmap_" + str(
+                    save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(
+                    labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label)
+                # Guided backprop
+                GBP = gg.GuidedBackprop(model)
+                # Get gradients
+                guided_grads = GBP.generate_gradients(imgs[0].unsqueeze(0), show_label)
+                print('Guided backpropagation completed')
+
+                # Guided Grad cam
+                cam_gb = gg.guided_grad_cam(2*(cam-0.5), guided_grads)
+                #save_gradient_images(cam_gb, file_name_to_export + '_GGrad_Cam')
+                grayscale_cam_gb = convert_to_grayscale(cam_gb)
+                save_gradient_images(grayscale_cam_gb, file_name_to_export + '_GGrad_Cam_gray')
+                print('Guided grad cam completed')
+
 
             # 综合所有grad-cam
             # 1.mean

@@ -22,7 +22,9 @@ class CamExtractor():
         self.target_module_name = target_layer
         self.target_layer = 1
         self.gradients = None
+        self.guided_back = True  # 是否进行导向反向传播
         self.initialize()
+
 
 
     #def register_hooks(self):
@@ -45,10 +47,24 @@ class CamExtractor():
         #print(grad_in)
         #print(1)
 
+    # Guided Backpropgation
+    #用于Relu处的hook
+    def guided_backward_hook_fn(self, module, grad_in, grad_out):
+        #self.gradients = grad_in[1]
+        pos_grad_out = grad_out[0].gt(0)
+        result_grad = pos_grad_out * grad_in[0]
+        return (result_grad,)
+
+
     def initialize(self):
         """
             Does a forward pass on convolutions, hooks the function at given layer
         """
+        if self.guided_back == True:
+            for module_name, module in self.model.named_modules():
+                if isinstance(module, torch.nn.ReLU) == True:
+                    module.register_backward_hook(self.guided_backward_hook_fn)
+
         for module_name, module in self.model.base.features.named_modules():  #此处的hook比较特殊，因为并非是寻找model的参数的梯度。而是要寻找输出特征的梯度。所以是与输入相关的，不能提前定义
             if 1:#isinstance(module, torch.nn.Conv2d) or isinstance(module, torch.nn.MaxPool2d) or isinstance(module, torch.nn.AvgPool2d) or isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.ReLU):
                 #print(module_name)
@@ -101,7 +117,7 @@ class GradCam():
         guided_gradients = self.extractor.gradients.data.cpu().numpy()[0]
         # Get convolution outputs
         target = conv_output.data.cpu().numpy()[0]
-        weight_fetch_type = "Grad-CAM"  #"Grad-CAM++"  "Grad-CAM-pixel-wise"
+        weight_fetch_type = "Grad-CAM"  #"Grad-CAM++"  "Grad-CAM-pixelwise"
 
         # 1. Grad-CAM
         # Get weights from gradients
@@ -135,7 +151,7 @@ class GradCam():
             #cam = torch.relu(cam)
 
         # 3. pixel-wise-Grad-CAM   直接对应element-wise 相乘
-        if weight_fetch_type == "Grad-CAM-pixel-wise":
+        if weight_fetch_type == "Grad-CAM-pixelwise":
             cam = np.sum(target * guided_gradients, axis=0)
 
 

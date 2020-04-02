@@ -6,7 +6,7 @@ Created on Thu Oct 26 11:23:47 2017
 import torch
 from torch.nn import ReLU
 
-from misc_functions import (get_example_params,
+from .misc_functions import (get_example_params,
                             convert_to_grayscale,
                             save_gradient_images,
                             get_positive_negative_saliency)
@@ -29,7 +29,7 @@ class GuidedBackprop():
         def hook_function(module, grad_in, grad_out):
             self.gradients = grad_in[0]
         # Register hook to the first layer
-        first_layer = list(self.model.features._modules.items())[0][1]
+        first_layer = list(self.model.base.features._modules.items())[0][1] #list(self.model.features._modules.items())[0][1]
         first_layer.register_backward_hook(hook_function)
 
     def update_relus(self):
@@ -56,12 +56,13 @@ class GuidedBackprop():
             self.forward_relu_outputs.append(ten_out)
 
         # Loop through layers, hook up ReLUs
-        for pos, module in self.model.features._modules.items():
+        for pos, module in self.model._modules.items():  #self.model.features._modules.items():
             if isinstance(module, ReLU):
                 module.register_backward_hook(relu_backward_hook_function)
                 module.register_forward_hook(relu_forward_hook_function)
 
     def generate_gradients(self, input_image, target_class):
+        input_image.requires_grad_(True)
         # Forward pass
         model_output = self.model(input_image)
         # Zero gradients
@@ -70,10 +71,10 @@ class GuidedBackprop():
         one_hot_output = torch.FloatTensor(1, model_output.size()[-1]).zero_()
         one_hot_output[0][target_class] = 1
         # Backward pass
-        model_output.backward(gradient=one_hot_output)
+        model_output.backward(gradient=one_hot_output.cuda())
         # Convert Pytorch variable to numpy array
         # [0] to get rid of the first channel (1,3,224,224)
-        gradients_as_arr = self.gradients.data.numpy()[0]
+        gradients_as_arr = self.gradients.data.cpu().numpy()[0]
         return gradients_as_arr
 
 
