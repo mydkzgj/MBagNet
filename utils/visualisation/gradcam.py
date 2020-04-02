@@ -165,7 +165,7 @@ class GradCam():
 
         #CJY 用abs来归一化
         #"""
-        #cam = np.maximum(cam, 0)
+        cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1

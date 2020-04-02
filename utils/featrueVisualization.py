@@ -319,8 +319,8 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     from PIL import Image
     import matplotlib.pyplot as plt
     global save_img_index
-    for show_label in range(1):  #6
-        show_label = labels[0].item()
+    for show_label in range(6):  #6
+        #show_label = labels[0].item()
         if isinstance(target_layers, list):
             cam_list = []  # 求总的cam
             for target_layer in target_layers:
@@ -333,10 +333,10 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
                 # original_image
                 mean = np.array([0.4914, 0.4822, 0.4465])
                 var = np.array([0.2023, 0.1994, 0.2010])  # R,G,B每层的归一化用到的均值和方差
-                img = imgs[0].cpu().detach().numpy()
-                img = np.transpose(img, (1, 2, 0))
-                img = (img * var + mean) * 255  # 去标准化
-                img = Image.fromarray(img.astype('uint8')).convert('RGB')
+                img_numpy = imgs[0].cpu().detach().numpy()
+                img_numpy = np.transpose(img_numpy, (1, 2, 0))
+                img_numpy = (img_numpy * var + mean) * 255  # 去标准化
+                img = Image.fromarray(img_numpy.astype('uint8')).convert('RGB')
                 # plt.imshow(img)
                 # plt.show()
                 # Save mask
@@ -353,9 +353,13 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
                 # Get gradients
                 guided_grads = GBP.generate_gradients(imgs[0].unsqueeze(0), show_label)
                 print('Guided backpropagation completed')
+                grayscale_guided_grads = convert_to_grayscale(guided_grads)
+                save_gradient_images(grayscale_guided_grads, file_name_to_export + '_Guided_BP_gray')
+
 
                 # Guided Grad cam
-                cam_gb = gg.guided_grad_cam(2*(cam-0.5), guided_grads)
+                cam1 = (np.maximum(cam, 0.5) - 0.5) * 2  #imgs[0].cpu().detach().numpy()#
+                cam_gb = gg.guided_grad_cam(cam1, guided_grads)
                 #save_gradient_images(cam_gb, file_name_to_export + '_GGrad_Cam')
                 grayscale_cam_gb = convert_to_grayscale(cam_gb)
                 save_gradient_images(grayscale_cam_gb, file_name_to_export + '_GGrad_Cam_gray')
