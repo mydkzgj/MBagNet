@@ -101,7 +101,7 @@ class GradCam():
         guided_gradients = self.extractor.gradients.data.cpu().numpy()[0]
         # Get convolution outputs
         target = conv_output.data.cpu().numpy()[0]
-        weight_fetch_type = "Grad-CAM-pixel-wise"  #"Grad-CAM++"  "Grad-CAM-pixel-wise"
+        weight_fetch_type = "Grad-CAM"  #"Grad-CAM++"  "Grad-CAM-pixel-wise"
 
         # 1. Grad-CAM
         # Get weights from gradients
@@ -145,7 +145,7 @@ class GradCam():
 
         # 只取正的部分 我要是不取呢
         #cam = np.maximum(cam, 0)
-        #cam = (cam - np.min(cam)) / (np.max(cam) - np.min(cam))  # Normalize between 0-1
+        #cam = (cam - np.min(cam)) / (np.max(cam) - np.min(cam))  * 0.5 +0.5# Normalize between 0-1
 
         #CJY 用abs来归一化
         #"""
