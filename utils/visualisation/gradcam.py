@@ -180,7 +180,7 @@ class GradCam():
 
         #CJY 用abs来归一化
         #"""
-        cam = np.maximum(cam, 0)
+        #cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1
@@ -209,7 +209,7 @@ class GradCam():
 
         cam = np.uint8(cam * 255)  # Scale between 0-255 to visualize
         cam = np.uint8(Image.fromarray(cam).resize((input_image.shape[2],
-                       input_image.shape[3]),))/255   #  Image.ANTIALIAS
+                       input_image.shape[3]),Image.ANTIALIAS))/255   #  Image.ANTIALIAS
         # ^ I am extremely unhappy with this line. Originally resizing was done in cv2 which
         # supports resizing numpy matrices with antialiasing, however,
         # when I moved the repository to PIL, this option was out of the window.

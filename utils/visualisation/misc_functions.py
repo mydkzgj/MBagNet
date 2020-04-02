@@ -48,7 +48,8 @@ def save_gradient_images(gradient, file_name):
     #    os.makedirs('../results')
     # Normalize
     gradient = gradient - gradient.min()
-    gradient /= gradient.max()
+    if gradient.max() > 0:
+        gradient /= gradient.max()
     # Save image
     path_to_file = os.path.join(savepath, file_name + '.jpg')
     save_image(gradient, path_to_file)

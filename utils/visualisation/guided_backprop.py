@@ -32,12 +32,16 @@ class GuidedBackprop():
         first_layer = list(self.model.base.features._modules.items())[0][1] #list(self.model.features._modules.items())[0][1]
         first_layer.register_backward_hook(hook_function)
 
+
+
+
     def update_relus(self):
         """
             Updates relu activation functions so that
                 1- stores output in forward pass
                 2- imputes zero for gradient values that are less than zero
         """
+
         def relu_backward_hook_function(module, grad_in, grad_out):
             """
             If there is a negative gradient, change it to zero
@@ -56,10 +60,12 @@ class GuidedBackprop():
             self.forward_relu_outputs.append(ten_out)
 
         # Loop through layers, hook up ReLUs
-        for pos, module in self.model._modules.items():  #self.model.features._modules.items():
+        #for pos, module in self.model.base.features._modules.items():  #self.model.features._modules.items():
+        for module_name, module in self.model.named_modules():
             if isinstance(module, ReLU):
                 module.register_backward_hook(relu_backward_hook_function)
                 module.register_forward_hook(relu_forward_hook_function)
+
 
     def generate_gradients(self, input_image, target_class):
         input_image.requires_grad_(True)
