@@ -117,7 +117,7 @@ class GradCam():
         guided_gradients = self.extractor.gradients.data.cpu().numpy()[0]
         # Get convolution outputs
         target = conv_output.data.cpu().numpy()[0]
-        weight_fetch_type = "Grad-CAM"  #"Grad-CAM++"  "Grad-CAM-pixelwise"
+        weight_fetch_type = "Grad-CAM-pixelwise"  #"Grad-CAM++"  "Grad-CAM-pixelwise"
 
         # 1. Grad-CAM
         # Get weights from gradients
@@ -165,7 +165,7 @@ class GradCam():
 
         #CJY 用abs来归一化
         #"""
-        cam = np.maximum(cam, 0)
+        #cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1
