@@ -205,6 +205,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                                                      grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
             model.inter_gradient = list(inter_gradients)
 
+
+
             # 生成CAM
             gcam_list = []
             target_layer_num = len(model.target_layer)
@@ -319,7 +321,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "seg_gtmask":
                 soft_mask = seg_gt_masks
                 soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
-                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
+                #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
             elif model.maskedImgReloadType == "joint":
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")

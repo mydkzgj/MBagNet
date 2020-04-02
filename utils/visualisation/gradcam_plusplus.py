@@ -101,43 +101,16 @@ class GradCam():
         guided_gradients = self.extractor.gradients.data.cpu().numpy()[0]
         # Get convolution outputs
         target = conv_output.data.cpu().numpy()[0]
-        weight_fetch_type = "Grad-CAM-pixel-wise"  #"Grad-CAM++"  "Grad-CAM-pixel-wise"
-
-        # 1. Grad-CAM
         # Get weights from gradients
-        if weight_fetch_type == "Grad-CAM":
-            weights = np.mean(guided_gradients, axis=(1, 2))  # Take averages for each gradient
-            # 加权求取CAM
-            # Create empty numpy array for cam
-            cam = np.zeros(target.shape[1:], dtype=np.float32)  # 此处原本用one矩阵，但是由于梯度太小，导致增加量较少而被1稀释，所以改用0
-            # Multiply each weight with its conv output and then, sum
-            for i, w in enumerate(weights):
-                cam += w * target[i, :, :]
+        weights = np.mean(guided_gradients, axis=(1, 2))  # Take averages for each gradient
+        # Create empty numpy array for cam
+        cam = np.zeros(target.shape[1:], dtype=np.float32)    #此处原本用one矩阵，但是由于梯度太小，导致增加量较少而被1稀释，所以改用0
+        # Multiply each weight with its conv output and then, sum
+        for i, w in enumerate(weights):
+            cam += w * target[i, :, :]
 
-        # 2. Grad-CAM++   smooth function is exp(x)
-        if weight_fetch_type == "Grad-CAM++":
-            gradients = self.extractor.gradients.cpu()
-            activations = conv_output.cpu()
-            logits = model_output[:, target_class].cpu()
-            b, k, u, v = gradients.shape
-            alpha_num = gradients.pow(2)
-            alpha_denom = gradients.pow(2).mul(2) + \
-                          activations.mul(gradients.pow(3)).view(b, k, u * v).sum(-1, keepdim=True).view(b, k, 1, 1)
-
-            alpha_denom = torch.where(alpha_denom != 0.0, alpha_denom, torch.ones_like(alpha_denom))  #避免分母为0
-
-            alpha = alpha_num.div(alpha_denom + 1e-7)
-            positive_gradients = torch.relu(logits.exp() * gradients)  # ReLU(dY/dA) == ReLU(exp(S)*dS/dA))
-            weights = (alpha * positive_gradients).view(b, k, u * v).sum(-1).view(b, k, 1, 1)
-
-            saliency_map = (weights * activations).sum(1, keepdim=True)
-            cam = saliency_map.squeeze(0).squeeze(0).detach().numpy()
-            #cam = torch.relu(cam)
-
-        # 3. pixel-wise-Grad-CAM   直接对应element-wise 相乘
-        if weight_fetch_type == "Grad-CAM-pixel-wise":
-            cam = np.sum(target * guided_gradients, axis=0)
-
+        #直接对应element-wise 相乘
+        cam = np.sum(target * guided_gradients, axis=0)
 
         # 比较一下与logits的差距，毕竟是用线性逼近非线性
         #cam_sum = np.sum(cam, axis=(0,1))

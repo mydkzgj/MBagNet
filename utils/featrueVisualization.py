@@ -316,8 +316,8 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     from PIL import Image
     import matplotlib.pyplot as plt
     global save_img_index
-    for show_label in range(6):  #6
-        #show_label = labels[0].item()
+    for show_label in range(1):  #6
+        show_label = labels[0].item()
         if isinstance(target_layers, list):
             cam_list = []  # 求总的cam
             for target_layer in target_layers:
