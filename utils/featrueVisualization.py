@@ -328,8 +328,9 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
             cam_list = []  # 求总的cam
             for target_layer in target_layers:
                 # Grad cam
-                grad_cam = GradCam(model,
-                                   target_layer=target_layer)  # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+                grad_cam = GradCam(model, target_layer=target_layer,
+                                   guided_back=True,    #是否使用导向回传
+                                   weight_fetch_type="Grad-CAM") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise"
                 # Generate cam mask
                 cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), show_label)  # labels[0])  #显示显示其他的标签
                 cam_list.append(cam)

@@ -17,12 +17,12 @@ class CamExtractor():
     """
         Extracts cam features from the model
     """
-    def __init__(self, model, target_layer):
+    def __init__(self, model, target_layer, guided_back=False):
         self.model = model
         self.target_module_name = target_layer
         self.target_layer = 1
         self.gradients = None
-        self.guided_back = True  # 是否进行导向反向传播
+        self.guided_back = guided_back  # 是否进行导向反向传播
         self.initialize()
 
 
@@ -91,12 +91,17 @@ class GradCam():
     """
         Produces class activation map
     """
-    def __init__(self, model, target_layer):
+    def __init__(self, model, target_layer, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise"):
         self.model = model
         self.model.eval()
         # Define extractor
         self.target_layer = target_layer
-        self.extractor = CamExtractor(self.model, target_layer)
+
+        self.weight_fetch_type = weight_fetch_type  # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise"
+        self.guided_back = guided_back
+
+        self.extractor = CamExtractor(self.model, target_layer, self.guided_back)
+
 
     def generate_cam(self, input_image, target_class=None):
         # Full forward pass
@@ -117,11 +122,11 @@ class GradCam():
         guided_gradients = self.extractor.gradients.data.cpu().numpy()[0]
         # Get convolution outputs
         target = conv_output.data.cpu().numpy()[0]
-        weight_fetch_type = "Grad-CAM-pixelwise"  #"Grad-CAM++"  "Grad-CAM-pixelwise"
+
 
         # 1. Grad-CAM
         # Get weights from gradients
-        if weight_fetch_type == "Grad-CAM":
+        if self.weight_fetch_type == "Grad-CAM":
             weights = np.mean(guided_gradients, axis=(1, 2))  # Take averages for each gradient
             # 加权求取CAM
             # Create empty numpy array for cam
@@ -131,7 +136,7 @@ class GradCam():
                 cam += w * target[i, :, :]
 
         # 2. Grad-CAM++   smooth function is exp(x)
-        if weight_fetch_type == "Grad-CAM++":
+        if self.weight_fetch_type == "Grad-CAM++":
             gradients = self.extractor.gradients.cpu()
             activations = conv_output.cpu()
             logits = model_output[:, target_class].cpu()
@@ -151,7 +156,7 @@ class GradCam():
             #cam = torch.relu(cam)
 
         # 3. pixel-wise-Grad-CAM   直接对应element-wise 相乘
-        if weight_fetch_type == "Grad-CAM-pixelwise":
+        if self.weight_fetch_type == "Grad-CAM-pixelwise":
             cam = np.sum(target * guided_gradients, axis=0)
 
 
@@ -165,7 +170,7 @@ class GradCam():
 
         #CJY 用abs来归一化
         #"""
-        #cam = np.maximum(cam, 0)
+        cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1

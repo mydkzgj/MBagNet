@@ -192,7 +192,13 @@ class NegMaskedImgLoss(object):
         reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
         one_hot_label = torch.nn.functional.one_hot(reload_label, neg_masked_logits.shape[1]).float()
 
-        loss = score[one_hot_label.bool()]
+        #loss = score[one_hot_label.bool()]
+        # 对于label1和label2，去除所有病灶后，应该让label之前的label的score之和最大
+        score_list = []
+        for i in range(score.shape[0]):
+            s = score[i, 0:reload_label[i]]
+            score_list.append(1-s.sum(dim=0))
+        loss = torch.cat(score_list, dim=0)
 
         # 挑选指定sample的loss
         pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)
