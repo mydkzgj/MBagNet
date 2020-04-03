@@ -88,12 +88,12 @@ SOLVER:
   BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [2, 3, 4, 5]#[8, 12, 16, 20]#
+  STEPS: [4, 6, 8, 10]#[8, 12, 16, 20]#[2, 3, 4, 5]#
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
   LOSS_LR: 0.05
-  RETRAIN_FROM_HEAD: 0
+  RETRAIN_FROM_HEAD: 1
 
 
 # -----------------------------------------------------------------------------
@@ -120,7 +120,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet121_model_1.pth'#'./pretrained/densenet121-a639ec97.pth'#
+  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'#'./pretrained/densenet121_model_1.pth'#
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 

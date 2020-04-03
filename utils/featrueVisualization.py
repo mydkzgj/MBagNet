@@ -333,8 +333,8 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
             for target_layer in target_layers:
                 # Grad cam
                 grad_cam = GradCam(model, target_layer=target_layer,
-                                   guided_back=True,    #是否使用导向回传
-                                   weight_fetch_type="Grad-CAM") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
+                                   guided_back=False,    #是否使用导向回传
+                                   weight_fetch_type="Grad-CAM-pixelwise") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
                 # Generate cam mask
                 cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), show_label)  # labels[0])  #显示显示其他的标签
                 cam_list.append(cam)
@@ -429,6 +429,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
                 m = cv.hconcat(l)
                 l = [m, bar]
                 omask = 1 - (1 - omask) * (1 - mask[i].cpu().detach().numpy())
+                #cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_Mask2_' +str(i)+ '.png', mask[i].cpu().detach().numpy() * 255)
             cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_Mask0' + '.png', omask * 255)
             cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_Mask1' + '.png', m * 255)
 
