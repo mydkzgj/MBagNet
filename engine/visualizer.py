@@ -130,10 +130,11 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             if seg_labels[0] != p_labels[0]:
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
             #"""
-            #"""
-            target_layers = ["denseblock4"]#"denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+            #"""["denseblock4"]#
+            target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:
-                fv.showGradCAM(copy.deepcopy(model), seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
+                #copy.deepcopy(model)
+                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
             #"""
 
             return {"logits": logits, "labels": seg_labels}
