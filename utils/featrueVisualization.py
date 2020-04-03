@@ -319,7 +319,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     from PIL import Image
     import matplotlib.pyplot as plt
     global save_img_index
-    guided_backpropagation_flag = 0
+    guided_backpropagation_flag = 1
     label_num = 1  #1 or 6
     if guided_backpropagation_flag == 1:
         # Guided backprop
@@ -334,7 +334,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
                 # Grad cam
                 grad_cam = GradCam(model, target_layer=target_layer,
                                    guided_back=False,    #是否使用导向回传
-                                   weight_fetch_type="Grad-CAM-pixelwise") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
+                                   weight_fetch_type="Grad-CAM") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
                 # Generate cam mask
                 cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), show_label)  # labels[0])  #显示显示其他的标签
                 cam_list.append(cam)
@@ -370,7 +370,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
                     # Guided Grad cam
                     cam1 = (np.maximum(cam, 0.5) - 0.5) * 2  # imgs[0].cpu().detach().numpy()#
                     cam_gb = gg.guided_grad_cam(cam1, guided_grads)
-                    # save_gradient_images(cam_gb, file_name_to_export + '_GGrad_Cam')
+                    save_gradient_images(cam_gb, file_name_to_export + '_GGrad_Cam')
                     grayscale_cam_gb = convert_to_grayscale(cam_gb)
                     save_gradient_images(grayscale_cam_gb, file_name_to_export + '_GGrad_Cam_gray')
                     print('Guided grad cam completed')
