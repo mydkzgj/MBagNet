@@ -23,6 +23,8 @@ import numpy as np
 
 import utils.featrueVisualization as fv
 
+import copy
+
 """
 # pytorch 转换 one-hot 方式 scatter
 def activated_output_transform(output):
@@ -131,7 +133,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #"""
             target_layers = ["denseblock4"]#"denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
+                fv.showGradCAM(copy.deepcopy(model), seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
             #"""
 
             return {"logits": logits, "labels": seg_labels}

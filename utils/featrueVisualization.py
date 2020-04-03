@@ -321,6 +321,10 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     global save_img_index
     guided_backpropagation_flag = 1
     label_num = 6  #1 or 6
+    if guided_backpropagation_flag == 1:
+        # Guided backprop
+        GBP = gg.GuidedBackprop(model)
+        
     for show_label in range(label_num):  #6
         if label_num == 1:
             show_label = labels[0].item()
@@ -354,7 +358,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
                         save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(
                         labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label)
                     # Guided backprop
-                    GBP = gg.GuidedBackprop(model)
+                    #GBP = gg.GuidedBackprop(model)
                     # Get gradients
                     guided_grads = GBP.generate_gradients(imgs[0].unsqueeze(0), show_label)
                     print('Guided backpropagation completed')
