@@ -133,7 +133,7 @@ class PosMaskedImgLoss(object):
         one_hot_label = torch.nn.functional.one_hot(reload_label, pos_masked_logits.shape[1]).float()
         ori_logits = origin_logits[one_hot_label.bool()]
         pm_logits = pos_masked_logits[one_hot_label.bool()]
-        loss = torch.abs(pm_logits - ori_logits)#/(torch.abs(ori_logits).clamp(min=1E-12).detach())    #相对距离
+        loss = torch.abs(pm_logits - ori_logits.detach())#/(torch.abs(ori_logits).clamp(min=1E-12).detach())    #相对距离
         
         # 挑选指定sample的loss
         pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)
