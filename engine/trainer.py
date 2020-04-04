@@ -328,15 +328,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #soft_mask = 1 - soft_mask
 
                 # 模板
+                #"""
                 a = torch.Tensor([0.485, 0.456, 0.406])
                 b = torch.Tensor([0.229, 0.224, 0.225])
                 c = (0-a)/b
-
                 new_soft_mask = (1 - soft_mask).expand(soft_mask.shape[0], 3, soft_mask.shape[2], soft_mask.shape[3])
                 c = c.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(new_soft_mask).cuda()
                 sm = c * new_soft_mask
-
-
+                #"""
             elif model.maskedImgReloadType == "joint":
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
@@ -350,7 +349,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             # (2).生成masked_img
             rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
-            pos_masked_img = soft_mask * rimgs + sm
+            pos_masked_img = soft_mask * rimgs
             neg_masked_img = (1-soft_mask) * rimgs
 
             # (3).reload maskedImg
@@ -395,7 +394,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":0.2, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0.2, "neg_masked_img_loss":0.2, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
