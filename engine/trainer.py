@@ -322,10 +322,21 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "seg_gtmask":
                 soft_mask = seg_gt_masks
                 soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
-                max_kernel_size = 800#random.randint(30, 320)
-                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size*2+1, stride=1, padding=max_kernel_size)
+                max_kernel_size = 80#random.randint(30, 320)
+                soft_mask = 0*torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size*2+1, stride=1, padding=max_kernel_size)
                 #soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
-                soft_mask = 1 - soft_mask
+                #soft_mask = 1 - soft_mask
+
+                # 模板
+                a = torch.Tensor([0.485, 0.456, 0.406])
+                b = torch.Tensor([0.229, 0.224, 0.225])
+                c = (0-a)/b
+
+                new_soft_mask = (1 - soft_mask).expand(soft_mask.shape[0], 3, soft_mask.shape[2], soft_mask.shape[3])
+                c = c.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(new_soft_mask).cuda()
+                sm = c * new_soft_mask
+
+
             elif model.maskedImgReloadType == "joint":
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
@@ -339,7 +350,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             # (2).生成masked_img
             rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
-            pos_masked_img = soft_mask * rimgs
+            pos_masked_img = soft_mask * rimgs + sm
             neg_masked_img = (1-soft_mask) * rimgs
 
             # (3).reload maskedImg
