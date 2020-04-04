@@ -328,7 +328,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #soft_mask = 1 - soft_mask
 
                 # 模板
-                #"""
+                """
                 a = torch.Tensor([0.485, 0.456, 0.406])
                 b = torch.Tensor([0.229, 0.224, 0.225])
                 c = (0-a)/b
@@ -365,8 +365,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = model(pos_masked_img)
-            nm_logits = None#model(neg_masked_img)
+            pm_logits = None#model(pos_masked_img)
+            nm_logits = model(neg_masked_img)
             #"""
         else:
             pm_logits = None
