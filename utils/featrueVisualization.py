@@ -319,8 +319,8 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     from PIL import Image
     import matplotlib.pyplot as plt
     global save_img_index
-    guided_backpropagation_flag = 1
-    label_num = 6  #1 or 6
+    guided_backpropagation_flag = 0
+    label_num = 1  #1 or 6
     if guided_backpropagation_flag == 1:
         # Guided backprop
         GBP = gg.GuidedBackprop(model)
@@ -333,8 +333,8 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
             for target_layer in target_layers:
                 # Grad cam
                 grad_cam = GradCam(model, target_layer=target_layer,
-                                   guided_back=False,    #是否使用导向回传
-                                   weight_fetch_type="Grad-CAM") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
+                                   guided_back=True,    #是否使用导向回传
+                                   weight_fetch_type="Grad-CAM-pixelwise") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
                 # Generate cam mask
                 cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), show_label)  # labels[0])  #显示显示其他的标签
                 cam_list.append(cam)
