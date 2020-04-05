@@ -322,7 +322,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "seg_gtmask":
                 soft_mask = seg_gt_masks
                 soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
-                max_kernel_size = 80#random.randint(30, 320)
+                max_kernel_size = 15#random.randint(30, 320)
                 soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size*2+1, stride=1, padding=max_kernel_size)
                 #soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
                 #soft_mask = 1 - soft_mask
@@ -351,7 +351,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
             rimg_mean = rimgs.mean(-1,keepdim=True).mean(-2,keepdim=True)
             pos_masked_img = soft_mask * rimgs + (1-soft_mask) * rimg_mean
-            neg_masked_img = (1-soft_mask) * rimgs
+            neg_masked_img = (1-soft_mask) * rimgs + soft_mask * rimg_mean
 
             # (3).reload maskedImg
             # 使用参数相同的网络，但是不回传
@@ -366,8 +366,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = model(pos_masked_img)
-            nm_logits = None#model(neg_masked_img)
+            pm_logits = None#model(pos_masked_img)
+            nm_logits = model(neg_masked_img)
             #"""
         else:
             pm_logits = None
