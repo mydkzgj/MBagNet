@@ -370,15 +370,26 @@ class Baseline(nn.Module):
         for i in range(GradeLabel.shape[0]):
             if GradeLabel[i] == 1:
                 lm = LesionMask[i:i + 1, 2:3]
+
+                lm = 0 * lm   #需要掩盖的病灶
             elif GradeLabel[i] == 2:
-                lm1 = LesionMask[i:i + 1, 0:2]
-                lm2 = LesionMask[i:i + 1, 3:4]
-                lm = torch.cat([lm1, lm2], dim=1)
-                #sm = seg_mask[i:i + 1, 0:4]  #还是应该去除2
+                #lm1 = LesionMask[i:i + 1, 0:2]
+                #lm2 = LesionMask[i:i + 1, 3:4]
+                #lm = torch.cat([lm1, lm2], dim=1)
+
+                lm = LesionMask[i:i + 1, 2:3]
             elif GradeLabel[i] == 3:
                 lm = LesionMask[i:i + 1, 1:2]
+
+                lm1 = LesionMask[i:i + 1, 0:1]
+                lm2 = LesionMask[i:i + 1, 2:4]
+                lm = torch.cat([lm1, lm2], dim=1)
             elif GradeLabel[i] == 4:
-                lm = LesionMask[i:i + 1, 1:2]
+                #lm = LesionMask[i:i + 1, 1:2]
+
+                lm1 = LesionMask[i:i + 1, 0:1]
+                lm2 = LesionMask[i:i + 1, 2:4]
+                lm = torch.cat([lm1, lm2], dim=1)
             else:
                 continue
             lm = torch.max(lm, dim=1, keepdim=True)[0]
