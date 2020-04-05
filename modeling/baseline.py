@@ -398,6 +398,12 @@ class Baseline(nn.Module):
         FusionMask = torch.cat(MaskList, dim=0)
         return FusionMask
 
+    # 为了在train中固定BN  目前无用
+    def fix_bn(self, m):
+        classname = m.__class__.__name__
+        if classname.find('BatchNorm') != -1:
+            m.track_running_stats = False
+            #m.eval()
 
     # 载入参数
     def load_param(self, loadChoice, model_path):

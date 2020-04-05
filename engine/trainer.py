@@ -178,7 +178,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # Master 0 运行模型  (内置运行 Branch 1 Segmentation)
         # 设定有多少样本需要进行支路的运算
-        """
+        #"""
         model.transimitBatchDistribution((grade_num+seg_num-model.branch_img_num, model.branch_img_num))
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
@@ -186,7 +186,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #"""
 
         # 提前进行样本扩增  CJY at 2020.4.5
-        #"""
+        """
         soft_mask = seg_gt_masks
         soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
         max_kernel_size = random.randint(20, 320)
@@ -345,7 +345,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "seg_gtmask":
                 soft_mask = seg_gt_masks
                 soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
-                max_kernel_size = 30#random.randint(30, 80)
+                max_kernel_size = random.randint(30, 160)
                 soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size*2+1, stride=1, padding=max_kernel_size)
                 #soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
                 #soft_mask = 1 - soft_mask
@@ -389,10 +389,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
             model.eval()
             model.transimitBatchDistribution(0)
-            masked_img = torch.cat([pos_masked_img, neg_masked_img], dim=0)
+            masked_img = torch.cat([rimgs, pos_masked_img, neg_masked_img], dim=0)
             m_logits = model(masked_img)
-            pm_logits = m_logits[0:m_logits.shape[0]//2]
-            nm_logits = m_logits[m_logits.shape[0]//2:m_logits.shape[0]]
+            om_logits = m_logits[0:m_logits.shape[0]//3]
+            pm_logits = m_logits[m_logits.shape[0]//3 :m_logits.shape[0]//3 * 2]
+            nm_logits = m_logits[m_logits.shape[0]//3 * 2:m_logits.shape[0]]
             #pm_logits = model(pos_masked_img)
             #nm_logits = model(neg_masked_img)
             #"""
@@ -405,7 +406,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer
-        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, multilabel=one_hot_labels, seg_mask=seg_masks, seg_gtmask=seg_gtmasks, seg_label=seg_labels, gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
+        losses = loss_fn[engine.state.losstype](logit=logits, label=labels, multilabel=one_hot_labels, seg_mask=seg_masks, seg_gtmask=seg_gtmasks, seg_label=seg_labels, gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels, origin_logit=om_logits, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits, show=forShow)    #损失词典
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
@@ -422,7 +423,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0.2, "neg_masked_img_loss":0.2, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0.2, "neg_masked_img_loss":0, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
