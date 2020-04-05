@@ -21,7 +21,7 @@ def build_transforms(cfg, is_train=True):
             T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
             T.ToTensor(),
             normalize_transform,
-            RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
+            RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)  #是不是应该在归一化之前
         ])
     else:
         transform = T.Compose([
