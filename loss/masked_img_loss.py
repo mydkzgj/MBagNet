@@ -115,8 +115,12 @@ class PosMaskedImgLoss(object):
         # CJY distribution 1  cross_entropy_loss min
         # pos_masked区域的img应该更容易区分类别
         reload_label = label[label.shape[0] - pos_masked_logits.shape[0]:label.shape[0]]
-        loss = 1-F.softmax(pos_masked_logits, dim=1)
         #loss = F.cross_entropy(pos_masked_logits, reload_label, reduction="none")
+
+        reload_label = label[label.shape[0] - neg_masked_logits.shape[0]:label.shape[0]]
+        one_hot_label = torch.nn.functional.one_hot(reload_label, neg_masked_logits.shape[1]).float()
+        score = 1 - F.softmax(pos_masked_logits, dim=1)
+        loss = score[one_hot_label.bool()]
 
         # 挑选指定sample的loss
         pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5)  & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)
@@ -196,13 +200,13 @@ class NegMaskedImgLoss(object):
         reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
         one_hot_label = torch.nn.functional.one_hot(reload_label, neg_masked_logits.shape[1]).float()
 
-        #loss = score[one_hot_label.bool()]
+        loss = score[one_hot_label.bool()]
         # 对于label1和label2，去除所有病灶后，应该让label之前的label的score之和最大
-        score_list = []
-        for i in range(score.shape[0]):
-            s = score[i:i+1, 0:reload_label[i]]
-            score_list.append(1-s.sum(dim=1))
-        loss = torch.cat(score_list, dim=0)
+        #score_list = []
+        #for i in range(score.shape[0]):
+        #    s = score[i:i+1, 0:reload_label[i]]
+        #    score_list.append(1-s.sum(dim=1))
+        #loss = torch.cat(score_list, dim=0)
 
         # 挑选指定sample的loss
         pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)

@@ -366,8 +366,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
             model.eval()
             model.transimitBatchDistribution(0)
-            pm_logits = model(pos_masked_img)
-            nm_logits = model(neg_masked_img)
+            masked_img = torch.cat([pos_masked_img, neg_masked_img], dim=0)
+            m_logits = model(masked_img)
+            pm_logits = m_logits[0:m_logits.shape[0]//2]
+            nm_logits = m_logits[m_logits.shape[0]//2:m_logits.shape[0]]
+            #pm_logits = model(pos_masked_img)
+            #nm_logits = model(neg_masked_img)
             #"""
         else:
             pm_logits = None
