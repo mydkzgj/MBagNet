@@ -119,8 +119,8 @@ class PosMaskedImgLoss(object):
 
         reload_label = label[label.shape[0] - neg_masked_logits.shape[0]:label.shape[0]]
         one_hot_label = torch.nn.functional.one_hot(reload_label, pos_masked_logits.shape[1]).float()
-        score = 1 - F.softmax(pos_masked_logits, dim=1)
-        #score = -torch.log(score)
+        score = 1-F.softmax(pos_masked_logits, dim=1)
+        score = -torch.log(score)
         loss = score[one_hot_label.bool()]
 
         # 挑选指定sample的loss
