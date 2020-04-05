@@ -371,7 +371,7 @@ class Baseline(nn.Module):
             if GradeLabel[i] == 1:
                 lm = LesionMask[i:i + 1, 2:3]
 
-                lm = 0 * lm   #需要掩盖的病灶
+                #lm = 0 * lm   #需要掩盖的病灶
             elif GradeLabel[i] == 2:
                 lm1 = LesionMask[i:i + 1, 0:2]
                 lm2 = LesionMask[i:i + 1, 3:4]
