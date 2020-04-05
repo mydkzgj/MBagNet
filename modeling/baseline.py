@@ -380,13 +380,14 @@ class Baseline(nn.Module):
                 #lm = LesionMask[i:i + 1, 2:3]
             elif GradeLabel[i] == 3:
                 lm = LesionMask[i:i + 1, 1:2]
+                lm = 1 - lm * 0
 
                 #lm1 = LesionMask[i:i + 1, 0:1]
                 #lm2 = LesionMask[i:i + 1, 2:4]
                 #lm = torch.cat([lm1, lm2], dim=1)
             elif GradeLabel[i] == 4:
                 lm = LesionMask[i:i + 1, 1:2]
-
+                lm = 1 - lm * 0
                 #lm1 = LesionMask[i:i + 1, 0:1]
                 #lm2 = LesionMask[i:i + 1, 2:4]
                 #lm = torch.cat([lm1, lm2], dim=1)
