@@ -365,6 +365,34 @@ class Baseline(nn.Module):
         self.batchDistribution = BD
         self.base.batchDistribution = BD
 
+    def lesionFusionForV(self, LesionMask, GradeLabel):
+        MaskList = []
+        for i in range(GradeLabel.shape[0]):
+            if GradeLabel[i] == 1:
+                lm = LesionMask[i:i + 1, 2:3]
+
+                #lm = 0 * lm   #需要掩盖的病灶
+            elif GradeLabel[i] == 2:
+                lm1 = LesionMask[i:i + 1, 0:2]
+                lm2 = LesionMask[i:i + 1, 3:4]
+                lm = torch.cat([lm1, lm2], dim=1)
+
+                #lm = LesionMask[i:i + 1]    # 不区分病灶
+            elif GradeLabel[i] == 3:
+                lm = LesionMask[i:i + 1, 1:2]
+                lm = 1 - lm * 0
+
+            elif GradeLabel[i] == 4:
+                lm = LesionMask[i:i + 1, 1:2]
+                lm = 1 - lm * 0
+
+            else:
+                continue
+            lm = torch.max(lm, dim=1, keepdim=True)[0]
+            MaskList.append(lm)
+        FusionMask = torch.cat(MaskList, dim=0)
+        return FusionMask
+
     def lesionFusion(self, LesionMask, GradeLabel):
         MaskList = []
         for i in range(GradeLabel.shape[0]):

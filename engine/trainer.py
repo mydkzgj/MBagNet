@@ -190,6 +190,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         soft_mask = seg_gt_masks
         soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
         soft_mask = 1 - soft_mask
+
         #max_kernel_size = 1#random.randint(30, 160)
         #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1,
         #                                           padding=max_kernel_size)
@@ -201,9 +202,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         imgs[imgs.shape[0] - soft_mask.shape[0]:imgs.shape[0]] = pos_masked_img
 
         # 也考虑normal吧
-        for i in range(grade_num):
-            if labels[i] == 0:
-                imgs[i:i+1] = imgs[i:i+1] * soft_mask
+        p = random.randint(0, 1)
+        if p == 1:
+            for i in range(grade_num):
+                if labels[i] == 0:
+                    imgs[i:i + 1] = imgs[i:i + 1] * soft_mask
 
         model.transimitBatchDistribution(0)
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
