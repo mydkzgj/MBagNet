@@ -111,7 +111,7 @@ class PosMaskedImgLoss(object):
     def __call__(self, pos_masked_logits, neg_masked_logits, origin_logits, label, ):   #output_mask, seg_mask, seg_label
         if not isinstance(pos_masked_logits, torch.Tensor):
             return 0
-        """
+        #"""
         # CJY distribution 1  cross_entropy_loss min
         # pos_masked区域的img应该更容易区分类别
         reload_label = label[label.shape[0] - pos_masked_logits.shape[0]:label.shape[0]]
@@ -131,7 +131,7 @@ class PosMaskedImgLoss(object):
         total_loss = torch.mean(pick_loss)
         #"""
 
-        #"""
+        """
         # CJY distribution 2  logits diff min
         # 由pos_masked区域主要提供logit
         reload_label = label[label.shape[0]-pos_masked_logits.shape[0]:label.shape[0]]
@@ -197,6 +197,7 @@ class NegMaskedImgLoss(object):
         #score = -torch.log(1-F.softmax(neg_masked_logits, dim=1)) #torch.sigmoid(neg_masked_logits)#
         score = F.softmax(neg_masked_logits, dim=1)
 
+
         # 由pos_masked区域主要提供logit
         origin_logits = origin_logits[origin_logits.shape[0]-neg_masked_logits.shape[0]:origin_logits.shape[0]]
         reload_label = label[label.shape[0]-neg_masked_logits.shape[0]:label.shape[0]]
@@ -209,12 +210,16 @@ class NegMaskedImgLoss(object):
 
         #loss = score[one_hot_label.bool()]
         # 对于label1和label2，去除所有病灶后，应该让label之前的label的score之和最大
-        score_list = []
-        for i in range(score.shape[0]):
-            s = score[i:i+1, 0:reload_label[i]]
-            score_list.append(s.sum(dim=1))
-        score = torch.cat(score_list, dim=0)
-        loss = -torch.log(score)
+        #score_list = []
+        #for i in range(score.shape[0]):
+        #    s = score[i:i+1, 0:reload_label[i]]
+        #    score_list.append(s.sum(dim=1))
+        #score = torch.cat(score_list, dim=0)
+        #loss = -torch.log(score)
+
+        # 若grade1，2标出所有病灶，那么去除这些病灶后，label应该为0
+        reload_label0 = reload_label * 0
+        loss = F.cross_entropy(neg_masked_logits, reload_label0, reduction="none")
 
         # 挑选指定sample的loss
         pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)

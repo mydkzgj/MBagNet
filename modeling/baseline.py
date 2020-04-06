@@ -393,7 +393,8 @@ class Baseline(nn.Module):
         FusionMask = torch.cat(MaskList, dim=0)
         return FusionMask
 
-    def lesionFusion(self, LesionMask, GradeLabel):
+    # 将与该疾病无关的病灶去除
+    def lesionFusionForV1(self, LesionMask, GradeLabel):
         MaskList = []
         for i in range(GradeLabel.shape[0]):
             if GradeLabel[i] == 1:
@@ -425,6 +426,31 @@ class Baseline(nn.Module):
                 lm1 = LesionMask[i:i + 1, 0:1]
                 lm2 = LesionMask[i:i + 1, 2:4]
                 lm = torch.cat([lm1, lm2], dim=1)
+            else:
+                continue
+            lm = torch.max(lm, dim=1, keepdim=True)[0]
+            MaskList.append(lm)
+        FusionMask = torch.cat(MaskList, dim=0)
+        return FusionMask
+
+    # 将grade1，2的病灶全标出来  3，4 由于无法标出所有就不标了
+    def lesionFusion(self, LesionMask, GradeLabel):
+        MaskList = []
+        for i in range(GradeLabel.shape[0]):
+            if GradeLabel[i] == 1:
+                lm = LesionMask[i:i + 1]
+
+            elif GradeLabel[i] == 2:
+                lm = LesionMask[i:i + 1]
+
+            elif GradeLabel[i] == 3:
+                lm = LesionMask[i:i + 1, 1:2]
+                lm = 1 - lm * 0
+
+            elif GradeLabel[i] == 4:
+                lm = LesionMask[i:i + 1, 1:2]
+                lm = 1 - lm * 0
+
             else:
                 continue
             lm = torch.max(lm, dim=1, keepdim=True)[0]

@@ -178,7 +178,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # Master 0 运行模型  (内置运行 Branch 1 Segmentation)
         # 设定有多少样本需要进行支路的运算
-        """
+        #"""
         model.transimitBatchDistribution((grade_num+seg_num-model.branch_img_num, model.branch_img_num))
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
@@ -186,7 +186,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #"""
 
         # 提前进行样本扩增  CJY at 2020.4.5
-        #"""
+        """
         soft_mask = seg_gt_masks
         soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
         soft_mask = 1 - soft_mask
@@ -206,7 +206,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if p == 1:
             for i in range(grade_num):
                 if labels[i] == 0:
-                    imgs[i:i + 1] = imgs[i:i + 1] * soft_mask
+                    img0 = imgs[i:i + 1] = imgs[i:i + 1] * soft_mask
 
         model.transimitBatchDistribution(0)
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
@@ -354,7 +354,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif model.maskedImgReloadType == "seg_gtmask":
                 soft_mask = seg_gt_masks
                 soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
-                max_kernel_size = 80#random.randint(30, 160)
+                max_kernel_size = random.randint(30, 240)
                 soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size*2+1, stride=1, padding=max_kernel_size)
                 #soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
                 #soft_mask = 1 - soft_mask
@@ -381,7 +381,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             # (2).生成masked_img
             rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
-            rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2,keepdim=True)
+            #rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2,keepdim=True)
             pos_masked_img = soft_mask * rimgs #+ (1-soft_mask) * rimg_mean
             neg_masked_img = (1-soft_mask) * rimgs #+ soft_mask * rimg_mean
 
@@ -433,7 +433,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0, "neg_masked_img_loss":0.2, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0.2, "neg_masked_img_loss":0.2, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():

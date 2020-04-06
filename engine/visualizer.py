@@ -126,14 +126,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
             #"""
             soft_mask = seg_masks
-            soft_mask = model.lesionFusionForV(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
-            max_kernel_size = random.randint(30, 160)
+            soft_mask = model.lesionFusion(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
+            max_kernel_size = 1#random.randint(30, 160)
             soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1, padding=max_kernel_size)
             rimgs = seg_imgs
             rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
             pos_masked_img = soft_mask * rimgs# + (1 - soft_mask) * rimg_mean
             neg_masked_img = (1 - soft_mask) * rimgs# + soft_mask * rimg_mean
-            seg_imgs = pos_masked_img#pos_masked_img
+            seg_imgs = neg_masked_img#pos_masked_img
             seg_masks = soft_mask
             #"""
 
@@ -147,7 +147,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
             #"""
             #"""["denseblock4"]#
-            target_layers = ["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+            target_layers = ["denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:
                 #copy.deepcopy(model)
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
