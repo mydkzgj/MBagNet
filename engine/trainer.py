@@ -398,6 +398,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #nm_logits = model(neg_masked_img)
             #"""
         else:
+            om_logits = None
             pm_logits = None
             nm_logits = None
 
