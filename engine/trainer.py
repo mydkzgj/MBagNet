@@ -371,8 +371,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 pass
 
             # (2).生成masked_img
-            rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
-            rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2,keepdim=True)
+            #rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
+            #rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2,keepdim=True)
             #pos_masked_img = soft_mask * rimgs #+ (1-soft_mask) * rimg_mean
             #neg_masked_img = (1-soft_mask) * rimgs #+ soft_mask * rimg_mean
 
