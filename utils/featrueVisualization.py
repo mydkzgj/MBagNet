@@ -320,7 +320,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     import matplotlib.pyplot as plt
     global save_img_index
     guided_backpropagation_flag = 0
-    label_num = 1  #1 or 6
+    label_num = 6  #1 or 6
     if guided_backpropagation_flag == 1:
         # Guided backprop
         GBP = gg.GuidedBackprop(model)
