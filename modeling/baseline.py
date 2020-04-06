@@ -371,28 +371,32 @@ class Baseline(nn.Module):
             if GradeLabel[i] == 1:
                 lm = LesionMask[i:i + 1, 2:3]
 
+                max_kernel_size = 200
+                lm = torch.nn.functional.max_pool2d(lm, kernel_size=max_kernel_size * 2 + 1, stride=1, padding=max_kernel_size)
+                lm = 1 - lm
                 #lm = 0 * lm   #需要掩盖的病灶
             elif GradeLabel[i] == 2:
-                lm1 = LesionMask[i:i + 1, 0:2]
-                lm2 = LesionMask[i:i + 1, 3:4]
+                #lm1 = LesionMask[i:i + 1, 0:2]
+                #lm2 = LesionMask[i:i + 1, 3:4]
+                #lm = torch.cat([lm1, lm2], dim=1)
+
+                #lm = LesionMask[i:i + 1]    # 不区分病灶
+
+                lm = LesionMask[i:i + 1, 2:3]
+            elif GradeLabel[i] == 3:
+                #lm = LesionMask[i:i + 1, 1:2]
+                #lm = 1 - lm * 0
+
+                lm1 = LesionMask[i:i + 1, 0:1]
+                lm2 = LesionMask[i:i + 1, 2:4]
                 lm = torch.cat([lm1, lm2], dim=1)
 
-                #lm = LesionMask[i:i + 1]
-
-                #lm = LesionMask[i:i + 1, 2:3]
-            elif GradeLabel[i] == 3:
-                lm = LesionMask[i:i + 1, 1:2]
-                lm = 1 - lm * 0
-
-                #lm1 = LesionMask[i:i + 1, 0:1]
-                #lm2 = LesionMask[i:i + 1, 2:4]
-                #lm = torch.cat([lm1, lm2], dim=1)
             elif GradeLabel[i] == 4:
-                lm = LesionMask[i:i + 1, 1:2]
-                lm = 1 - lm * 0
-                #lm1 = LesionMask[i:i + 1, 0:1]
-                #lm2 = LesionMask[i:i + 1, 2:4]
-                #lm = torch.cat([lm1, lm2], dim=1)
+                #lm = LesionMask[i:i + 1, 1:2]
+                #lm = 1 - lm * 0
+                lm1 = LesionMask[i:i + 1, 0:1]
+                lm2 = LesionMask[i:i + 1, 2:4]
+                lm = torch.cat([lm1, lm2], dim=1)
             else:
                 continue
             lm = torch.max(lm, dim=1, keepdim=True)[0]

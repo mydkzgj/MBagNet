@@ -124,7 +124,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
             seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
 
-            #"""
+            """
             soft_mask = seg_masks
             soft_mask = model.lesionFusion(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
             max_kernel_size = 80#max_kernel_size = random.randint(20, 40)#160  # random.randint(30, 320)
@@ -147,7 +147,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
             #"""
             #"""["denseblock4"]#
-            target_layers = ["denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+            target_layers = ["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:
                 #copy.deepcopy(model)
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0])
