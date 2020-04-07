@@ -224,7 +224,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         om_logits = m_logits[0:m_logits.shape[0] // 3]
         pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
         nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
-        logits = logits[0:grade_num+seg_num]
+        #logits = logits[0:grade_num+seg_num]
 
         om_labels = labels[labels.shape[0]-rimgs.shape[0]:labels.shape[0]]
         pm_labels = om_labels
