@@ -434,7 +434,7 @@ class Baseline(nn.Module):
         return FusionMask
 
     # 将grade1，2的病灶全标出来  3，4 由于无法标出所有就不标了
-    def lesionFusion(self, LesionMask, GradeLabel):
+    def lesionFusionForV3(self, LesionMask, GradeLabel):
         MaskList = []
         for i in range(GradeLabel.shape[0]):
             if GradeLabel[i] == 1:

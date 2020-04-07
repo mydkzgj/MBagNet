@@ -320,7 +320,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     import matplotlib.pyplot as plt
     global save_img_index
     guided_backpropagation_flag = 0
-    label_num = 6  #1 or 6
+    label_num = 6  #1 or 6  or 2
     if guided_backpropagation_flag == 1:
         # Guided backprop
         GBP = gg.GuidedBackprop(model)
@@ -328,6 +328,11 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     for show_label in range(label_num):  #6
         if label_num == 1:
             show_label = labels[0].item()
+        elif label_num == 2:
+            if show_label == 0:
+                show_label = labels[0].item()
+            elif show_label == 1:
+                show_label = p_labels[0].item()
         if isinstance(target_layers, list):
             cam_list = []  # 求总的cam
             for target_layer in target_layers:
