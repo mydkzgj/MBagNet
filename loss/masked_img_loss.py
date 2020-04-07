@@ -141,7 +141,7 @@ class PosMaskedImgLoss(object):
         #pm_logits = pos_masked_logits[one_hot_label.bool()]
         #loss = torch.pow(pm_logits - ori_logits, 2)  # 只限制pm-logits好像不太好
 
-        d_logits = pos_masked_logits - origin_logits
+        d_logits = pos_masked_logits - origin_logits.detach()
         d_logits = d_logits * (one_hot_label - 0.5) * (-2)
         d_logits = torch.relu(d_logits)
         loss = torch.sum(d_logits, dim=1)
