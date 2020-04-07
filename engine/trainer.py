@@ -221,7 +221,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
         #logits = logits[0:grade_num+seg_num]
 
-        om_labels = labels[logits.shape[0]-rimgs.shape[0]:logits.shape[0]]
+        om_labels = labels[labels.shape[0]-rimgs.shape[0]:labels.shape[0]]
         pm_labels = om_labels
         nm_labels = om_labels * 0
         labels = torch.cat([labels, pm_labels, nm_labels], dim=0)
