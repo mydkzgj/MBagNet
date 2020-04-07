@@ -365,7 +365,7 @@ class Baseline(nn.Module):
         self.batchDistribution = BD
         self.base.batchDistribution = BD
 
-    def lesionFusionForV(self, LesionMask, GradeLabel):
+    def lesionFusion(self, LesionMask, GradeLabel):
         MaskList = []
         for i in range(GradeLabel.shape[0]):
             if GradeLabel[i] == 1:
