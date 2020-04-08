@@ -243,7 +243,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
 
 
-
+        gcam = torch.relu(gcam)
 
         m_logits = gcam[gcam.shape[0]-rimgs.shape[0]*3:gcam.shape[0]]#logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
         om_logits = m_logits[0:m_logits.shape[0] // 3]
