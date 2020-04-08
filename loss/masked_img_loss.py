@@ -136,7 +136,7 @@ class PosMaskedImgLoss(object):
         # 由pos_masked区域主要提供logit
         reload_label = label[label.shape[0]-pos_masked_logits.shape[0]:label.shape[0]]
         origin_logits = origin_logits[origin_logits.shape[0]-pos_masked_logits.shape[0]:origin_logits.shape[0]]
-        one_hot_label = torch.nn.functional.one_hot(reload_label, pos_masked_logits.shape[1]).float()
+        #one_hot_label = torch.nn.functional.one_hot(reload_label, pos_masked_logits.shape[1]).float()
         #ori_logits = origin_logits[one_hot_label.bool()]
         #pm_logits = pos_masked_logits[one_hot_label.bool()]
         #loss = torch.pow(pm_logits - ori_logits, 2)  # 只限制pm-logits好像不太好
