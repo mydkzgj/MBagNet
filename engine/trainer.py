@@ -190,14 +190,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         soft_mask = seg_gt_masks
         soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
 
-        max_kernel_size = 30#random.randint(30, 240)
+        max_kernel_size = 40#random.randint(30, 240)
         soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1,
                                                    padding=max_kernel_size)
 
         rimgs = imgs[imgs.shape[0] - soft_mask.shape[0]:imgs.shape[0]].clone()
         rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
-        pos_masked_img = soft_mask * rimgs  # + (1-soft_mask) * rimg_mean
-        neg_masked_img = (1 - soft_mask) * rimgs  # + soft_mask * rimg_mean
+        pos_masked_img = soft_mask * rimgs  + (1-soft_mask) * rimg_mean
+        neg_masked_img = (1 - soft_mask) * rimgs  + soft_mask * rimg_mean
 
         #for i in range(grade_num):
         #    if labels[i] == 0:
@@ -488,7 +488,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0.1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":0.2, "neg_masked_img_loss":0, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():
