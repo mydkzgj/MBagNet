@@ -145,7 +145,7 @@ class PosMaskedImgLoss(object):
         #d_logits = d_logits * (one_hot_label - 0.5) * (-2)
         #d_logits = torch.relu(d_logits)
         #loss = torch.sum(d_logits, dim=1)
-        loss = torch.pow(pos_masked_logits - origin_logits.detach(), 2)
+        loss = torch.pow(pos_masked_logits - origin_logits, 2)
         loss = torch.sum(loss.view(loss.shape[0], -1), dim=-1)
 
         #loss = torch.abs(pm_logits - ori_logits)#/(torch.abs(ori_logits).clamp(min=1E-12).detach())    #相对距离
