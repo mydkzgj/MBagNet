@@ -245,7 +245,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
 
 
-        m_logits = gcam[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]#logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
+        m_logits = gcam[gcam.shape[0]-rimgs.shape[0]*3:gcam.shape[0]]#logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
         om_logits = m_logits[0:m_logits.shape[0] // 3]
         pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
         nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
