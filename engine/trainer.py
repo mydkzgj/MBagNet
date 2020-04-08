@@ -245,12 +245,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #pos = torch.gt(gcam, 0).float()
         #gcam_pos = gcam * pos
         #gcam_neg = gcam * (1 - pos)
-        sigma = 1
-        gcam_pos_abs_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        #sigma = 1
+        #gcam_pos_abs_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+        #    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
         #gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
         #    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        gcam = gcam / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
+        #gcam = gcam / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # [-1,+1]
 
 
         m_logits = gcam[gcam.shape[0]-rimgs.shape[0]*3:gcam.shape[0]]
