@@ -233,7 +233,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                            model.inter_output[i].shape[0] - num_behind:model.inter_output[i].shape[0]]
             if model.target_layer[i] == "denseblock4" and model.hierarchyClassifier == 0:  # 最后一层是denseblock4的输出
                 gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-                gcam = torch.softmax(gcam, dim=-1)
+                #gcam = torch.softmax(gcam, dim=-1)
 
                 pick_list = []
                 for j in range(pick_label.shape[0]):
