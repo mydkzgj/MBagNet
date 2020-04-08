@@ -219,7 +219,33 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         grade_logits = logits[0:grade_num]
 
 
-        m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
+        # 新增生成denseblock4  gcam
+        target_layer_num = len(model.target_layer)
+
+        om_labels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
+        pm_labels = om_labels
+        nm_labels = om_labels * 0
+        pick_label = torch.cat([om_labels, om_labels, om_labels], dim=0)
+
+        num_behind = rimgs.shape[0] * 3
+        for i in range(target_layer_num):
+            inter_output = model.inter_output[i][
+                           model.inter_output[i].shape[0] - num_behind:model.inter_output[i].shape[0]]
+            if model.target_layer[i] == "denseblock4" and model.hierarchyClassifier == 0:  # 最后一层是denseblock4的输出
+                gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
+                gcam = torch.softmax(gcam, dim=-1)
+
+                pick_list = []
+                for j in range(pick_label.shape[0]):
+                    pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
+                gcam = torch.cat(pick_list, dim=0)
+            else:
+                gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+
+
+
+
+        m_logits = gcam[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]#logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
         om_logits = m_logits[0:m_logits.shape[0] // 3]
         pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
         nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
@@ -345,7 +371,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_gtmasks = seg_masks
                 gcam_labels = labels[labels.shape[0]-gcam_gtmasks.shape[0]:labels.shape[0]]
                 gcam_masks = gcam_list
-            elif model.gcamSupervisedType == "none":
+            else:# model.gcamSupervisedType == "none":
                 gcam_masks = None
                 gcam_gtmasks = None
                 gcam_labels = None
