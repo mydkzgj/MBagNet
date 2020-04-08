@@ -269,7 +269,7 @@ class Baseline(nn.Module):
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
         # GradCAM 如果其不为none，那么就设置hook
-        if 1:#self.gcamState == True:
+        if self.gcamState == True:
             self.inter_output = []
             self.inter_gradient = []
 
