@@ -190,7 +190,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         soft_mask = seg_gt_masks
         soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
 
-        max_kernel_size = 20#random.randint(30, 240)
+        max_kernel_size = 5#random.randint(30, 240)
         soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1,
                                                    padding=max_kernel_size)
 
@@ -218,15 +218,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 
-
+        """
         # 新增生成denseblock4  gcam
         target_layer_num = len(model.target_layer)
-
         om_labels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
         pm_labels = om_labels
         nm_labels = om_labels * 0
-        pick_label = torch.cat([om_labels, om_labels, om_labels], dim=0)
-
+        pick_label = torch.cat([om_labels, om_labels, om_labels], dim=0)       
         num_behind = rimgs.shape[0] * 3
         for i in range(target_layer_num):
             inter_output = model.inter_output[i][
@@ -244,11 +242,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
 
         gcam = torch.relu(gcam)
+        m_logits = gcam[gcam.shape[0]-rimgs.shape[0]*3:gcam.shape[0]]
+        #"""
 
-        m_logits = gcam[gcam.shape[0]-rimgs.shape[0]*3:gcam.shape[0]]#logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
+        m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
         om_logits = m_logits[0:m_logits.shape[0] // 3]
-        pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
-        nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
+        pm_logits = None#m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
+        nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
         logits = logits[0:grade_num+seg_num]
 
         #om_labels = labels[labels.shape[0]-rimgs.shape[0]:labels.shape[0]]
@@ -477,7 +477,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         gl_weight = [1, 1, 1, 1]
         loss = 0
         for lossKey in losses.keys():

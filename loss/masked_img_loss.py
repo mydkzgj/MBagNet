@@ -216,7 +216,7 @@ class NegMaskedImgLoss(object):
         #print(pos_masked_logits)
         #print(neg_masked_logits)
 
-        #loss = score[one_hot_label.bool()]
+        loss = score[one_hot_label.bool()]
         # 对于label1和label2，去除所有病灶后，应该让label之前的label的score之和最大
         #score_list = []
         #for i in range(score.shape[0]):
@@ -226,8 +226,8 @@ class NegMaskedImgLoss(object):
         #loss = -torch.log(score)
 
         # 若grade1，2标出所有病灶，那么去除这些病灶后，label应该为0
-        reload_label0 = reload_label * 0
-        loss = F.cross_entropy(neg_masked_logits, reload_label0, reduction="none")
+        #reload_label0 = reload_label * 0
+        #loss = F.cross_entropy(neg_masked_logits, reload_label0, reduction="none")
 
         # 挑选指定sample的loss
         pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)
