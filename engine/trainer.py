@@ -218,7 +218,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 
-        """
+        #"""
         # 新增生成denseblock4  gcam
         target_layer_num = len(model.target_layer)
         om_labels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
@@ -240,15 +240,20 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             else:
                 gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
 
-
+        #
         gcam = torch.relu(gcam)
+        gcam_pos_abs_max = torch.max(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        gcam = gcam/gcam_pos_abs_max
+
+
         m_logits = gcam[gcam.shape[0]-rimgs.shape[0]*3:gcam.shape[0]]
         #"""
 
-        m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
+        #m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
         om_logits = m_logits[0:m_logits.shape[0] // 3]
-        pm_logits = None#m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
-        nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
+        pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
+        nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
         logits = logits[0:grade_num+seg_num]
 
         #om_labels = labels[labels.shape[0]-rimgs.shape[0]:labels.shape[0]]
