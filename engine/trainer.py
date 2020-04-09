@@ -297,7 +297,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                                                      grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
             model.inter_gradient = list(inter_gradients)
 
-            #model.zero_grad()
+            model.zero_grad()
 
             # 生成CAM
             gcam_list = []
