@@ -178,7 +178,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # Master 0 运行模型  (内置运行 Branch 1 Segmentation)
         # 设定有多少样本需要进行支路的运算
-        """
+        #"""
         model.transimitBatchDistribution((grade_num+seg_num-model.branch_img_num, model.branch_img_num))
         model.transmitClassifierWeight()   #如果是BOF 会回传分类器权重
         logits = model(imgs)               #为了减少显存，还是要区分grade和seg
