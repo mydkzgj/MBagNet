@@ -364,6 +364,8 @@ class Baseline(nn.Module):
 
 
     def forward_hook_fn(self, module, input, output):
+        self.inter_output.append(output)
+        """
         if self.hierarchyClassifier == 0:
             if self.batchDistribution != 0:
                 if self.batchDistribution != 1:
@@ -374,6 +376,7 @@ class Baseline(nn.Module):
                     self.inter_output.append(output)  # 将输入图像的梯度获取
         else:
             self.inter_output.append(output)   #为了求其梯度，所以需要保存该模块输出的所有值
+        """
 
 
     def backward_hook_fn(self, module, grad_in, grad_out):
