@@ -45,9 +45,9 @@ MODEL:
  SEG_NUM_CLASSES: 4
  SEG_SUPERVISED_TYPE: "none"                                               # "none", "seg_gtmask"
  #(2). Grad-CAM Branch 
- GCAM_SUPERVISED_TYPE: "seg_gtmask"                                 #"none", "seg_gtmask", "seg_mask" 
+ GCAM_SUPERVISED_TYPE: "none"                                 #"none", "seg_gtmask", "seg_mask" 
  #(3). Reload Branch
- MASKED_IMG_RELOAD_TYPE: "none"             #"none", "seg_gtmask", "seg_mask", "gcam_mask",  "joint"
+ MASKED_IMG_RELOAD_TYPE: "gcam_mask"             #"none", "seg_gtmask", "seg_mask", "gcam_mask",  "joint"
  
 
 # -----------------------------------------------------------------------------

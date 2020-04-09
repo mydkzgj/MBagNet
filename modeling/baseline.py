@@ -291,7 +291,7 @@ class Baseline(nn.Module):
 
 
     def forward(self, x):
-        if self.gcamSupervisedType != "none":
+        if self.gcamState == True:
             self.inter_output.clear()
             self.inter_gradient.clear()
 
