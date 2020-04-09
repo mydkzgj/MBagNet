@@ -269,12 +269,12 @@ class Baseline(nn.Module):
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
         # GradCAM 如果其不为none，那么就设置hook
-        if 1:#self.gcamState == True:
+        if self.gcamState == True:
             self.inter_output = []
             self.inter_gradient = []
 
             self.target_layer = ["denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
-            #"denseblock1", "denseblock2", "denseblock3",
+            #"denseblock1", "denseblock2", "denseblock3",   ["denseblock4"]#  ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
             if self.target_layer != []:
                 for tl in self.target_layer:
                     for module_name, module in self.base.features.named_modules():
@@ -285,12 +285,15 @@ class Baseline(nn.Module):
                             #module.register_backward_hook(self.backward_hook_fn)  不以backward求取gcam了
                             break
 
-
+        self.guidedBP = True
+        if self.guidedBP == True:
+            for module_name, module in self.named_modules():
+                if isinstance(module, torch.nn.ReLU) == True:
+                    module.register_backward_hook(self.guided_backward_hook_fn)
+        self.guidedBPstate = 0   #用的时候再使用
 
     def forward(self, x):
-        self.inter_output.clear()
-        self.inter_gradient.clear()
-        if self.gcamSupervisedType != "none":
+        if self.gcamState == True:
             self.inter_output.clear()
             self.inter_gradient.clear()
 
@@ -349,6 +352,19 @@ class Baseline(nn.Module):
                 # self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
                 self.inter_gradient.append(grad_out[0])  # 将输入图像的梯度获取
     """
+
+    # Guided Backpropgation
+    #用于Relu处的hook
+    def guided_backward_hook_fn(self, module, grad_in, grad_out):
+        #self.gradients = grad_in[1]
+        if self.guidedBPstate == True:
+            pos_grad_out = grad_out[0].gt(0)
+            result_grad = pos_grad_out * grad_in[0]
+            #print(1)
+            return (result_grad,)
+        else:
+            #print(2)
+            pass
 
 
     def transmitClassifierWeight(self):   #将线性分类器回传到base中

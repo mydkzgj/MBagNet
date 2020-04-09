@@ -282,68 +282,60 @@ class GradCamMaskLoss(object):
             return [0, 0, 0, 0]
 
         # seg_mask 需要根据病灶重新生成分级所需要的掩膜
+        # 每一个疾病提出三种与之相关的病灶： 1：决策依据   2：非决策依据   3：未知
         #"""
         NewSegMask = []
         for i in range(gcam_label.shape[0]):
             if gcam_label[i] == 1:
-                sm_p = gcam_gtmask[i:i + 1, 2:3]
-
+                # 决策依据
+                sm_p = gcam_gtmask[i:i + 1, 2:3]   #MA
+                # 非决策依据
                 #sm_n1 = gcam_gtmask[i:i + 1, 0:2]
                 #sm_n2 = gcam_gtmask[i:i + 1, 3:4]
                 #sm_n = torch.cat([sm_n1, sm_n2], dim=1)
                 sm_n = 1 - sm_p
-
+                # 未知
                 sm_un = 1 - (sm_p + sm_n)
-
             elif gcam_label[i] == 2:
+                # 决策依据
                 sm_p1 = gcam_gtmask[i:i + 1, 0:2]
                 sm_p2 = gcam_gtmask[i:i + 1, 3:4]
                 sm_p = torch.cat([sm_p1, sm_p2], dim=1)
                 sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]
-                #sm = seg_mask[i:i + 1, 0:4]  #还是应该去除2  #但是有一个样本有问题，他只有MA，但是分为了grade2
-
+                #sm_p = seg_mask[i:i + 1, 0:4]  #还是应该去除2  #但是有一个样本有问题，他只有MA，但是分为了grade2
+                # 非决策依据
                 #sm_n = gcam_gtmask[i:i + 1, 2:3]
                 sm_n = 1 - sm_p
-
+                # 未知
                 sm_un = 1 - (sm_p + sm_n)
-
             elif gcam_label[i] == 3:
                 return [0,0,0,0]
-                sm_p = gcam_gtmask[i:i + 1, 1:2]
-
+                # 决策依据
+                sm_p = 0 * gcam_gtmask[i:i + 1, 1:2]   # 出血是不确定的
+                #sm_p = gcam_gtmask[i:i + 1, 1:2]
+                # 非决策依据
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
                 sm_n = torch.cat([sm_n1, sm_n2], dim=1)  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
                 sm_n = torch.max(sm_n, dim=1, keepdim=True)[0]
-                sm_n = sm_n * (1-sm_p)
-
-                sm_un = 1 - sm_n
-
-                sm_p = sm_p * 0
-
+                sm_n = sm_n * (1 - gcam_gtmask[i:i + 1, 1:2])   #主要是由于标注有重叠的地方
+                # 未知
+                sm_un = 1 - (sm_p + sm_n)
             elif gcam_label[i] == 4:
                 return [0,0,0,0]
-                sm_p = gcam_gtmask[i:i + 1, 1:2]
-
+                # 决策依据
+                sm_p = 0 * gcam_gtmask[i:i + 1, 1:2]
+                # 非决策依据
                 sm_n1 = gcam_gtmask[i:i + 1, 0:1]
                 sm_n2 = gcam_gtmask[i:i + 1, 2:4]
                 sm_n = torch.cat([sm_n1, sm_n2], dim=1)  # 对于3，4不能如此，因为其他位置可能会有别的病灶，不能掩盖，最后一层定位不准确
-                sm_n = sm_n * (1 - sm_p)
-
-                sm_un = 1 - sm_n
-
-                sm_p = sm_p * 0
+                sm_n = sm_n * (1 - gcam_gtmask[i:i + 1, 1:2])  #主要是由于标注有重叠的地方
+                # 未知
+                sm_un = 1 - (sm_p + sm_n)
             else:  # 如果不是1-4级，就不要用于监督了，放弃该样本
                 continue
 
-            #sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]
-            #sm_n = torch.max(sm_n, dim=1, keepdim=True)[0]
-            #sm_n = 1 - sm_p
-
-            sm = sm_p*3 + sm_un*2 + sm_n  #torch.cat([sm_p*3, sm_un*2, sm_n], dim=1)
-            #sm = torch.max(sm, dim=1, keepdim=True)[0]  # 那么sm就是-1：抑制  1：激活  0：未知
-            sm = (sm - 1)/2
-            #sm = sm_p
+            sm = (sm_p*3 + sm_un*2 + sm_n - 1)/2   # 那么sm就是 1：决策  0.5：未知  0：非决策
             NewSegMask.append(sm)
         gcam_gtmask = torch.cat(NewSegMask, dim=0)
         #"""
@@ -364,26 +356,20 @@ class GradCamMaskLoss(object):
             if gcam_mask.shape[-1] != seg_mask_c.shape[-1]:
                 gcam_gtmask = F.adaptive_max_pool2d(seg_mask_c, (gcam_mask.shape[-2], gcam_mask.shape[-1]))
 
-
-            # 依据pos和neg设置阈值
-            p_sigma = 0.6#0.8
-            n_sigma = 0
-            gcam_mask_p = gcam_mask * gcam_gtmask
-            gcam_mask_p_ltsigma = torch.lt(gcam_mask_p, p_sigma)
-            gcam_mask_n = gcam_mask * (1 - gcam_gtmask)
-            gcam_mask_n_gtsigma = torch.gt(gcam_mask_n, n_sigma)
-
-            gcam_mask_sigma = gcam_mask_p_ltsigma | gcam_mask_n_gtsigma
+            # gcam [-1, 1]
+            # 依据pos和neg设置阈值   用于决策的数据高于pos_th阈值，非决策低于neg_th
+            pos_th = 0
+            neg_th = 0
 
             # 计算交叉熵损失
             #loss = F.binary_cross_entropy(gcam_mask, gcam_gtmask, reduction="none")
-            gcam_gtscore = gcam_gtmask * p_sigma + (1-gcam_gtmask) * n_sigma
+            gcam_gtscore = gcam_gtmask * pos_th + (1-gcam_gtmask) * neg_th
             loss = torch.pow(gcam_mask - gcam_gtscore, 2)
 
-            # 只取seg_mask为1的位置处的loss计算 因为为0的位置处不清楚重要性
-            region1 = torch.eq(gcam_gtmask, 1).float()  #torch.ne(gcam_gtmask, 0.5).float()
+            # region1 决策区域 & gcam < pos_th  (小于pos_th的才需要提升)
+            region1 = torch.eq(gcam_gtmask, 1) & torch.lt(gcam_mask, pos_th)   # 决策区域 & gcam > pos_th
             pos_num = torch.sum(region1)
-            pos_loss_map = loss * region1 * gcam_mask_p_ltsigma
+            pos_loss_map = loss * region1
             if pos_num != 0:
                 pos_loss = torch.sum(pos_loss_map) / pos_num
             else:
@@ -393,24 +379,27 @@ class GradCamMaskLoss(object):
             #gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=81, stride=1, padding=40)
 
             # """
-            region2 = torch.eq(gcam_gtmask, 0).float() #F.max_pool2d(seg_mask, kernel_size=11, stride=1, padding=5)
+            #region2 非决策区域 & gcam > neg_th  (大于neg_th的才需要降低)
+            region2 = torch.eq(gcam_gtmask, 0) & torch.gt(gcam_mask, neg_th)
             neg_num = torch.sum(region2)
-            neg_loss_map = loss * region2 * gcam_mask_n_gtsigma
+            neg_loss_map = loss * region2
             if neg_num != 0:
                 neg_loss = torch.sum(neg_loss_map) / neg_num
             else:
                 neg_loss = 0
             # """
 
-            # a = torch.isnan(pos_loss)
-            # if a.item() == 1:
-            #    print("Nan")
             if index == len(gcam_mask_list)-1:
-                total_loss_list.append(pos_loss)#+neg_loss)
+                total_loss_list.append(pos_loss+neg_loss)
             else:
-                total_loss_list.append(pos_loss)
+                total_loss_list.append(pos_loss+neg_loss)   #pos_loss
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)
 
         return total_loss_list
+
+
+# a = torch.isnan(pos_loss)
+# if a.item() == 1:
+#    print("Nan")

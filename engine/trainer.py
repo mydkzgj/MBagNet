@@ -185,7 +185,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         grade_logits = logits[0:grade_num]
         #"""
 
-        # 提前进行样本扩增  CJY at 2020.4.5
+        # Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         """
         soft_mask = seg_gt_masks
         soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
@@ -293,11 +293,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             # 求取model.inter_output对应的gradient
             # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
+            model.guidedBPstate = 1
             inter_gradients = torch.autograd.grad(outputs=logits, inputs=model.inter_output,
                                                      grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
             model.inter_gradient = list(inter_gradients)
-
-            model.zero_grad()
+            model.guidedBPstate = 0
 
             # 生成CAM
             gcam_list = []
@@ -355,13 +355,20 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 # """
 
                 #gcam = torch.tanh(gcam*4)
+                #gcam = torch.relu(gcam)
                 # 插值
                 gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
-            # 进行特定的插值
-            """
+            # 多尺度下的gcam进行融合
             overall_gcam = torch.cat(gcam_list, dim=1)
+            # mean值法
+            overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
+            # max值法
+            #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
+
+            #gcam_list = [overall_gcam]
+            """
             #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
             #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
             overall_gcam_index = torch.max(overall_gcam.abs(), dim=1, keepdim=True)[1]
@@ -396,7 +403,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             gcam_gtmasks = None
             gcam_labels = None
 
-            # Branch 3 Masked Img Reload
+        # Branch 3 Masked Img Reload
         if model.reloadState == True:
             #(1).生成soft_mask
             if model.maskedImgReloadType == "seg_mask":
@@ -411,23 +418,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 w = 8
                 soft_mask = torch.sigmoid(w * (overall_gcam - sigma))  # overall_gcam [0,1]
             elif model.maskedImgReloadType == "seg_gtmask":
-                pass
-                #soft_mask = seg_gt_masks
-                #soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
-                #max_kernel_size = random.randint(30, 240)
-                #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size*2+1, stride=1, padding=max_kernel_size)
+                #pass
+                soft_mask = seg_gt_masks
+                soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0]-soft_mask.shape[0]:labels.shape[0]])
+                max_kernel_size = random.randint(30, 240)
+                soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size*2+1, stride=1, padding=max_kernel_size)
                 #soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=81, stride=1, padding=40)
                 #soft_mask = 1 - soft_mask
 
-                # 模板
-                """
-                a = torch.Tensor([0.485, 0.456, 0.406])
-                b = torch.Tensor([0.229, 0.224, 0.225])
-                c = (0-a)/b
-                new_soft_mask = (1 - soft_mask).expand(soft_mask.shape[0], 3, soft_mask.shape[2], soft_mask.shape[3])
-                c = c.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(new_soft_mask).cuda()
-                sm = c * new_soft_mask
-                #"""
             elif model.maskedImgReloadType == "joint":
                 if model.segmentationType != "denseFC":
                     raise Exception("segmentationType can't match maskedImgReloadType")
@@ -440,10 +438,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 pass
 
             # (2).生成masked_img
-            #rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
-            #rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2,keepdim=True)
-            #pos_masked_img = soft_mask * rimgs #+ (1-soft_mask) * rimg_mean
-            #neg_masked_img = (1-soft_mask) * rimgs #+ soft_mask * rimg_mean
+            rimgs = imgs[imgs.shape[0]-soft_mask.shape[0]:imgs.shape[0]]
+            rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2,keepdim=True)
+            pos_masked_img = soft_mask * rimgs #+ (1-soft_mask) * rimg_mean
+            neg_masked_img = (1-soft_mask) * rimgs #+ soft_mask * rimg_mean
 
             # (3).reload maskedImg
             # 使用参数相同的网络，但是不回传
@@ -455,7 +453,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             nm_logits = model2(neg_masked_img)
             #"""
             # 使用同一个网络，回传梯度
-            """
+            # 问题：1.由于网络有BN，使得其中的running参数在第一次forword后发生更新，所以现在的model与第一次的model不一致
+            #      2.网络的输入就没有考虑masked形式图像的输入
+            # 综上，是否应该在第一次输入时就将pos-masked-img和neg-masked-img输入
+            #"""
             model.eval()
             model.transimitBatchDistribution(0)
             masked_img = torch.cat([rimgs, pos_masked_img, neg_masked_img], dim=0)
@@ -480,6 +481,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #为了减少"pos_masked_img_loss" 和 "cross_entropy_loss"之间的冲突，特设定动态weight，使用 "cross_entropy_loss" detach
         #pos_masked_img_loss_weight = 1/(1+losses["cross_entropy_loss"].detach())
 
+        # 查看梯度量级
         """
         l1 = losses["cross_entropy_loss"]
         l2 = losses["gcam_mask_loss"][0]
