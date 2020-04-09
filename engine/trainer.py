@@ -288,13 +288,16 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             #one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
 
+            # 回传one-hot向量
+            #logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)  #这样会对所有w求取梯度，且建立回传图会很大
+
             # 求取model.inter_output对应的gradient
             # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
             inter_gradients = torch.autograd.grad(outputs=logits, inputs=model.inter_output,
                                                      grad_outputs=one_hot_labels, retain_graph=True, create_graph=True)
             model.inter_gradient = list(inter_gradients)
 
-            model.zero_grad()
+            #model.zero_grad()
 
             # 生成CAM
             gcam_list = []
