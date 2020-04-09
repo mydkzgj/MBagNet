@@ -275,6 +275,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
 
             # 进行特定的插值
+            overall_gcam = gcam
             """
             overall_gcam = torch.cat(gcam_list, dim=1)
             #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
