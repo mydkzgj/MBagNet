@@ -186,7 +186,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #"""
 
         # 提前进行样本扩增  CJY at 2020.4.5
-        #"""
+        """
         soft_mask = seg_gt_masks
         soft_mask = model.lesionFusion(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
 
@@ -219,6 +219,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         grade_logits = logits[0:grade_num]
 
         #"""
+        """
         # 新增生成denseblock4  gcam
         target_layer_num = len(model.target_layer)
         om_labels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
@@ -256,6 +257,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         m_logits = gcam[gcam.shape[0]-rimgs.shape[0]*3:gcam.shape[0]]
         #"""
 
+        """
         #m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
         om_logits = m_logits[0:m_logits.shape[0] // 3]
         pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
@@ -319,7 +321,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam = gcam/gcam_var
                 gcam = torch.sigmoid(gcam)
                 #"""
-                """
+                #"""
                 pos = torch.gt(gcam, 0).float()
                 gcam_pos = gcam * pos
                 gcam_neg = gcam * (1 - pos)
