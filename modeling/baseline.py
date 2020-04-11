@@ -300,8 +300,8 @@ class Baseline(nn.Module):
         self.guidedBPstate = 0   #用的时候再使用
 
         # 打印梯度
-        need_print_grad = 1
-        if need_print_grad == 1:
+        self.need_print_grad = 0
+        if self.need_print_grad == 1:
             self.target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
             if self.target_layers != []:
                 for tl in self.target_layers:

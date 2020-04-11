@@ -442,21 +442,22 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         loss = loss/model.accumulation_steps
 
         #"""
-        print("gcam_loss")
-        if isinstance(gcam_loss, torch.Tensor):
-            print(gcam_max_list)
-            loss1 = gcam_loss*weight["gcam_mask_loss"]
-            loss1.backward(retain_graph=True) #retain_graph=True
-        else:
-            loss1 = 0
-        print("cross_entropy_loss")
-        loss2 = losses["cross_entropy_loss"]*weight["cross_entropy_loss"]
-        loss2.backward(retain_graph=True)
-        print("all_loss")
-        print(loss1+loss2)
-        (loss1+loss2).backward(retain_graph=True)
-        print("llll")
-        print(loss)
+        if model.need_print_grad == 1:
+            print("gcam_loss")
+            if isinstance(gcam_loss, torch.Tensor):
+                print(gcam_max_list)
+                loss1 = gcam_loss * weight["gcam_mask_loss"]
+                loss1.backward(retain_graph=True)  # retain_graph=True
+            else:
+                loss1 = 0
+            print("cross_entropy_loss")
+            loss2 = losses["cross_entropy_loss"] * weight["cross_entropy_loss"]
+            loss2.backward(retain_graph=True)
+            print("all_loss")
+            print(loss1 + loss2)
+            (loss1 + loss2).backward(retain_graph=True)
+            print("llll")
+            print(loss)
         #"""
 
         # 反向传播
