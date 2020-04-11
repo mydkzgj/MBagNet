@@ -443,6 +443,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #"""
         print("gcam_loss")
         if isinstance(gcam_loss, torch.Tensor):
+            print(gcam_max_list)
             loss1 = gcam_loss*weight["gcam_mask_loss"]
             loss1.backward(retain_graph=True) #retain_graph=True
         else:
