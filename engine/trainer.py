@@ -257,7 +257,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 inter_gradient = model.inter_gradient[i][model.inter_gradient[i].shape[0]-gcamBatchDistribution[1]:model.inter_gradient[i].shape[0]]
                 if model.target_layer[i] == "denseblock4" and model.hierarchyClassifier==0:   #最后一层是denseblock4的输出，使用forward形式
                     gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-                    gcam = gcam /(gcam.shape[-1]*gcam.shape[-2])  #如此，形式上与其他层计算的gcam量级就相同了
+                    #gcam = gcam /(gcam.shape[-1]*gcam.shape[-2])  #如此，形式上与其他层计算的gcam量级就相同了
                     #gcam = torch.softmax(gcam, dim=-1)
                     pick_label = labels[labels.shape[0] - gcamBatchDistribution[1]:labels.shape[0]]
                     pick_list = []
