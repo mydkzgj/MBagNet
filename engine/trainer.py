@@ -423,10 +423,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":50, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         var_exists = 'gcam_max_list' in locals() or 'gcam_max_list' in globals()
         if var_exists == True:
-            gl_weight = gcam_max_list #[1, 1, 1, 1]#
+            gl_weight = [1, 1, 1, 1]#gcam_max_list #[1, 1, 1, 1]#
         else:
             gl_weight = [1, 1, 1, 1]
         loss = 0
@@ -440,7 +440,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
 
-        """
+        #"""
         print("gcam_loss")
         if isinstance(gcam_loss, torch.Tensor):
             loss1 = gcam_loss*weight["gcam_mask_loss"]
@@ -451,7 +451,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         loss2 = losses["cross_entropy_loss"]*weight["cross_entropy_loss"]
         loss2.backward(retain_graph=True)
         print("all_loss")
-        (loss1+loss2).backward()
+        #(loss1+loss2).backward()
         #"""
 
         # 反向传播
