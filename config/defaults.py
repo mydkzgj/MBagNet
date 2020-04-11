@@ -101,10 +101,12 @@ _C.MODEL.SEG_SUPERVISED_TYPE = "none"
 # 2.Grad-CAM Branch
 # Grad-CAM 的作用限制
 _C.MODEL.GCAM_SUPERVISED_TYPE = "none"   # "none", "seg_gtmask", "seg_mask"  #gcam有如下三种监督方式
+_C.MODEL.GCAM_GUIDED_BP = 0   #是否使用导向反向传播计算gcam所需的梯度
 
 # 3.Reload Branch
 # masked img reload type  "none", "seg_mask", "gcam_mask", "seg_gtmask", "joint"
 _C.MODEL.MASKED_IMG_RELOAD_TYPE = "none"
+_C.MODEL.PRE_RELOAD = 0  #reload是前置（与第一批同时送入）还是后置
 
 
 

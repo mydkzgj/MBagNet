@@ -125,19 +125,19 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
             seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
 
-            #logits2 = model(seg_imgs)
+            logits2 = model(seg_imgs)
 
-            """
+            #"""
             soft_mask = seg_masks
             soft_mask = model.lesionFusion(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
-            max_kernel_size = 60#20#random.randint(30, 240)
+            max_kernel_size = 40#20#random.randint(30, 240)
             soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1, padding=max_kernel_size)
             rimgs = seg_imgs
             rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
             mean = torch.Tensor([[0.485, 0.456, 0.406]]).unsqueeze(-1).unsqueeze(-1).cuda()
             std = torch.Tensor([[0.229, 0.224, 0.225]]).unsqueeze(-1).unsqueeze(-1).cuda()
             rimg_fill = (torch.rand_like(rimgs)-mean)/std
-            pos_masked_img = soft_mask * rimgs #+ (1 - soft_mask) * rimg_fill
+            pos_masked_img = soft_mask * rimgs + (1 - soft_mask) * rimg_fill
             neg_masked_img = (1 - soft_mask) * rimgs# + soft_mask * rimg_mean
             seg_imgs = pos_masked_img#pos_masked_img#
             seg_masks = soft_mask

@@ -346,7 +346,7 @@ class GradCamMaskLoss(object):
         total_loss_list = []
         seg_mask_c = gcam_gtmask
         # 遍历所有生成的gcam_mask
-        for index, gcam_mask in enumerate(reversed(gcam_mask_list)):
+        for index, gcam_mask in enumerate(gcam_mask_list):  #reversed(
             if gcam_mask.shape[0] >= seg_mask_c.shape[0]:
                 gcam_mask = gcam_mask[gcam_mask.shape[0] - seg_mask_c.shape[0]:gcam_mask.shape[0]]
             else:
@@ -358,7 +358,7 @@ class GradCamMaskLoss(object):
 
             # gcam [-1, 1]
             # 依据pos和neg设置阈值   用于决策的数据高于pos_th阈值，非决策低于neg_th
-            pos_th = 0
+            pos_th = 0.5
             neg_th = 0
 
             # 计算交叉熵损失
@@ -367,9 +367,9 @@ class GradCamMaskLoss(object):
             loss = torch.pow(gcam_mask - gcam_gtscore, 2)
 
             # region1 决策区域 & gcam < pos_th  (小于pos_th的才需要提升)
-            region1 = torch.eq(gcam_gtmask, 1) & torch.lt(gcam_mask, pos_th)   # 决策区域 & gcam > pos_th
+            region1 = torch.eq(gcam_gtmask, 1) #& torch.lt(gcam_mask, pos_th)   # 决策区域 & gcam > pos_th
             pos_num = torch.sum(region1)
-            pos_loss_map = loss * region1
+            pos_loss_map = loss * region1 * torch.lt(gcam_mask, pos_th)
             if pos_num != 0:
                 pos_loss = torch.sum(pos_loss_map) / pos_num
             else:
@@ -380,9 +380,9 @@ class GradCamMaskLoss(object):
 
             # """
             #region2 非决策区域 & gcam > neg_th  (大于neg_th的才需要降低)
-            region2 = torch.eq(gcam_gtmask, 0) & torch.gt(gcam_mask, neg_th)
+            region2 = torch.eq(gcam_gtmask, 0) #& torch.gt(gcam_mask, neg_th)
             neg_num = torch.sum(region2)
-            neg_loss_map = loss * region2
+            neg_loss_map = loss * region2 * torch.gt(gcam_mask, neg_th)
             if neg_num != 0:
                 neg_loss = torch.sum(neg_loss_map) / neg_num
             else:

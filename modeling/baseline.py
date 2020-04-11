@@ -44,8 +44,8 @@ class Baseline(nn.Module):
                  preAct=True, fusionType="concat",
                  base_classifier_Type="f-c", hierarchy_classifier=0,
                  hookType="none", segmentationType="none", seg_num_classes=1, segSupervisedType="none",
-                 gcamSupervisedType="none",
-                 maskedImgReloadType="none",
+                 gcamSupervisedType="none", guidedBP=0,
+                 maskedImgReloadType="none", preReload=0,
                  branch_img_num=0, branchConfigType="none",
                  accumulation_steps=1,
                  ):
@@ -100,6 +100,8 @@ class Baseline(nn.Module):
         else:
             self.gcamState = False
 
+        self.guidedBP = guidedBP    # 是否采用导向反向传播计算梯度
+
         # Branch3: MaskedImgReloadType  "none", "seg_mask", "gcam_mask"
         self.maskedImgReloadType = maskedImgReloadType
         if self.maskedImgReloadType != "none":
@@ -113,6 +115,9 @@ class Baseline(nn.Module):
                 self.gcamState = True
         else:
             self.reloadState = False
+
+        self.preReload = preReload   #reload是前置（与第一批同时送入）还是后置
+        self.gcamState = 1
 
 
         """
@@ -153,6 +158,7 @@ class Baseline(nn.Module):
             else:
                 raise Exception("Wrong Branch Config")
         """
+
 
 
         # 1.Backbone
@@ -273,7 +279,7 @@ class Baseline(nn.Module):
             self.inter_output = []
             self.inter_gradient = []
 
-            self.target_layer = ["denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            self.target_layer = ["denseblock4"]#, "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",   ["denseblock4"]#  ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
             if self.target_layer != []:
                 for tl in self.target_layer:
@@ -285,12 +291,32 @@ class Baseline(nn.Module):
                             #module.register_backward_hook(self.backward_hook_fn)  不以backward求取gcam了
                             break
 
-        self.guidedBP = True
+
         if self.guidedBP == True:
+            print("Set GuidedBP Hook on Relu")
             for module_name, module in self.named_modules():
                 if isinstance(module, torch.nn.ReLU) == True:
                     module.register_backward_hook(self.guided_backward_hook_fn)
         self.guidedBPstate = 0   #用的时候再使用
+
+        # 打印梯度
+        need_print_grad = 0
+        if need_print_grad == 1:
+            self.target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
+            if self.target_layers != []:
+                for tl in self.target_layers:
+                    for module_name, module in self.base.features.named_modules():
+                        # if isinstance(module, torch.nn.Conv2d):
+                        if module_name == tl:  # "transition1.conv":
+                            print("Grad-CAM hook on ", module_name)
+                            module.register_backward_hook(self.print_grad) # 不以backward求取gcam了
+                            break
+
+    def print_grad(self, module, grad_in, grad_out):
+        if self.guidedBPstate == 0:
+            print("start:")
+            print("mean:{},  max:{},  min:{}".format(grad_out[0].abs().mean().item(), grad_out[0].max().item(), grad_out[0].min().item()))
+
 
     def forward(self, x):
         if self.gcamState == True:
@@ -366,6 +392,55 @@ class Baseline(nn.Module):
             #print(2)
             pass
 
+    def gcamNormalization(self, gcam):
+        # 归一化 v1 使用均值，方差
+        """
+        gcam_flatten = gcam.view(gcam.shape[0], -1)
+        gcam_var = torch.var(gcam_flatten, dim=1).detach()
+        gcam = gcam/gcam_var
+        gcam = torch.sigmoid(gcam)
+        #"""
+        # 归一化 v2 正负分别用最大值归一化
+        """        
+        pos = torch.gt(gcam, 0).float()
+        gcam_pos = gcam * pos
+        gcam_neg = gcam * (1 - pos)
+        gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        sigma = 1  # 0.8
+        gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + gcam_neg / gcam_neg_abs_max.clamp(
+            min=1E-12).detach()  # [-1,+1]
+        #"""
+        # 归一化 v3 正负统一用绝对值最大值归一化
+        gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        gcam = gcam / (gcam_abs_max.clamp(min=1E-12).detach())   # [-1,+1]
+        #print("gcam_max{}".format(gcam_abs_max.mean().item()))
+        return gcam, gcam_abs_max.mean().item()
+
+        # 其他
+        # gcam = torch.relu(torch.tanh(gcam))
+        # gcam = gcam/gcam_abs_max
+        # gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+        #    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+
+        # gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
+        # gcam_neg_mean = (torch.sum(gcam_neg) / torch.sum(1-pos).clamp(min=1E-12))
+
+        # gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # cjy
+        # gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_mean.clamp(min=1E-12).detach()) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+        # gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+        # gcam = gcam_pos / gcam_pos_mean.clamp(min=1E-12).detach() #+ gcam_neg / gcam_neg_mean.clamp(min=1E-12).detach()
+        # gcam = gcam/2 + 0.5
+
+        # gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        # gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        # gcam = torch.relu(gcam) / gcam_max.detach()
+
+        # gcam = torch.tanh(gcam*4)
+        # gcam = torch.relu(gcam)
 
     def transmitClassifierWeight(self):   #将线性分类器回传到base中
         if self.segmentationType == "bagFeature" and self.hookType == "rflogitGenerate":
