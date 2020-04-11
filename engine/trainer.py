@@ -452,8 +452,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         loss2 = losses["cross_entropy_loss"]*weight["cross_entropy_loss"]
         loss2.backward(retain_graph=True)
         print("all_loss")
+        print(loss1+loss2)
         (loss1+loss2).backward(retain_graph=True)
         print("llll")
+        print(loss)
         #"""
 
         # 反向传播
