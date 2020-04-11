@@ -267,7 +267,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 else:
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
 
-                #gcam = torch.relu(gcam)
+                gcam = torch.relu(gcam)
                 gcam, gcam_max = model.gcamNormalization(gcam)
                 # 插值
                 gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
@@ -440,7 +440,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
 
-        """
+        #"""
         print("gcam_loss")
         if isinstance(gcam_loss, torch.Tensor):
             loss1 = gcam_loss*weight["gcam_mask_loss"]
@@ -456,7 +456,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 反向传播
         #print("start")
-        loss.backward()
+        #loss.backward()
         #print("end")
         # 参数优化
         if engine.state.iteration % model.accumulation_steps == 0:  # 此处要注意

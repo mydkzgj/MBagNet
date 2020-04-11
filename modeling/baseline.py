@@ -279,7 +279,7 @@ class Baseline(nn.Module):
             self.inter_output = []
             self.inter_gradient = []
 
-            self.target_layer = ["denseblock4"]#, "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            self.target_layer = ["denseblock1"]#, "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
             #"denseblock1", "denseblock2", "denseblock3",   ["denseblock4"]#  ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
             if self.target_layer != []:
                 for tl in self.target_layer:
@@ -300,7 +300,7 @@ class Baseline(nn.Module):
         self.guidedBPstate = 0   #用的时候再使用
 
         # 打印梯度
-        need_print_grad = 0
+        need_print_grad = 1
         if need_print_grad == 1:
             self.target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
             if self.target_layers != []:
