@@ -89,7 +89,7 @@ SOLVER:
   BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [4, 6, 8, 10]#[10, 15, 20, 25]#[8, 12, 16, 20]#[4, 6, 8, 10]#[3, 4, 5, 6]
+  STEPS: [10, 15, 20, 25]#[8, 12, 16, 20]#[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"

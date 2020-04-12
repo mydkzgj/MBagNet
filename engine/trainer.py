@@ -268,7 +268,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
                     gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
 
-                print(gcam.sum(), gcam.mean(), gcam.abs().max())
+                #print(gcam.sum(), gcam.mean(), gcam.abs().max())
                 #gcam = torch.relu(gcam)
                 gcam, gcam_max = model.gcamNormalization(gcam)
                 # 插值
@@ -276,7 +276,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
                 gcam_max_list[i] = gcam_max
 
-            print("1")
+            #print("1")
             # 多尺度下的gcam进行融合
             overall_gcam = torch.cat(gcam_list, dim=1)
             # mean值法
@@ -426,7 +426,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         var_exists = 'gcam_max_list' in locals() or 'gcam_max_list' in globals()
         if var_exists == True:
             gl_weight = gcam_max_list #[1, 1, 1, 1]#
