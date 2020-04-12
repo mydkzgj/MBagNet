@@ -8,7 +8,7 @@ import torch
 import random
 
 save_img_index = 0
-savePath = "D:/MIP/Experiment/MBagNet/work_space/heatmap/"
+savePath = "D:/MIP/Experiment/heatmap/"#"D:/MIP/Experiment/MBagNet/work_space/heatmap/"
 
 def map_visualization(map_tensor):
     map = map_tensor.cpu().detach().numpy()
