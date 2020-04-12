@@ -43,7 +43,7 @@ def save_gradient_images(gradient, file_name):
         gradient (np arr): Numpy array of the gradient with shape (3, 224, 224)
         file_name (str): File name to be exported
     """
-    savepath = './work_space/heatmap'
+    savepath = 'D:/MIP/Experiment/heatmap'#'./work_space/heatmap'
     #if not os.path.exists('../results'):
     #    os.makedirs('../results')
     # Normalize
@@ -64,7 +64,7 @@ def save_class_activation_images(org_img, activation_map, file_name):
         activation_map (numpy arr): Activation map (grayscale) 0-255
         file_name (str): File name of the exported image
     """
-    savepath = './work_space/heatmap'
+    savepath = 'D:/MIP/Experiment/heatmap'#'./work_space/heatmap'
     if not os.path.exists(savepath):
         os.makedirs(savepath)
     # Grayscale activation map
