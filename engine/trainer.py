@@ -329,7 +329,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=31, stride=1, padding=15)
             elif model.maskedImgReloadType == "gcam_mask":
                 # GAIN论文中 生成soft_mask的做法
-                sigma = 0.5
+                sigma = 0.6
                 w = 8
                 soft_mask = torch.sigmoid(w * (overall_gcam - sigma))  # overall_gcam [0,1]
             elif model.maskedImgReloadType == "seg_gtmask":
