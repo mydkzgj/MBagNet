@@ -91,7 +91,7 @@ class GradCam():
     """
         Produces class activation map
     """
-    def __init__(self, model, target_layer, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise"):
+    def __init__(self, model, target_layer, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True):
         self.model = model
         self.model.eval()
         # Define extractor
@@ -101,6 +101,8 @@ class GradCam():
         self.guided_back = guided_back
 
         self.extractor = CamExtractor(self.model, target_layer, self.guided_back)
+
+        self.show_pos = show_pos
 
 
     def generate_cam(self, input_image, target_class=None):
@@ -180,7 +182,8 @@ class GradCam():
 
         #CJY 用abs来归一化
         #"""
-        #cam = np.maximum(cam, 0)
+        if self.show_pos == 1:
+            cam = np.maximum(cam, 0)
         max = np.max(np.abs(cam))*2
         if max != 0:
             cam = cam / max + 0.5# Normalize between 0-1

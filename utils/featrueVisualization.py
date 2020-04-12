@@ -309,7 +309,7 @@ def showBagNetEvidence():
     bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
 # CJY Grad-CAM可视化
-def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None):
+def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None, label_num=6, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=False):
     # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
     # visualization
     from utils.visualisation.gradcam import GradCam
@@ -320,7 +320,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
     import matplotlib.pyplot as plt
     global save_img_index
     guided_backpropagation_flag = 0
-    label_num = 6  #1 or 6  or 2
+    label_num = label_num #1 or 6  or 2
     if guided_backpropagation_flag == 1:
         # Guided backprop
         GBP = gg.GuidedBackprop(model)
@@ -338,8 +338,9 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
             for target_layer in target_layers:
                 # Grad cam
                 grad_cam = GradCam(model, target_layer=target_layer,
-                                   guided_back=True,    #是否使用导向回传
-                                   weight_fetch_type="Grad-CAM-pixelwise") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
+                                   show_pos=show_pos,
+                                   guided_back=guided_back,#True,    #是否使用导向回传
+                                   weight_fetch_type=weight_fetch_type)#"Grad-CAM-pixelwise") # "Grad-CAM"， "Grad-CAM++"  "Grad-CAM-pixelwise", "Grad-PCAM"
                 # Generate cam mask
                 cam = grad_cam.generate_cam(imgs[0].unsqueeze(0), show_label)  # labels[0])  #显示显示其他的标签
                 cam_list.append(cam)
@@ -414,7 +415,8 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None)
             # """
 
             # Save mask
-            save_class_activation_images(img, overall_cam, "heatmap_" + str(save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
+            if show_overall==True:
+                save_class_activation_images(img, overall_cam, "heatmap_" + str(save_img_index) + "_GradCAM" + "_L-Overall" + "_Label" + str(labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
 
 
     # img save

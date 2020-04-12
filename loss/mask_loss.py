@@ -358,7 +358,7 @@ class GradCamMaskLoss(object):
 
             # gcam [-1, 1]
             # 依据pos和neg设置阈值   用于决策的数据高于pos_th阈值，非决策低于neg_th
-            pos_th = 0.5
+            pos_th = 1#0.5
             neg_th = 0
 
             # 计算交叉熵损失
