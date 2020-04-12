@@ -266,7 +266,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam = torch.cat(pick_list, dim=0)
                 else:
                     gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-                    #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
+                    gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
 
                 print(gcam.sum(), gcam.mean(), gcam.abs().max())
                 #gcam = torch.relu(gcam)
