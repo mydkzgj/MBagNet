@@ -427,7 +427,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         var_exists = 'gcam_max_list' in locals() or 'gcam_max_list' in globals()
         if var_exists == True:
-            gl_weight = [1, 1, 1, 1]#gcam_max_list #[1, 1, 1, 1]#
+            gl_weight = gcam_max_list #[1, 1, 1, 1]#
         else:
             gl_weight = [1, 1, 1, 1]
         loss = 0
