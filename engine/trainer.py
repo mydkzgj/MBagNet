@@ -329,7 +329,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=31, stride=1, padding=15)
             elif model.maskedImgReloadType == "gcam_mask":
                 # GAIN论文中 生成soft_mask的做法
-                sigma = 0.6
+                sigma = 0.5
                 w = 8
                 soft_mask = torch.sigmoid(w * (overall_gcam - sigma))  # overall_gcam [0,1]
             elif model.maskedImgReloadType == "seg_gtmask":
@@ -424,7 +424,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":0, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         var_exists = 'gcam_max_list' in locals() or 'gcam_max_list' in globals()
         if var_exists == True:
             gl_weight = [1, 1, 1, 1]#gcam_max_list #[1, 1, 1, 1]#
