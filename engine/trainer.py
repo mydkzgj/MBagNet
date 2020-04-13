@@ -278,9 +278,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
             #print("1")
             # 多尺度下的gcam进行融合
-            overall_gcam = torch.cat(gcam_list, dim=1)
+            #overall_gcam = torch.cat(gcam_list, dim=1)
             # mean值法
-            overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
+            #overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
             # max值法
             #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
 
