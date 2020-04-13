@@ -274,7 +274,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 # 插值
                 #gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
-                gcam_max_list[i] = gcam_max
+                gcam_max_list[i] = pow(gcam_max, 2)
 
             #print("1")
             # 多尺度下的gcam进行融合
@@ -429,7 +429,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
         var_exists = 'gcam_max_list' in locals() or 'gcam_max_list' in globals()
         if var_exists == True:
-            gl_weight = [1, 1, 1, 1]#gcam_max_list #[1, 1, 1, 1]#
+            gl_weight = gcam_max_list #[1, 1, 1, 1]#
         else:
             gl_weight = [1, 1, 1, 1]
         loss = 0
