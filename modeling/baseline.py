@@ -416,7 +416,7 @@ class Baseline(nn.Module):
         # 归一化 v3 正负统一用绝对值最大值归一化
         gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
             -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        gcam = gcam / (gcam_abs_max.clamp(min=1E-12).detach())   # [-1,+1]
+        gcam = gcam / (gcam_abs_max.clamp(min=1E-12))#.detach())   # [-1,+1]
         #print("gcam_max{}".format(gcam_abs_max.mean().item()))
         return gcam, gcam_abs_max.mean().item()
 
