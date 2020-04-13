@@ -358,7 +358,7 @@ class GradCamMaskLoss(object):
 
             # gcam [-1, 1]
             # 依据pos和neg设置阈值   用于决策的数据高于pos_th阈值，非决策低于neg_th
-            pos_th = 0.3 #0.5
+            pos_th = 0.5 #0.5
             neg_th = 0
 
             # 计算交叉熵损失
@@ -376,7 +376,7 @@ class GradCamMaskLoss(object):
                 pos_loss = 0
 
             # 由于决策位置与病灶并不一定一一对应，所以要给决策图留下一定的空余
-            gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=81, stride=1, padding=40)
+            #gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=81, stride=1, padding=40)
 
             # """
             #region2 非决策区域 & gcam > neg_th  (大于neg_th的才需要降低)

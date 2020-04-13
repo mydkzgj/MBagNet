@@ -272,7 +272,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 #gcam = torch.relu(gcam)
                 gcam, gcam_max = model.gcamNormalization(gcam)
                 # 插值
-                gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
+                #gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
                 gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
                 gcam_max_list[i] = gcam_max
 
