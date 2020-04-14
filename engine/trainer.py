@@ -269,7 +269,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
 
                 #print(gcam.sum(), gcam.mean(), gcam.abs().max())
-                gcam = torch.relu(gcam)
+                #gcam = torch.relu(gcam)
                 gcam, gcam_max = model.gcamNormalization(gcam)
                 # 插值
                 #gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
