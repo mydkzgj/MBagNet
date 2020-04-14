@@ -367,9 +367,10 @@ class GradCamMaskLoss(object):
             gcam_gtscore = gcam_gtmask * pos_th + (1-gcam_gtmask) * neg_th
             loss = torch.pow(gcam_mask - gcam_gtscore, 2)
 
-            #total_loss = torch.mean(loss*torch.lt(gcam_mask, pos_th)*torch.gt(gcam_mask, neg_th))
+            # pos weight 10, neg weight 10
+            total_loss = torch.mean(loss*torch.lt(gcam_mask, pos_th)*torch.gt(gcam_mask, neg_th))
 
-            #"""
+            """
             # region1 决策区域 & gcam < pos_th  (小于pos_th的才需要提升)
             region1 = torch.eq(gcam_gtmask, 1) #& torch.lt(gcam_mask, pos_th)   # 决策区域 & gcam > pos_th
             pos_num = torch.sum(region1)
@@ -383,7 +384,7 @@ class GradCamMaskLoss(object):
             # 由于决策位置与病灶并不一定一一对应，所以要给决策图留下一定的空余
             #gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=81, stride=1, padding=40)
 
-            #"""
+            """
             #region2 非决策区域 & gcam > neg_th  (大于neg_th的才需要降低)
             region2 = torch.eq(gcam_gtmask, 0) #& torch.gt(gcam_mask, neg_th)
             neg_num = torch.sum(region2)
@@ -395,9 +396,9 @@ class GradCamMaskLoss(object):
             # """
 
             if index == len(gcam_mask_list)-1:
-                total_loss_list.append(pos_loss+neg_loss)
+                total_loss_list.append(total_loss)#pos_loss+neg_loss)
             else:
-                total_loss_list.append(pos_loss+neg_loss)   #pos_loss
+                total_loss_list.append(total_loss)#pos_loss+neg_loss)   #pos_loss
 
         while len(total_loss_list) < 4:
             total_loss_list.append(0)

@@ -309,7 +309,7 @@ def showBagNetEvidence():
     bu.show(model, imgs[0].unsqueeze(0).cpu().detach().numpy(), labels[0].item(), 9)
 
 # CJY Grad-CAM可视化
-def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None, label_num=6, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=False):
+def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None, label_num=6, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=False, only_show_false_grade=False):
     # CJY 注：Grad-CAM由于要求导，所以不能放在with torch.no_grad()里面
     # visualization
     from utils.visualisation.gradcam import GradCam
@@ -319,6 +319,11 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None,
     from PIL import Image
     import matplotlib.pyplot as plt
     global save_img_index
+    save_img_index = save_img_index + 1
+    if only_show_false_grade == True:
+        if labels[0] == p_labels[0]:
+            return 0
+
     guided_backpropagation_flag = 0
     label_num = label_num #1 or 6  or 2
     if guided_backpropagation_flag == 1:
@@ -441,7 +446,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None,
             cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_Mask0' + '.png', omask * 255)
             cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_Mask1' + '.png', m * 255)
 
-    save_img_index = save_img_index + 1
+
     print('Grad cam completed')
 
 
