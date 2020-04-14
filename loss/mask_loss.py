@@ -367,7 +367,7 @@ class GradCamMaskLoss(object):
             gcam_gtscore = gcam_gtmask * pos_th + (1-gcam_gtmask) * neg_th
             loss = torch.pow(gcam_mask - gcam_gtscore, 2)
 
-            total_loss = torch.mean(loss)
+            total_loss = torch.mean(loss*torch.lt(gcam_mask, pos_th)*torch.gt(gcam_mask, neg_th))
 
             """
             # region1 决策区域 & gcam < pos_th  (小于pos_th的才需要提升)
