@@ -342,7 +342,7 @@ class GradCamMaskLoss(object):
         # CJY at 2020.3.26
         # 或许，我不该挑出单独的病灶，因为对于高级别的病，也会有低级别的病灶，这样可能会产生混淆
         #gcam_gtmask = torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
-        gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=81, stride=1, padding=40)
+        gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=21, stride=1, padding=10)
 
         total_loss_list = []
         seg_mask_c = gcam_gtmask
@@ -373,13 +373,14 @@ class GradCamMaskLoss(object):
             neg_weight = 1
             pos_region = torch.eq(gcam_gtmask, 1)
             neg_region = torch.eq(gcam_gtmask, 0)
+            known_region = pos_region + neg_region
             pos_weight_map = pos_region * pos_weight
             neg_weight_map = neg_region * neg_weight
             weight_map = pos_weight_map + neg_weight_map
 
             loss = loss * weight_map
 
-            total_loss = torch.mean(loss*torch.lt(gcam_mask, pos_th)*torch.gt(gcam_mask, neg_th))
+            total_loss = torch.mean(loss)
 
             """
             # region1 决策区域 & gcam < pos_th  (小于pos_th的才需要提升)
