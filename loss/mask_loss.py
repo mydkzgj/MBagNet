@@ -359,7 +359,7 @@ class GradCamMaskLoss(object):
 
             # gcam [-1, 1]
             # 依据pos和neg设置阈值   用于决策的数据高于pos_th阈值，非决策低于neg_th
-            pos_th = 0.5  #0.5
+            pos_th = 0.1  #0.5
             neg_th = 0
 
             # 计算交叉熵损失
@@ -367,7 +367,18 @@ class GradCamMaskLoss(object):
             gcam_gtscore = gcam_gtmask * pos_th + (1-gcam_gtmask) * neg_th
             loss = torch.pow(gcam_mask - gcam_gtscore, 2)
 
-            # pos weight 10, neg weight 10
+
+            # pos weight , neg weight   默认是1
+            pos_weight = 10  #1
+            neg_weight = 1
+            pos_region = torch.eq(gcam_gtmask, 1)
+            neg_region = torch.eq(gcam_gtmask, 0)
+            pos_weight_map = pos_region * pos_weight
+            neg_weight_map = neg_region * neg_weight
+            weight_map = pos_weight_map + neg_weight_map
+
+            loss = loss * weight_map
+
             total_loss = torch.mean(loss*torch.lt(gcam_mask, pos_th)*torch.gt(gcam_mask, neg_th))
 
             """
