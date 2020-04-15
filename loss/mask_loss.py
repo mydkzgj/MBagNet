@@ -298,7 +298,7 @@ class GradCamMaskLoss(object):
                 sm_un = 1 - (sm_p + sm_n)
             elif gcam_label[i] == 2:
                 # 决策依据
-                sm_p1 = gcam_gtmask[i:i + 1, 0:2]
+                sm_p1 = gcam_gtmask[i:i + 1, 0:3]  #改2为3
                 sm_p2 = gcam_gtmask[i:i + 1, 3:4]
                 sm_p = torch.cat([sm_p1, sm_p2], dim=1)
                 sm_p = torch.max(sm_p, dim=1, keepdim=True)[0]

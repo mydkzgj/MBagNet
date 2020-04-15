@@ -466,7 +466,7 @@ class Baseline(nn.Module):
 
                 #lm = 0 * lm   #需要掩盖的病灶
             elif GradeLabel[i] == 2:
-                lm1 = LesionMask[i:i + 1, 0:3]   # 改2为3
+                lm1 = LesionMask[i:i + 1, 0:2]   # 改2为3
                 lm2 = LesionMask[i:i + 1, 3:4]
                 lm = torch.cat([lm1, lm2], dim=1)
 

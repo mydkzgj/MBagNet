@@ -147,7 +147,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 logits = model(seg_imgs)
                 scores = torch.softmax(logits, dim=-1)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
-            """
+            #"""
             # PG-CAM ()
             target_layers = ["denseblock3", "denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:#seg_labels[0] != p_labels[0]:
@@ -164,7 +164,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #"""
 
             # For Val only show False Grade
-            #"""
+            """
             # PG-CAM ()
             target_layers = ["denseblock3",
                              "denseblock4"]  # ["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
