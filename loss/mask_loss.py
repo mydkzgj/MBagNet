@@ -373,9 +373,8 @@ class GradCamMaskLoss(object):
             neg_weight = 1
             pos_region = torch.eq(gcam_gtmask, 1)
             neg_region = torch.eq(gcam_gtmask, 0)
-            known_region = pos_region + neg_region
-            pos_weight_map = pos_region * pos_weight
-            neg_weight_map = neg_region * neg_weight
+            pos_weight_map = pos_region * pos_weight * torch.lt(gcam_mask, pos_th)
+            neg_weight_map = neg_region * neg_weight * torch.gt(gcam_mask, neg_th)
             weight_map = pos_weight_map + neg_weight_map
 
             loss = loss * weight_map
