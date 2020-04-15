@@ -369,7 +369,7 @@ class GradCamMaskLoss(object):
 
 
             # pos weight , neg weight   默认是1
-            pos_weight = 10  #1
+            pos_weight = 1  #1
             neg_weight = 1
             pos_region = torch.eq(gcam_gtmask, 1)
             neg_region = torch.eq(gcam_gtmask, 0)
