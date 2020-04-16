@@ -191,16 +191,16 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             rimgs = imgs[imgs.shape[0] - soft_mask.shape[0]:imgs.shape[0]].clone()
             rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
 
-            """
+            #"""
             input_mean = torch.Tensor([[0.485, 0.456, 0.406]]).unsqueeze(-1).unsqueeze(-1).cuda()
             input_std = torch.Tensor([[0.229, 0.224, 0.225]]).unsqueeze(-1).unsqueeze(-1).cuda()
             input_mean = input_mean.to(device) if torch.cuda.device_count() >= 1 else input_mean
             input_std = input_std.to(device) if torch.cuda.device_count() >= 1 else input_std
             rimg_fill = (torch.rand_like(rimgs) - input_mean) / input_std
-            """
+            #"""
 
-            pos_masked_img = soft_mask * rimgs #+ (1 - soft_mask) * rimg_fill#rimg_mean
-            neg_masked_img = (1 - soft_mask) * rimgs #+ soft_mask * rimg_fill#rimg_mean
+            pos_masked_img = soft_mask * rimgs + (1 - soft_mask) * rimg_fill#rimg_mean
+            neg_masked_img = (1 - soft_mask) * rimgs + soft_mask * rimg_fill#rimg_mean
             imgs = torch.cat([imgs, pos_masked_img, neg_masked_img])
 
             om_labels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
