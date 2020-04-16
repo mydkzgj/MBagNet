@@ -342,7 +342,8 @@ class GradCamMaskLoss(object):
         # CJY at 2020.3.26
         # 或许，我不该挑出单独的病灶，因为对于高级别的病，也会有低级别的病灶，这样可能会产生混淆
         #gcam_gtmask = torch.max(gcam_gtmask, dim=1, keepdim=True)[0]
-        gcam_gtmask = F.max_pool2d(gcam_gtmask, kernel_size=21, stride=1, padding=10)  #240
+        gcam_unkownmask = F.max_pool2d(gcam_gtmask, kernel_size=31, stride=1, padding=15)-gcam_gtmask  #240
+        gcam_gtmask = gcam_gtmask + gcam_unkownmask * 0.5
 
         total_loss_list = []
         seg_mask_c = gcam_gtmask
