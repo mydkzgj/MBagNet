@@ -393,6 +393,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
             nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
 
+            # 求出om_logits， pm_logits的最大值
+            pm_one_hot_label = torch.nn.functional.one_hot(pm_labels, pm_logits.shape[1]).float()
+            nm_one_hot_label = torch.nn.functional.one_hot(nm_labels, pm_logits.shape[1]).float()
+            op_logits = torch.cat([om_logits.unsqueeze(1), pm_logits.unsqueeze(1)], dim=1)
+            max_opL = torch.max(op_logits.abs(), dim=1)[0].detach()
+            max_opL = max_opL[pm_one_hot_label.bool()]
+
             logits = logits[0:grade_num+seg_num]
             labels = labels[0:grade_num+seg_num]
 
@@ -439,6 +446,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 for index, gl in enumerate(losses[lossKey]):
                     gcam_loss = gcam_loss + gl * gl_weight[index]
                 loss = loss + gcam_loss * weight[lossKey]
+            elif lossKey == "pos_masked_loss":
+                loss = loss + losses[lossKey] * weight[lossKey] * max_opL
             else:
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
