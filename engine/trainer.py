@@ -209,6 +209,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             labels = torch.cat([labels, pm_labels, nm_labels], dim=0)
 
             gcamBatchDistribution = (grade_num + seg_num + 2 * model.branch_img_num, 3 * model.branch_img_num)
+            segBatchDistribution = 0
 
 
         # Master 0 运行模型  (内置运行 Branch 1 Segmentation)
