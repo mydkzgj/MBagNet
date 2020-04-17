@@ -400,7 +400,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
 
             # 求出om_logits， pm_logits的最大值
-            #"""
+            """
             pm_one_hot_label = torch.nn.functional.one_hot(pm_labels, pm_logits.shape[1]).float()
             op_logits = torch.cat([om_logits.unsqueeze(1), pm_logits.unsqueeze(1)], dim=1)
             max_opL = torch.max(op_logits.abs(), dim=1)[0].detach()
