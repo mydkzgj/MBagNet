@@ -199,8 +199,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             rimg_fill = (torch.rand_like(rimgs) - input_mean) / input_std
             #"""
 
-            pos_masked_img = soft_mask * rimgs + (1 - soft_mask) * rimg_fill#rimg_mean
-            neg_masked_img = (1 - soft_mask) * rimgs + soft_mask * rimg_fill#rimg_mean
+            pos_masked_img = soft_mask * rimgs #+ (1 - soft_mask) * rimg_fill#rimg_mean
+            neg_masked_img = (1 - soft_mask) * rimgs #+ soft_mask * rimg_fill#rimg_mean
             imgs = torch.cat([imgs, pos_masked_img, neg_masked_img])
 
             om_labels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
