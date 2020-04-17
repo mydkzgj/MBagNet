@@ -188,6 +188,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             max_kernel_size = 40  # random.randint(30, 240)
             soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1, padding=max_kernel_size)
 
+            avg_kernel_size = 40  #平滑用
+            soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #max增加aks
+            soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #avg变化
+
             rimgs = imgs[imgs.shape[0] - soft_mask.shape[0]:imgs.shape[0]].clone()
             rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
 
@@ -393,7 +397,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
             om_logits = m_logits[0:m_logits.shape[0] // 3]
             pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
-            nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
+            nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
 
             # 求出om_logits， pm_logits的最大值
             #"""
@@ -402,10 +406,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             max_opL = torch.max(op_logits.abs(), dim=1)[0].detach()
             max_opL = max_opL[pm_one_hot_label.bool()]
 
-            nm_one_hot_label = torch.nn.functional.one_hot(pm_labels, pm_logits.shape[1]).float()  #还是用pm-label
-            on_logits = torch.cat([om_logits.unsqueeze(1), nm_logits.unsqueeze(1)], dim=1)
-            max_onL = torch.max(on_logits.abs(), dim=1)[0].detach()
-            max_onL = max_onL[nm_one_hot_label.bool()]
+            #nm_one_hot_label = torch.nn.functional.one_hot(pm_labels, pm_logits.shape[1]).float()  #还是用pm-label
+            #on_logits = torch.cat([om_logits.unsqueeze(1), nm_logits.unsqueeze(1)], dim=1)
+            #max_onL = torch.max(on_logits.abs(), dim=1)[0].detach()
+            #max_onL = max_onL[nm_one_hot_label.bool()]
             #"""
 
             logits = logits[0:grade_num+seg_num]
