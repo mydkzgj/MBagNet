@@ -127,7 +127,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
             #logits2 = model(seg_imgs)
 
-            """
+            #"""
             soft_mask = seg_masks.clone()
             soft_mask = model.lesionFusion(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
             max_kernel_size = 40#20#random.randint(30, 240)
@@ -139,7 +139,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             rimg_fill = (torch.rand_like(rimgs)-mean)/std
             pos_masked_img = soft_mask * rimgs + (1 - soft_mask) * rimg_fill
             neg_masked_img = (1 - soft_mask) * rimgs# + soft_mask * rimg_mean
-            seg_imgs = torch.cat([pos_masked_img, seg_imgs],dim=0)#pos_masked_img
+            seg_imgs = torch.cat([neg_masked_img, seg_imgs],dim=0)#pos_masked_img
             seg_masks = soft_mask
             #"""
 
@@ -150,14 +150,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 scores = torch.softmax(logits, dim=-1)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
 
-            #"""
+            """
             # PG-CAM ()
             target_layers = ["denseblock3", "denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:#seg_labels[0] != p_labels[0]:
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0],
                                label_num=6, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise", show_pos=False, show_overall=False, only_show_false_grade=False)
             #"""
-            """
+            #"""
             # Guided PG-CAM
             target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:#seg_labels[0] != p_labels[0]:

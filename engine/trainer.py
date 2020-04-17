@@ -388,21 +388,25 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
         elif model.preReload == 1:   #如果是提前load
             # 1.使用gcam
-            m_logits = gcam[gcam.shape[0] - rimgs.shape[0] * 3:gcam.shape[0]]
+            #m_logits = gcam[gcam.shape[0] - rimgs.shape[0] * 3:gcam.shape[0]]
             # 2.使用logits
-            #m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
+            m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
             om_logits = m_logits[0:m_logits.shape[0] // 3]
             pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
-            nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
+            nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
 
             # 求出om_logits， pm_logits的最大值
-            """
+            #"""
             pm_one_hot_label = torch.nn.functional.one_hot(pm_labels, pm_logits.shape[1]).float()
-            nm_one_hot_label = torch.nn.functional.one_hot(nm_labels, pm_logits.shape[1]).float()
             op_logits = torch.cat([om_logits.unsqueeze(1), pm_logits.unsqueeze(1)], dim=1)
             max_opL = torch.max(op_logits.abs(), dim=1)[0].detach()
             max_opL = max_opL[pm_one_hot_label.bool()]
-            """
+
+            nm_one_hot_label = torch.nn.functional.one_hot(pm_labels, pm_logits.shape[1]).float()  #还是用pm-label
+            on_logits = torch.cat([om_logits.unsqueeze(1), nm_logits.unsqueeze(1)], dim=1)
+            max_onL = torch.max(on_logits.abs(), dim=1)[0].detach()
+            max_onL = max_onL[nm_one_hot_label.bool()]
+            #"""
 
             logits = logits[0:grade_num+seg_num]
             labels = labels[0:grade_num+seg_num]
@@ -437,7 +441,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         #"""
 
-        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":0, "for_show_loss":0}
+        weight = {"cross_entropy_multilabel_loss":1, "cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
         var_exists = 'gcam_max_list' in locals() or 'gcam_max_list' in globals()
         if var_exists == True:
             gl_weight = gcam_max_list #[1, 1, 1, 1]#
@@ -451,7 +455,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam_loss = gcam_loss + gl * gl_weight[index]
                 loss = loss + gcam_loss * weight[lossKey]
             elif lossKey == "pos_masked_img_loss":
-                loss = loss + losses[lossKey] * weight[lossKey] #* max_opL
+                loss = loss + losses[lossKey] * weight[lossKey] * max_opL
+            elif lossKey == "neg_masked_img_loss":
+                loss = loss + losses[lossKey] * weight[lossKey] * max_onL
             else:
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps

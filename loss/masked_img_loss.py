@@ -138,7 +138,7 @@ class PosMaskedImgLoss(object):
         origin_logits = origin_logits[origin_logits.shape[0]-pos_masked_logits.shape[0]:origin_logits.shape[0]]
 
         # 1.只关注label对应的logits
-        """
+        #"""
         one_hot_label = torch.nn.functional.one_hot(reload_label, pos_masked_logits.shape[1]).float()
         ori_logits = origin_logits[one_hot_label.bool()]
         pm_logits = pos_masked_logits[one_hot_label.bool()]
@@ -161,7 +161,7 @@ class PosMaskedImgLoss(object):
         #"""
 
         # 3.输入为gcam-logits
-        #"""
+        """
         #loss = torch.pow(pos_masked_logits - origin_logits, 2)
         #origin_logits = torch.relu(origin_logits)
         #pos_masked_logits = torch.relu(pos_masked_logits)
@@ -223,7 +223,7 @@ class NegMaskedImgLoss(object):
         total_loss = torch.mean(pick_loss)
         #"""
 
-        #"""
+        """
         # CJY distribution 3  score min
         # 由pos_masked区域主要提供logit
         origin_logits = origin_logits[origin_logits.shape[0]-neg_masked_logits.shape[0]:origin_logits.shape[0]]
@@ -246,13 +246,31 @@ class NegMaskedImgLoss(object):
         #reload_label0 = reload_label * 0
         #loss = F.cross_entropy(neg_masked_logits, reload_label0, reduction="none")
 
+
+        #"""
+
+        reload_label = label[label.shape[0]-pos_masked_logits.shape[0]:label.shape[0]]
+        origin_logits = origin_logits[origin_logits.shape[0]-pos_masked_logits.shape[0]:origin_logits.shape[0]]
+        # 1.只关注label对应的logits
+        # """
+        one_hot_label = torch.nn.functional.one_hot(reload_label, neg_masked_logits.shape[1]).float()
+        ori_logits = origin_logits[one_hot_label.bool()]
+        nm_logits = neg_masked_logits[one_hot_label.bool()]
+        # loss = torch.pow(pm_logits - ori_logits, 2)  # 只限制pm-logits好像不太好
+
+        on_logits = torch.cat([ori_logits.unsqueeze(1), nm_logits.unsqueeze(1)], dim=1)
+        max_onL = torch.max(on_logits.abs(), dim=1)[0].detach()
+
+        loss = torch.pow(nm_logits/ max_onL, 2) * 0.5  # * max_opL
+        # loss = torch.abs(pm_logits - ori_logits)/(torch.abs(ori_logits).clamp(min=1E-12).detach())    #相对距离
+        # """
+
         # 挑选指定sample的loss
         pick_index = torch.ne(reload_label, -1) & torch.ne(reload_label, 5) & torch.ne(reload_label, 3) & torch.ne(reload_label, 4)#& torch.ne(label, 0)
         if pick_index.sum() == 0:
             return 0
         pick_loss = loss[pick_index]
         total_loss = torch.mean(pick_loss)
-        #"""
 
         return total_loss
 
