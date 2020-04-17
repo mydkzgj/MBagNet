@@ -133,10 +133,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             max_kernel_size = 40#20#random.randint(30, 240)
             soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1, padding=max_kernel_size)
             avg_kernel_size = 40  #平滑用
-            soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1,
-                                                       padding=avg_kernel_size)  #max增加aks
-            soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1,
-                                                       padding=avg_kernel_size)  #avg变化
+            soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #max增加aks
+            soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #avg变化
             rimgs = seg_imgs
             rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
             mean = torch.Tensor([[0.485, 0.456, 0.406]]).unsqueeze(-1).unsqueeze(-1).cuda()

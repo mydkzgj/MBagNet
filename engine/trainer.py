@@ -397,7 +397,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
             om_logits = m_logits[0:m_logits.shape[0] // 3]
             pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
-            nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
+            nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
 
             # 求出om_logits， pm_logits的最大值
             #"""
