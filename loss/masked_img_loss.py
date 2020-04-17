@@ -163,8 +163,8 @@ class PosMaskedImgLoss(object):
         # 3.输入为gcam-logits
         #"""
         #loss = torch.pow(pos_masked_logits - origin_logits, 2)
-        origin_logits = torch.relu(origin_logits)
-        pos_masked_logits = torch.relu(pos_masked_logits)
+        #origin_logits = torch.relu(origin_logits)
+        #pos_masked_logits = torch.relu(pos_masked_logits)
         op_logits = torch.cat([origin_logits.unsqueeze(1), pos_masked_logits.unsqueeze(1)], dim=1)
         max_opL = torch.max(op_logits.abs(), dim=1)[0].detach()
 
