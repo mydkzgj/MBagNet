@@ -392,12 +392,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
         elif model.preReload == 1:   #如果是提前load
             # 1.使用gcam
-            #m_logits = gcam[gcam.shape[0] - rimgs.shape[0] * 3:gcam.shape[0]]
+            m_logits = gcam[gcam.shape[0] - rimgs.shape[0] * 3:gcam.shape[0]]
             # 2.使用logits
-            m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
+            #m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
             om_logits = m_logits[0:m_logits.shape[0] // 3]
             pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
-            nm_logits = m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
+            nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
 
             # 求出om_logits， pm_logits的最大值
             #"""
@@ -459,7 +459,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam_loss = gcam_loss + gl * gl_weight[index]
                 loss = loss + gcam_loss * weight[lossKey]
             elif lossKey == "pos_masked_img_loss":
-                loss = loss + losses[lossKey] * weight[lossKey] * max_opL
+                loss = loss + losses[lossKey] * weight[lossKey]# * max_opL
             elif lossKey == "neg_masked_img_loss":
                 loss = loss + losses[lossKey] * weight[lossKey] #* max_onL
             else:
