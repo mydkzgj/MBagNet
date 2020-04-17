@@ -117,7 +117,7 @@ class Baseline(nn.Module):
             self.reloadState = False
 
         self.preReload = preReload   #reload是前置（与第一批同时送入）还是后置
-        self.gcamState = 1
+        self.gcamState = 0
 
 
         """
