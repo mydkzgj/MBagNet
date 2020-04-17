@@ -276,11 +276,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
                 #print(gcam.sum(), gcam.mean(), gcam.abs().max())
                 #gcam = torch.relu(gcam)
-                #gcam, gcam_max = model.gcamNormalization(gcam)  #CJY 2020.4.17
+                norm_gcam, gcam_max = model.gcamNormalization(gcam)
+
                 # 插值
                 #gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
-                gcam_list.append(gcam)   #将不同模块的gcam保存到gcam_list中
-                #gcam_max_list[i] = gcam_max/2   # CJY 2020.4.17
+                gcam_list.append(norm_gcam)   #将不同模块的gcam保存到gcam_list中
+                gcam_max_list[i] = gcam_max.detach().mean().item()/2   #CJY for pos_masked
+
 
             #print("1")
             # 多尺度下的gcam进行融合
@@ -392,9 +394,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             #"""
         elif model.preReload == 1:   #如果是提前load
             # 1.使用gcam
-            m_logits = gcam[gcam.shape[0] - rimgs.shape[0] * 3:gcam.shape[0]]
+            #m_logits = gcam[gcam.shape[0] - rimgs.shape[0] * 3:gcam.shape[0]]
             # 2.使用logits
-            #m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
+            m_logits = logits[logits.shape[0]-rimgs.shape[0]*3:logits.shape[0]]
             om_logits = m_logits[0:m_logits.shape[0] // 3]
             pm_logits = m_logits[m_logits.shape[0] // 3:m_logits.shape[0] // 3 * 2]
             nm_logits = None#m_logits[m_logits.shape[0] // 3 * 2:m_logits.shape[0]]
@@ -423,7 +425,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
 
         # for show loss 计算想查看的loss
-        forShow = 0#gcam_max_list[0]#0#gcam_pos_abs_max.mean()#gcam_loss_weight
+        forShow = gcam_max_list[-1]#0#gcam_pos_abs_max.mean()#gcam_loss_weight
 
         # 计算loss
         #利用不同的optimizer对模型中的各子模块进行分阶段优化。目前最简单的方式是周期循环启用optimizer

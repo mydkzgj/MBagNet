@@ -152,7 +152,7 @@ class PosMaskedImgLoss(object):
         #"""
 
         # 2.关注不同label的logits
-        """
+        #"""
         one_hot_label = torch.nn.functional.one_hot(reload_label, pos_masked_logits.shape[1]).float()
         d_logits = pos_masked_logits - origin_logits.detach()
         d_logits = d_logits * (one_hot_label - 0.5) * (-2)
@@ -161,7 +161,7 @@ class PosMaskedImgLoss(object):
         #"""
 
         # 3.输入为gcam-logits
-        #"""
+        """
         #loss = torch.pow(pos_masked_logits - origin_logits, 2)
         #origin_logits = torch.relu(origin_logits)
         #pos_masked_logits = torch.relu(pos_masked_logits)
