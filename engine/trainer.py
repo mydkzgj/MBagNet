@@ -461,7 +461,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             elif lossKey == "pos_masked_img_loss":
                 loss = loss + losses[lossKey] * weight[lossKey] * max_opL
             elif lossKey == "neg_masked_img_loss":
-                loss = loss + losses[lossKey] * weight[lossKey] * max_onL
+                loss = loss + losses[lossKey] * weight[lossKey] #* max_onL
             else:
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
