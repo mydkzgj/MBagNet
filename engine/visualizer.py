@@ -127,7 +127,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
             #logits2 = model(seg_imgs)
 
-            """
+            #"""
             soft_mask = seg_masks.clone()
             soft_mask = model.lesionFusion(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
             max_kernel_size = 40#20#random.randint(30, 240)
