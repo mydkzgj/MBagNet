@@ -168,7 +168,7 @@ class PosMaskedImgLoss(object):
         op_logits = torch.cat([origin_logits.unsqueeze(1), pos_masked_logits.unsqueeze(1)], dim=1)
         max_opL = torch.max(op_logits.abs(), dim=1)[0].detach()
 
-        loss = torch.pow((pos_masked_logits - origin_logits.detach())/max_opL, 2) * 0.5 * max_opL
+        loss = torch.pow((pos_masked_logits - origin_logits)/max_opL, 2) * 0.5 * max_opL
 
         loss = torch.mean(loss.view(loss.shape[0], -1), dim=-1)    
         #"""
