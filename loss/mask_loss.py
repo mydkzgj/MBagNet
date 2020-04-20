@@ -309,7 +309,7 @@ class GradCamMaskLoss(object):
                 # 未知
                 sm_un = 1 - (sm_p + sm_n)
             elif gcam_label[i] == 3:
-                #return [0,0,0,0]
+                return [0,0,0,0]
                 # 决策依据
                 sm_p = 0 * gcam_gtmask[i:i + 1, 1:2]   # 出血是不确定的
                 #sm_p = gcam_gtmask[i:i + 1, 1:2]
@@ -322,7 +322,7 @@ class GradCamMaskLoss(object):
                 # 未知
                 sm_un = 1 - (sm_p + sm_n)
             elif gcam_label[i] == 4:
-                #return [0,0,0,0]
+                return [0,0,0,0]
                 # 决策依据
                 sm_p = 0 * gcam_gtmask[i:i + 1, 1:2]
                 # 非决策依据
