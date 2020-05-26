@@ -191,7 +191,8 @@ def make_seg_data_loader(cfg):
     # val_set = ImageDataset(dataset.val, val_transforms)
     val_set = SegmentationDataset(dataset.seg_val, val_transforms, val_mask_transforms, cfg)
     val_loader = DataLoader(
-        val_set, batch_size=cfg.VAL.DATALOADER.MASK_PER_BATCH, shuffle=False, num_workers=num_workers,
+        val_set, batch_size=cfg.VAL.DATALOADER.MASK_PER_BATCH, #shuffle=False, num_workers=num_workers,
+        sampler=RandomSamplerForSegmentation(dataset.seg_val, 1, 1, 4, is_train=True),
         collate_fn=collate_fn_seg
     )
 
@@ -199,7 +200,8 @@ def make_seg_data_loader(cfg):
     # test_set = ImageDataset(dataset.test, test_transforms)
     test_set = SegmentationDataset(dataset.seg_test, test_transforms, test_mask_transforms, cfg)
     test_loader = DataLoader(
-        test_set, batch_size=cfg.TEST.DATALOADER.MASK_PER_BATCH, shuffle=False, num_workers=num_workers,
+        test_set, batch_size=cfg.TEST.DATALOADER.MASK_PER_BATCH,# shuffle=False, num_workers=num_workers,
+        sampler=RandomSamplerForSegmentation(dataset.seg_test, 1, 1, 4, is_train=True),
         collate_fn=collate_fn_seg
     )
     return train_loader, val_loader, test_loader

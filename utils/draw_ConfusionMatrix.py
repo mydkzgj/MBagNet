@@ -76,10 +76,11 @@ def drawConfusionMatrix(cm, classes,
                           normalize=False,
                           title=None,
                           cmap=plt.cm.Blues,
+                          chinese_version=False,
                           drawFlag=False):
     """
-    This function prints and plots the confusion matrix.
-    Normalization can be applied by setting `normalize=True`.
+    #This function prints and plots the confusion matrix.
+    #Normalization can be applied by setting `normalize=True`.
     """
     if not title:
         if normalize:
@@ -94,6 +95,14 @@ def drawConfusionMatrix(cm, classes,
         cm = cm.astype('int')
         print('Confusion matrix, without normalization')
 
+    if chinese_version == True:
+        title = '混淆矩阵'
+        ylabeltext = '真实值'
+        xlabeltext = '预测值'
+    else:
+        ylabeltext = 'True label'
+        xlabeltext  = 'Predicted label'
+
     print(cm)
 
     fig, ax = plt.subplots()
@@ -107,8 +116,8 @@ def drawConfusionMatrix(cm, classes,
            # ... and label them with the respective list entries
            xticklabels=classes, yticklabels=classes,
            title=title,
-           ylabel='True label',
-           xlabel='Predicted label')
+           ylabel=ylabeltext,   #'True label',
+           xlabel=xlabeltext,)  #'Predicted label'
 
     # Rotate the tick labels and set their alignment.
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
@@ -125,6 +134,10 @@ def drawConfusionMatrix(cm, classes,
     fig.tight_layout()
 
     if drawFlag == True:
+        # plt.rcParams两行是用于解决标签不能显示汉字的问题
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+        plt.rcParams['axes.unicode_minus'] = False
+
         plt.show()
 
     #fig 转为 numpy
@@ -132,11 +145,14 @@ def drawConfusionMatrix(cm, classes,
     # Now we can save it to a numpy array.
     data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    """
-        import cv2 as cv
-        data_bgr = cv.cvtColor(data, cv.COLOR_RGB2BGR)
-        cv.imshow("1", data_bgr)
-        cv.waitKey(0)
-        """
+
+        #import cv2 as cv
+        #data_bgr = cv.cvtColor(data, cv.COLOR_RGB2BGR)
+        #cv.imshow("1", data_bgr)
+        #cv.waitKey(0)
+
     plt.close("all")
     return data  # numpy  （W，H，C）  rgb
+
+
+

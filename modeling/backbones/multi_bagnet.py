@@ -322,7 +322,7 @@ class MultiBagNet(nn.Module):
 
         # CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm
-        #self.features.add_module('norm5', nn.BatchNorm2d(num_features))
+        self.features.add_module('norm5', nn.BatchNorm2d(self.num_features))
 
         # Linear layer
         #self.classifier = nn.Linear(num_features, num_classes)

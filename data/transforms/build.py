@@ -16,12 +16,12 @@ def build_transforms(cfg, is_train=True):
     if is_train:
         transform = T.Compose([
             T.Resize(cfg.DATA.TRANSFORM.SIZE),
-            T.RandomHorizontalFlip(p=cfg.TRAIN.TRANSFORM.PROB),
-            T.Pad(cfg.DATA.TRANSFORM.PADDING),
-            T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
+            #T.RandomHorizontalFlip(p=cfg.TRAIN.TRANSFORM.PROB),
+            #T.Pad(cfg.DATA.TRANSFORM.PADDING),
+            #T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
             T.ToTensor(),
             normalize_transform,
-            RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)  #是不是应该在归一化之前
+            #RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)  #是不是应该在归一化之前
         ])
     else:
         transform = T.Compose([

@@ -466,7 +466,7 @@ class Baseline(nn.Module):
 
                 #lm = 0 * lm   #需要掩盖的病灶
             elif GradeLabel[i] == 2:
-                lm1 = LesionMask[i:i + 1, 0:3]   # 改2为3
+                lm1 = LesionMask[i:i + 1, 0:2]   # 改2为3
                 lm2 = LesionMask[i:i + 1, 3:4]
                 lm = torch.cat([lm1, lm2], dim=1)
 
@@ -584,10 +584,13 @@ class Baseline(nn.Module):
 
         elif loadChoice == "Overall":
             for i in param_dict:
-                if i not in self.state_dict():
+                newi = i.replace("module.", "base.")   # CJY for fundusDR 朱美龙训练
+                newi = newi.replace("base.classifier", "classifier")
+                #b = self.state_dict()
+                if newi not in self.state_dict():
                     print("Cannot load %s, Maybe you are using incorrect framework"%i)
                     continue
-                self.state_dict()[i].copy_(param_dict[i])
+                self.state_dict()[newi].copy_(param_dict[i])
 
         elif loadChoice == "Classifier":
             for i in param_dict:

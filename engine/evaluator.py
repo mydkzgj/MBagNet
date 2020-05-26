@@ -162,8 +162,11 @@ def do_inference(
     plt.close()
     """
 
-    #confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
-    #metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
+    # 绘制混淆矩阵可取消
+    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=True)
+    chinese_confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=["无DR","轻度DR","中度DR","重度DR","PDR","不可评级"],
+                                                 title='Confusion matrix', chinese_version=True, drawFlag=True)
+    metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
 
 
     # Plot ROC
@@ -176,7 +179,7 @@ def do_inference(
     #不一定要送入score（概率化后的值），只要confidengce与score等是正相关即可（单调递增）
 
     # Compute ROC curve and ROC area for each class
-    """
+    #"""
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
@@ -200,7 +203,7 @@ def do_inference(
 
 
     # 好像绘制，在服务器上会出错，先取消吧
-    """
+    #"""
     if num_classes == 2:
         roc_numpy = plotROC_OneClass(fpr[pos_label], tpr[pos_label], roc_auc[pos_label], plot_flag=plotFlag)
     elif num_classes > 2:
