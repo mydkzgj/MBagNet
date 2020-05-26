@@ -78,7 +78,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
         with torch.no_grad():
-            imgs, labels, seg_imgs, seg_masks, seg_labels = batch
+            imgs, labels, seg_imgs, seg_masks, seg_labels, img_name = batch
             model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
             model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
             model.heatmapType = "GradCAM"#"segmentation"#"GradCAM"#"computeSegMetric"  # "grade", "segmentation", "computeSegMetric", "GradCAM"
@@ -165,11 +165,16 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #"""
             #"""
             # Guided PG-CAM
+
             target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if seg_labels[0] == p_labels[0] and seg_labels[0] == 0:
-                #copy.deepcopy(model)
+            if seg_labels[0] == p_labels[0] and seg_labels[0] == 1:
+                #model1 = copy.deepcopy(model)
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=None,#seg_masks[0],
-                               label_num=2, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=True, only_show_false_grade=False)
+                               label_num=1, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=True, only_show_false_grade=False)
+                f = open("D:/MIP/Experiment/heatmap/name.txt", "a")
+                f.write(img_name[0].split("\\")[-1])
+                f.write("\n")
+                f.close()
             #"""
 
             # For Val only show False Grade
@@ -321,9 +326,12 @@ def do_visualization(
     plt.savefig("ConfusionMatrix.png", dpi=300)
     plt.show()
     plt.close()
-    """
+    #"""
 
     confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
+    chinese_confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"],
+                                                         classes=["stable", "worse"],
+                                                         title='Confusion matrix', chinese_version=True, drawFlag=True)
     metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
 
 

@@ -10,7 +10,7 @@ import torch
 from .misc_functions import get_example_params, save_class_activation_images
 
 
-
+firstSetHook = 1
 
 
 class CamExtractor():
@@ -60,10 +60,12 @@ class CamExtractor():
         """
             Does a forward pass on convolutions, hooks the function at given layer
         """
-        if self.guided_back == True:
-            for module_name, module in self.model.named_modules():
-                if isinstance(module, torch.nn.ReLU) == True:
-                    module.register_backward_hook(self.guided_backward_hook_fn)
+        global firstSetHook  #避免重复设置hook
+        if firstSetHook == 1:
+            if self.guided_back == True:
+                for module_name, module in self.model.named_modules():
+                    if isinstance(module, torch.nn.ReLU) == True:
+                        module.register_backward_hook(self.guided_backward_hook_fn)
 
         for module_name, module in self.model.base.features.named_modules():  #此处的hook比较特殊，因为并非是寻找model的参数的梯度。而是要寻找输出特征的梯度。所以是与输入相关的，不能提前定义
             if 1:#isinstance(module, torch.nn.Conv2d) or isinstance(module, torch.nn.MaxPool2d) or isinstance(module, torch.nn.AvgPool2d) or isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.ReLU):
@@ -75,7 +77,7 @@ class CamExtractor():
                 if module_name == self.target_module_name:
                     module.register_forward_hook(self.set_requires_gradients)
                     break
-
+        firstSetHook = 0
 
     def forward_pass(self, x):
         """

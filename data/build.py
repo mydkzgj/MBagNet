@@ -27,9 +27,9 @@ def collate_fn_seg(batch):
     return torch.stack(imgs, dim=0), torch.stack(masks, dim=0), labels
 
 def collate_fn(batch):
-    imgs, labels, _, = zip(*batch)
+    imgs, labels, image_name, = zip(*batch)
     labels = torch.tensor(labels, dtype=torch.int64)
-    return torch.stack(imgs, dim=0), labels
+    return torch.stack(imgs, dim=0), labels, image_name
 
 def make_data_loader(cfg):
     # CJY at 2019.11.20 加入其他非医学图像数据集
@@ -128,7 +128,8 @@ def make_data_loader(cfg):
     else:
         train_loader = DataLoader(
             train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH,
-            sampler=RandomSampler(dataset.train, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH, cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, dataset.num_categories, is_train=True),
+            sampler=RandomSampler(dataset.train, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH, cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, dataset.num_categories,
+                                  is_train=False),  #True
             # sampler=RandomIdentitySampler_alignedreid(dataset.train, cfg.DATALOADER.NUM_INSTANCE),      # new add by gu
             num_workers=num_workers, collate_fn=collate_fn
         )

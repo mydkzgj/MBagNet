@@ -34,8 +34,8 @@ class RandomSampler(Sampler):
         self.is_train = is_train
 
         #num_categories_per_batch不能小于总的类别数
-        if self.num_categories_per_batch > max_num_categories or self.num_categories_per_batch < 2:
-            raise Exception("Invalid Num_categories_per_batch!", self.num_categories_per_batch)
+        #if self.num_categories_per_batch > max_num_categories or self.num_categories_per_batch < 2:
+        #    raise Exception("Invalid Num_categories_per_batch!", self.num_categories_per_batch)
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？

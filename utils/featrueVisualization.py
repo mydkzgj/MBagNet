@@ -335,9 +335,9 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None,
             show_label = labels[0].item()
         elif label_num == 2:
             if show_label == 0:
-                show_label = 0#labels[0].item()
+                show_label = labels[0].item()
             elif show_label == 1:
-                show_label = 1#p_labels[0].item()
+                show_label = p_labels[0].item()
         if isinstance(target_layers, list):
             cam_list = []  # 求总的cam
             for target_layer in target_layers:
@@ -362,6 +362,11 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None,
                 save_class_activation_images(img, cam, "heatmap_" + str(
                     save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(
                     labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label))
+
+                # 保存灰度图
+                gray_cam = (cam - np.min(cam))/(np.max(cam)-np.min(cam))
+                cv.imwrite(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" + "_L-" + target_layer + "_Label" + str(
+                    labels[0].item()) + "_PL" + str(p_labels[0].item()) + "_SL" + str(show_label) + '_Gray.png', gray_cam * 255)
 
                 # 是否展示guided-backpropagation
                 if guided_backpropagation_flag == 1:
@@ -427,9 +432,9 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None,
     # img save
     scores_str = ''
     for i in range(scores[0].shape[0]):
-        scores_str = scores_str + str(i) + "-{:.2f}".format(scores[0][i].item())
+        scores_str = scores_str + "_" + str(i) + "-{:.2f}".format(scores[0][i].item())
     #scores_str = '0-{:.2f}, 1-{:.2f}, 2-{:.2f}, 3-{:.2f}, 4-{:.2f}, 5-{:.2f}'.format(scores[0][0].item(), scores[0][1].item(), scores[0][2].item(), scores[0][3].item(), scores[0][4].item(), scores[0][5].item())
-    img.save(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_OriImage'+"_"+ scores_str + '.png')
+    img.save(savePath + "heatmap_" + str(save_img_index) + "_GradCAM" '_OriImage'+ scores_str + '.png')
 
     # mask save
     if isinstance(mask, torch.Tensor):

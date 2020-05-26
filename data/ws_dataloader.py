@@ -13,7 +13,7 @@ class WeakSupervisionDataloader():
         return self
 
     def __next__(self):
-        imgG, label,  = next(self.gra_dataloader_iter)
+        imgG, label, img_name = next(self.gra_dataloader_iter)
         if self.recycling == True:
             try:
                 imgS, mask, Slabel = next(self.seg_dataloader_iter)
@@ -23,7 +23,7 @@ class WeakSupervisionDataloader():
         else:
             imgS, mask, Slabel= next(self.seg_dataloader_iter)
 
-        return imgG, label, imgS, mask, Slabel
+        return imgG, label, imgS, mask, Slabel, img_name
 
     def __len__(self):
         return len(self.gra_dataloader)
