@@ -332,7 +332,7 @@ def showGradCAM(model, imgs, labels, p_labels, scores, target_layers, mask=None,
         
     for show_label in range(label_num):  #6
         if label_num == 1:
-            show_label = labels[0].item()
+            show_label = 1-labels[0].item()  #CJY at 2020.6.6
         elif label_num == 2:
             if show_label == 0:
                 show_label = labels[0].item()

@@ -167,7 +167,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             # Guided PG-CAM
 
             target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if seg_labels[0] == p_labels[0] and seg_labels[0] == 1:
+            if seg_labels[0] == p_labels[0] and seg_labels[0] == 0:
                 #model1 = copy.deepcopy(model)
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=None,#seg_masks[0],
                                label_num=1, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=True, only_show_false_grade=False)
