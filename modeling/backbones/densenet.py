@@ -165,10 +165,10 @@ class DenseNet(nn.Module):
 
         #CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm
-        #self.features.add_module('norm5', nn.BatchNorm2d(num_features))
+        self.features.add_module('norm5', nn.BatchNorm2d(self.num_features))
 
         # Linear layer
-        #self.classifier = nn.Linear(num_features, num_classes)
+        self.classifier = nn.Linear(self.num_features, num_classes)
 
         # Official init from torch repo.
         for name, m in self.named_modules():
@@ -185,11 +185,11 @@ class DenseNet(nn.Module):
 
     def forward(self, x):
         features = self.features(x)
-        #out = F.relu(features, inplace=True)
-        #out = F.adaptive_avg_pool2d(out, (1, 1))
-        #out = torch.flatten(out, 1)
-        #out = self.classifier(out)
-        return features
+        out = F.relu(features, inplace=True)
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        out = torch.flatten(out, 1)
+        out = self.classifier(out)
+        return out
 
     def calculateRF(self):
         # 记录下每个感受野的size，stride等参数

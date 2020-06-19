@@ -117,7 +117,7 @@ class Baseline(nn.Module):
             self.reloadState = False
 
         self.preReload = preReload   #reload是前置（与第一批同时送入）还是后置
-        self.gcamState = 1
+        #self.gcamState = 1
 
 
         """
@@ -162,6 +162,11 @@ class Baseline(nn.Module):
 
 
         # 1.Backbone
+        # vgg
+        if base_name == 'vgg16':
+            self.in_planes = 512
+            self.base = vgg16(num_classes=6)
+
         if base_name == 'resnet18':
             self.in_planes = 512
             self.base = resnet18()
@@ -169,14 +174,15 @@ class Baseline(nn.Module):
             self.in_planes = 512
             self.base = resnet34()
         elif base_name == 'resnet50':
-            self.base = resnet50()
+            self.base = resnet50(num_classes=6)
+
         elif base_name == 'resnet101':
             self.base = resnet101()
         elif base_name == 'resnet152':
             self.base = resnet152()
         elif base_name == "densenet121":
-            #self.base = densenet121()
-            #"""
+            self.base = densenet121(num_classes=6)  #densenet121o-640.yml
+            """
             self.base = mbagnet121(num_classes=self.baseOutChannels,
                                    preAct=True, fusionType="concat", reduction=1, complexity=0,
                                    transitionType="non-linear",
@@ -576,8 +582,8 @@ class Baseline(nn.Module):
         if loadChoice == "Base":
             for i in param_dict:
                 newi = i.replace("base.", "")
-                if newi not in self.base.state_dict() or "classifier" in newi:
-                    print(i)
+                if newi not in self.base.state_dict() or "classifier" in newi or "fc" in newi:
+                    print("Cannot load %s, Maybe you are using incorrect framework"%i)
                     #print(newi)
                     continue
                 self.base.state_dict()[newi].copy_(param_dict[i])
