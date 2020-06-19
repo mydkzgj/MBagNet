@@ -119,10 +119,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
         if model.heatmapType == "GradCAM":
             model.transimitBatchDistribution(0)  # 所有样本均要生成可视化seg
-            #seg_imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-            #seg_labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-            seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-            seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
+            seg_imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
+            seg_labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+            #seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+            #seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
             seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
 
             #logits2 = model(seg_imgs)
@@ -154,13 +154,31 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
 
             """
+            print("View model")
+            print(model)
+            for module_name, module in model.base.features.named_modules():
+                if isinstance(module, nn.Conv2d):
+                    print(module_name)
+                        # for vgg
+            #Conv "0","2","5","7","10","12","14","17","19","21","24","26","28"
+            #Relu "1","3","6","8","11","13","15","18","20","22","25","27","29"
+            #MaxPool "4","9","16","23","30"
+            
+            #GAP 
+
+            """
+
+
+            #"""
             # PG-CAM ()
-            target_layers = ["denseblock3", "denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:#seg_labels[0] != p_labels[0]:
+            target_layers = ["","0","2","5","7","10","12","14","17","19","21","24","26","28"]#,"denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
+            print(seg_labels[0])
+            seg_labels[0] = 243    #243 bull mastiff   282 tiger cat
+            if 1:#seg_labels[0]==3:#1:#seg_labels[0] != p_labels[0]:
                 fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0],
-                               label_num=6, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise", show_pos=False, show_overall=False, only_show_false_grade=False)
+                               label_num=1, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=False, only_show_false_grade=False)
             #"""
-            #"""
+            """
             # Guided PG-CAM
             target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
             if 1:#seg_labels[0] != p_labels[0]:

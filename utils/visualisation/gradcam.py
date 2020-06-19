@@ -23,6 +23,8 @@ class CamExtractor():
         self.target_layer = 1
         self.gradients = None
         self.guided_back = guided_back  # 是否进行导向反向传播
+        self.activation_maps = []
+        self.th = 0.5
         self.initialize()
 
 
@@ -48,11 +50,46 @@ class CamExtractor():
         #print(1)
 
     # Guided Backpropgation
+    def reserve_relu_output(self, module, input, output):
+        self.activation_maps.append(output)
+
     #用于Relu处的hook
     def guided_backward_hook_fn(self, module, grad_in, grad_out):
         #self.gradients = grad_in[1]
-        pos_grad_out = grad_out[0].gt(0)
-        result_grad = pos_grad_out * grad_in[0]
+
+        a_map = self.activation_maps.pop()
+
+        """
+        #pcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(grad_out[0],1) * a_map, 1, keepdim=True)
+        pcam = torch.sum(grad_out[0] * a_map, 1, keepdim=True)
+        max = torch.max(pcam)
+        th_pcam = pcam.gt(max*self.th)
+        if self.th > 0:
+            self.th = 0
+        #"""
+
+
+        pos_grad_out = grad_out[0].gt(0)  #gt
+
+        if self.th > 0:
+            pcam = torch.sum(grad_out[0] * a_map, 1, keepdim=True)
+            max = torch.max(pcam)
+            th_pcam = pcam.gt(max * self.th)
+            result_grad = pos_grad_out * grad_in[0] * th_pcam
+            self.th = 0
+        else:
+            result_grad = grad_in[0]
+
+        """
+        neg_grad_out = ~pos_grad_out
+        pos_conv_input = grad_in[0].gt(0)
+        neg_conv_input = ~pos_conv_input
+        mask = (pos_conv_input & pos_grad_out) | (neg_conv_input & neg_grad_out)
+        result_grad = mask * grad_out[0]
+        #"""
+
+        #result_grad = pos_grad_out * grad_in[0]
+        #result_grad = pos_grad_out * grad_in[0] * th_pcam
         return (result_grad,)
 
 
@@ -61,19 +98,22 @@ class CamExtractor():
             Does a forward pass on convolutions, hooks the function at given layer
         """
         if self.guided_back == True:
-            for module_name, module in self.model.named_modules():
+            for module_name, module in self.model.base.features.named_modules():   #self.model.named_modules():
                 if isinstance(module, torch.nn.ReLU) == True:
                     module.register_backward_hook(self.guided_backward_hook_fn)
+                    module.register_forward_hook(self.reserve_relu_output)
 
         for module_name, module in self.model.base.features.named_modules():  #此处的hook比较特殊，因为并非是寻找model的参数的梯度。而是要寻找输出特征的梯度。所以是与输入相关的，不能提前定义
             if 1:#isinstance(module, torch.nn.Conv2d) or isinstance(module, torch.nn.MaxPool2d) or isinstance(module, torch.nn.AvgPool2d) or isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.ReLU):
                 #print(module_name)
                 if self.target_module_name == "":
                     module.register_forward_hook(self.set_requires_gradients_firstlayer)
+                    print("Set hook on input image")
                     #module.register_backward_hook(self.backward_hook_fn)
                     break
                 if module_name == self.target_module_name:
                     module.register_forward_hook(self.set_requires_gradients)
+                    print("Set hook on {}".format(self.target_module_name))
                     break
 
 

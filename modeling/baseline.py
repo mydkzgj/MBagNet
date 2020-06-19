@@ -162,6 +162,9 @@ class Baseline(nn.Module):
 
 
         # 1.Backbone
+        if base_name == 'vgg16':
+            self.in_planes = 4096
+            self.base = vgg16()
         if base_name == 'resnet18':
             self.in_planes = 512
             self.base = resnet18()
@@ -227,8 +230,7 @@ class Baseline(nn.Module):
                                    )
             self.in_planes = self.base.num_features
 
-        elif base_name == "vgg19": #(不要BN层)
-            self.base = vgg19(pretrained=True)
+
 
         # 2.以下是classifier的网络结构（3种）
         # （1）normal-classifier模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
@@ -562,6 +564,7 @@ class Baseline(nn.Module):
     def load_param(self, loadChoice, model_path):
         param_dict = torch.load(model_path)
         b = self.base.state_dict()
+        c = self.state_dict()
 
         # for densenet 参数名有差异，需要先行调整
         pattern = re.compile(
@@ -584,10 +587,14 @@ class Baseline(nn.Module):
 
         elif loadChoice == "Overall":
             for i in param_dict:
-                if i not in self.state_dict():
+                newi = i.replace("features.", "base.features.")
+                newi = newi.replace("classifier.", "base.classifier.")
+                print(newi)
+                if newi not in self.state_dict():
                     print("Cannot load %s, Maybe you are using incorrect framework"%i)
                     continue
-                self.state_dict()[i].copy_(param_dict[i])
+                self.state_dict()[newi].copy_(param_dict[i])
+
 
         elif loadChoice == "Classifier":
             for i in param_dict:

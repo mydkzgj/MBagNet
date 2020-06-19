@@ -12,6 +12,7 @@ from data.datasets.lib.market1501 import Market1501
 from data.datasets.lib.msmt17 import MSMT17
 from data.datasets.lib.fundusTR import FundusTR
 from data.datasets.lib.ddr_DRgrading import DDR_DRgrading, DDR_DRgrading_WeakSupervision
+from data.datasets.lib.examples import VisualExamples
 
 __factory = {
     'market1501': Market1501,
@@ -20,7 +21,8 @@ __factory = {
     'msmt17': MSMT17,
     'fundusTR': FundusTR,
     'ddr_DRgrading' : DDR_DRgrading,
-    'ddr_DRgrading_WeakSupervision' :  DDR_DRgrading_WeakSupervision
+    'ddr_DRgrading_WeakSupervision' :  DDR_DRgrading_WeakSupervision,
+    'examples' : VisualExamples,
 }
 
 

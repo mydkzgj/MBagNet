@@ -322,7 +322,7 @@ class MultiBagNet(nn.Module):
 
         # CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm
-        #self.features.add_module('norm5', nn.BatchNorm2d(num_features))
+        self.features.add_module('norm5', nn.BatchNorm2d(self.num_features))
 
         # Linear layer
         #self.classifier = nn.Linear(num_features, num_classes)
@@ -353,7 +353,6 @@ class MultiBagNet(nn.Module):
         if self.segmentationType == "denseFC":
             self.make_segmentation_module()
 
-
         # 设置hook  # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
         if hookType == "rflogitGenerate":
             self.rf_logits_reserve = []
@@ -382,7 +381,7 @@ class MultiBagNet(nn.Module):
 
     def forward(self, x):
         # 求特征输出
-        features = self.features(x)
+        features = torch.relu(self.features(x))
 
         # 分割函数
         if self.segmentationType == "denseFC":
