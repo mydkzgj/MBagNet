@@ -123,7 +123,7 @@ class DenseNet(nn.Module):
     """
 
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
-                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False,):
+                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False, with_classifier=True):
 
         super(DenseNet, self).__init__()
 
@@ -134,6 +134,8 @@ class DenseNet(nn.Module):
         self.bn_size = bn_size
         self.drop_rate = drop_rate
         self.memory_efficient = memory_efficient
+
+        self.with_classifier = with_classifier
 
         # First convolution
         self.features = nn.Sequential(OrderedDict([
@@ -168,7 +170,12 @@ class DenseNet(nn.Module):
         self.features.add_module('norm5', nn.BatchNorm2d(self.num_features))
 
         # Linear layer
-        self.classifier = nn.Linear(self.num_features, num_classes)
+        # CJY at 2020.6.20
+        if self.with_classifier == True:
+            self.classifier = nn.Linear(self.num_features, num_classes)
+            print("Create DenseNet with classifier")
+        else:
+            print("Create DenseNet without classifier")
 
         # Official init from torch repo.
         for name, m in self.named_modules():
@@ -188,7 +195,8 @@ class DenseNet(nn.Module):
         out = F.relu(features, inplace=True)
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
-        out = self.classifier(out)
+        if self.with_classifier == True:
+            out = self.classifier(out)
         return out
 
     def calculateRF(self):

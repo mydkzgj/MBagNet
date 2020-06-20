@@ -72,15 +72,19 @@ _C.MODEL.DEVICE = "cuda"
 _C.MODEL.DEVICE_ID = '0'
 # Name of backbone
 ###  se_resnext50 , se_resnet50 , resnet50 ,resnet34, mobilenetv3,resnet50_ibn_a,resnet50_ibn_a_old
-_C.MODEL.NAME = 'multi_bagnet'
+_C.MODEL.BACKBONE_NAME = 'densenet121'
+# Name of classifier      "linear","hierarchy_linear","none"
+_C.MODEL.CLASSIFIER_NAME = "linear"
+# baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
+_C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
+#
+_C.MODEL.NUM_CLASSES = 1000
+
+# Specific For MBagNet
 # If block is pre_activated, options: 1 or 0
 _C.MODEL.PRE_ACTIVATION = 1
 # how block output fuse, options: "concat", "add", "none"
 _C.MODEL.FUSION_TYPE = "concat"
-# baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
-_C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
-# 是否使用层级结构的classifier
-_C.MODEL.HIRERARCHY_CLASSIFIER = 0
 
 # supervisedType 3个支路的调配方案  若改变该项，则下述选项设定将无效    # S: - G: - R:
 # "none", "weakSu-segRe", "strongSu-segRe", "strongSu-gcamRe", "gcamRe"
@@ -107,11 +111,6 @@ _C.MODEL.GCAM_GUIDED_BP = 0   #是否使用导向反向传播计算gcam所需的
 # masked img reload type  "none", "seg_mask", "gcam_mask", "seg_gtmask", "joint"
 _C.MODEL.MASKED_IMG_RELOAD_TYPE = "none"
 _C.MODEL.PRE_RELOAD = 0  #reload是前置（与第一批同时送入）还是后置
-
-
-
-
-
 
 
 

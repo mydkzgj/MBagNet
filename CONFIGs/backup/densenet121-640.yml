@@ -31,27 +31,14 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
- CLASSIFIER_NAME: "linear"
- NUM_CLASSES: 6
- BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"           #"f-c","pl-c","fl-n"
-
+ NAME: 'densenet121'                                         #'densenet121'#'mbagnet121' 
  PRE_ACTIVATION: 1
  FUSION_TYPE: 'concat'                                        #"concat","add","none"
- 
- BRANCH_CONFIG_TYPE: "none"                   
- BRANCH_IMG_NUM: 1
- #(1). Segmentation Branch
- HOOK_TYPE:  "none"                                  #"featureReserve","rflogitGenerate","none" 
- SEGMENTATION_TYPE:  "none"                            #"denseFC", "bagFeature", "none"   "gradCAM"
- SEG_NUM_CLASSES: 4
- SEG_SUPERVISED_TYPE: "none"                                               # "none", "seg_gtmask"
- #(2). Grad-CAM Branch 
- GCAM_SUPERVISED_TYPE: "none"                                 #"none", "seg_gtmask", "seg_mask" 
- GCAM_GUIDED_BP: 0
-#(3). Reload Branch
- MASKED_IMG_RELOAD_TYPE: "none"             #"none", "seg_gtmask", "seg_mask", "gcam_mask",  "joint"
- PRE_RELOAD: 0
+ BASE_CLASSIFIER_COMBINE_TYPE: "f-c"           #"f-c","pl-c","fl-n"
+ HOOK_TYPE: "none"                                           #"featureReserve","rflogitGenerate","none"
+ SEGMENTATION_TYPE: "none"                          #"denseFC", "none"
+ SEG_NUM_CLASSES: 1
+
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -90,7 +77,7 @@ SOLVER:
   BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [8, 12, 16, 20] #[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
+  STEPS: [10, 15, 20]
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
@@ -118,7 +105,7 @@ TRAIN:
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 2
   MASK_PER_BATCH: 1
-  ACCUMULATION_STEP: 1
+  ACCUMULATION_STEP: 2
 
  # Train Trick
  TRICK:

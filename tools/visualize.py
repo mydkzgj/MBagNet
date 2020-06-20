@@ -86,7 +86,7 @@ def main():
     test_loader = WeakSupervisionDataloader(test_grad_loader, test_seg_loader)#, recycling=False)
     num_classes = len(classes_list)
 
-    model = build_model(cfg, num_classes)
+    model = build_model(cfg)
     model.load_param("Overall", cfg.TEST.WEIGHT)  #Overall
 
     #CJY 可视化  densenet层与层之间的联系

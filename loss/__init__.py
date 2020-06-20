@@ -48,7 +48,7 @@ def make_D_loss(cfg, num_classes):
                 cross_entropy_Labelsmooth_loss = CrossEntropyLabelSmooth(num_classes=num_classes)  # new add by luo
                 lossClasses["cross_entropy_loss"] = cross_entropy_Labelsmooth_loss
             else:
-                if cfg.MODEL.HIRERARCHY_CLASSIFIER == 0:
+                if cfg.MODEL.CLASSIFIER_NAME != "hierarchy_linear":
                     cross_entropy_loss = CrossEntropyLoss()
                 else:
                     cross_entropy_loss = NLLLoss()
@@ -108,7 +108,7 @@ def make_D_loss(cfg, num_classes):
             elif lossName == "cranked_loss":
                 losses["cranked_loss"] = cranked_loss(feat, label)  # cranked_loss
             elif lossName == "cross_entropy_loss":
-                if cfg.MODEL.HIRERARCHY_CLASSIFIER == 0:
+                if cfg.MODEL.CLASSIFIER_NAME != "hierarchy_linear":
                     losses["cross_entropy_loss"] = lossClasses["cross_entropy_loss"](logit, label)
                 else:
                     losses["cross_entropy_loss"] = lossClasses["cross_entropy_loss"](torch.log(logit), label)

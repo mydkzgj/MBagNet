@@ -16,6 +16,9 @@ from .backbones.multi_bagnet import *
 from .backbones.bagnet import *
 from .backbones.vgg import *
 
+from .classifiers.hierarchy_linear import *
+
+
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
 
 def weights_init_kaiming(m):
@@ -40,9 +43,8 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 class Baseline(nn.Module):
-    def __init__(self, base_name, num_classes,
+    def __init__(self, base_name, classifier_name, num_classes, base_classifier_Type="f-c",
                  preAct=True, fusionType="concat",
-                 base_classifier_Type="f-c", hierarchy_classifier=0,
                  hookType="none", segmentationType="none", seg_num_classes=1, segSupervisedType="none",
                  gcamSupervisedType="none", guidedBP=0,
                  maskedImgReloadType="none", preReload=0,
@@ -53,25 +55,29 @@ class Baseline(nn.Module):
         # 0.参数预设
         self.num_classes = num_classes
         self.base_name = base_name
+        self.classifier_name = classifier_name
         self.accumulation_steps = accumulation_steps
 
         # 用于处理mbagnet的模块类型
         self.preAct = preAct
         self.fusionType = fusionType
 
-        # baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
+        # baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"   网络搭建的三种模式
         self.frameworkDict = {"f-c":("feature", "normal"), "pl-c":("pre-logit", "post"), "fl-n":("final-logit", "none")}
         self.BCType = base_classifier_Type   #默认是该模式   baseline & classifier
         self.baseOutputType = self.frameworkDict[self.BCType][0]
         self.classifierType = self.frameworkDict[self.BCType][1]
-        if self.BCType == "pl-c":
-            self.baseOutChannels = seg_num_classes  # 可自设定，比如病灶种类
+        if self.BCType == "f-c":
+            self.base_num_classes = 0
+            self.base_with_classifier = False
+        elif self.BCType == "pl-c":
+            self.base_num_classes = seg_num_classes  # 可自设定，比如病灶种类
+            self.base_with_classifier = True
         else:
-            self.baseOutChannels = self.num_classes
+            self.base_num_classes = self.num_classes
+            self.base_with_classifier = True
+            self.classifier_name = "none"
 
-
-        # CJY 分类器是否采用hierachy的结构
-        self.hierarchyClassifier = hierarchy_classifier
 
         # 下面为3个支路设置参数
         # bracnh used samples including seg, gracam, reload
@@ -159,169 +165,14 @@ class Baseline(nn.Module):
                 raise Exception("Wrong Branch Config")
         """
 
-
-
         # 1.Backbone
-        # vgg
-        if base_name == 'vgg16':
-            self.in_planes = 512
-            self.base = vgg16(num_classes=6)
-
-        if base_name == 'resnet18':
-            self.in_planes = 512
-            self.base = resnet18()
-        elif base_name == 'resnet34':
-            self.in_planes = 512
-            self.base = resnet34()
-        elif base_name == 'resnet50':
-            self.base = resnet50(num_classes=6)
-
-        elif base_name == 'resnet101':
-            self.base = resnet101()
-        elif base_name == 'resnet152':
-            self.base = resnet152()
-        elif base_name == "densenet121":
-            self.base = densenet121(num_classes=6)  #densenet121o-640.yml
-            """
-            self.base = mbagnet121(num_classes=self.baseOutChannels,
-                                   preAct=True, fusionType="concat", reduction=1, complexity=0,
-                                   transitionType="non-linear",
-                                   outputType=self.baseOutputType,
-                                   hookType=self.hookType, segmentationType=self.segmentationType, seg_num_classes=self.seg_num_classes,
-                                   )
-            #"""
-            self.in_planes = self.base.num_features
-        elif base_name == "densenet201":
-            # self.base = densenet201()
-            # """
-            self.base = mbagnet201(num_classes=self.baseOutChannels,
-                                   preAct=True, fusionType="concat", reduction=1, complexity=0,
-                                   transitionType="non-linear",
-                                   outputType=self.baseOutputType,
-                                   hookType=self.hookType, segmentationType=self.segmentationType,
-                                   seg_num_classes=self.seg_num_classes,
-                                   )
-            # """
-            self.in_planes = self.base.num_features
-
-        # 以下为了与multi_bagnet比较所做的调整网络
-        elif base_name == "bagnet":
-            self.base = bagnet9()
-            self.in_planes = 2048
-        elif base_name == "resnetS224":
-            self.base = resnetS224()
-            self.in_planes = self.base.num_output_features
-        elif base_name == "densenetS224":
-            self.base = densenetS224()
-            self.in_planes = self.base.num_features
-        elif base_name == "mbagnet121":
-            self.base = mbagnet121(num_classes=self.baseOutChannels,
-                                   preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0,
-                                   transitionType="linear",
-                                   outputType=self.baseOutputType,
-                                   hookType=self.hookType, segmentationType=self.segmentationType, seg_num_classes=self.seg_num_classes,
-                                   )
-            self.in_planes = self.base.num_features
-
-        elif base_name == "mbagnet201":
-            self.base = mbagnet201(num_classes=self.baseOutChannels,
-                                   preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0,
-                                   transitionType="linear",
-                                   outputType=self.baseOutputType,
-                                   hookType=self.hookType, segmentationType=self.segmentationType,
-                                   seg_num_classes=self.seg_num_classes,
-                                   )
-            self.in_planes = self.base.num_features
-
-        elif base_name == "vgg19": #(不要BN层)
-            self.base = vgg19(pretrained=True)
+        self.choose_backbone()
 
         # 2.以下是classifier的网络结构（3种）
-        # （1）normal-classifier模式: backbone提供特征，classifier只是线性分类器，需要用gap处理
-        if self.classifierType == "normal":
-            self.gap = nn.AdaptiveAvgPool2d(1)
-            if self.hierarchyClassifier == False:
-                self.classifier = nn.Linear(self.in_planes, self.num_classes)
-                self.classifier.apply(weights_init_classifier)
-            else:
-                """
-                self.classifier1 = nn.Linear(self.in_planes, 2)
-                self.classifier1.apply(weights_init_classifier)
-                self.classifier2 = nn.Linear(self.in_planes, 2)
-                self.classifier2.apply(weights_init_classifier)
-                self.classifier3 = nn.Linear(self.in_planes, 2)
-                self.classifier3.apply(weights_init_classifier)
-                self.classifier4 = nn.Linear(self.in_planes, 2)
-                self.classifier4.apply(weights_init_classifier)
-                self.classifier5 = nn.Linear(self.in_planes, 2)
-                self.classifier5.apply(weights_init_classifier)
-                self.classifier6 = nn.Linear(self.in_planes, 2)
-                self.classifier6.apply(weights_init_classifier)
-                #"""
-                self.classifier1 = nn.Linear(self.in_planes, 1)
-                self.classifier1.apply(weights_init_classifier)
-                self.classifier2 = nn.Linear(self.in_planes, 1)
-                self.classifier2.apply(weights_init_classifier)
-                self.classifier3 = nn.Linear(self.in_planes, 1)
-                self.classifier3.apply(weights_init_classifier)
-                self.classifier4 = nn.Linear(self.in_planes, 1)
-                self.classifier4.apply(weights_init_classifier)
-                self.classifier5 = nn.Linear(self.in_planes, 1)
-                self.classifier5.apply(weights_init_classifier)
-                self.classifier6 = nn.Linear(self.in_planes, 1)
-                self.classifier6.apply(weights_init_classifier)
-
-        #  (2)post-classifier模式: backbone提供的是logits，不需要gap，只需线性classifier即可
-        elif self.classifierType == "post":
-            self.finalClassifier = nn.Linear(self.baseOutChannels, self.num_classes)
-            self.finalClassifier.apply(weights_init_classifier)
-        #  (3)none模式: backbone自带分类器
-        elif self.classifierType == "none":
-            print("Backbone with classifier itself.")
+        self.choose_classifier()
 
         # 3.所有的hook操作（按理来说应该放在各自的baseline里）
-        # GradCAM 如果其不为none，那么就设置hook
-        if self.gcamState == True:
-            self.inter_output = []
-            self.inter_gradient = []
-
-            self.target_layer = ["denseblock4"]#["denseblock3"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#, "denseblock2", "denseblock3", "denseblock4"]#, "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
-            #"denseblock1", "denseblock2", "denseblock3",   ["denseblock4"]#  ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
-            if self.target_layer != []:
-                for tl in self.target_layer:
-                    for module_name, module in self.base.features.named_modules():
-                        #if isinstance(module, torch.nn.Conv2d):
-                        if module_name == tl:  #"transition1.conv":
-                            print("Grad-CAM hook on ", module_name)
-                            module.register_forward_hook(self.forward_hook_fn)
-                            #module.register_backward_hook(self.backward_hook_fn)  不以backward求取gcam了
-                            break
-
-
-        if self.guidedBP == True:
-            print("Set GuidedBP Hook on Relu")
-            for module_name, module in self.named_modules():
-                if isinstance(module, torch.nn.ReLU) == True:
-                    module.register_backward_hook(self.guided_backward_hook_fn)
-        self.guidedBPstate = 0   #用的时候再使用
-
-        # 打印梯度
-        self.need_print_grad = 0
-        if self.need_print_grad == 1:
-            self.target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
-            if self.target_layers != []:
-                for tl in self.target_layers:
-                    for module_name, module in self.base.features.named_modules():
-                        # if isinstance(module, torch.nn.Conv2d):
-                        if module_name == tl:  # "transition1.conv":
-                            print("Grad-CAM hook on ", module_name)
-                            module.register_backward_hook(self.print_grad) # 不以backward求取gcam了
-                            break
-
-    def print_grad(self, module, grad_in, grad_out):
-        if self.guidedBPstate == 0:
-            print("start:")
-            print("mean:{},  max:{},  min:{}".format(grad_out[0].abs().mean().item(), grad_out[0].max().item(), grad_out[0].min().item()))
+        self.set_hooks()
 
 
     def forward(self, x):
@@ -329,52 +180,21 @@ class Baseline(nn.Module):
             self.inter_output.clear()
             self.inter_gradient.clear()
 
-        # 分为三种情况：1.base只提供特征 2.base输出logit但需后处理 3
-        if self.classifierType == "normal":
+        # 分为两种情况：
+        if self.classifier_name != "none":
             base_out = self.base(x)
-            global_feat = self.gap(base_out)  # (b, ?, 1, 1)
-            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-            if self.hierarchyClassifier == False:
-                final_logits = self.classifier(feat)
-            else:
-                # 注：对于2分类问题，不应该用softmax，因为classifier会有2个超平面，而实际上只需要一个超平面
-                logits1 = self.classifier1(feat)  # 画质（0，1，2，3，4，）Vs 5
-                score1 = F.sigmoid(logits1)
-                logits2 = self.classifier2(feat)  # 正常 0， （1，2，3，4）
-                score2 = F.sigmoid(logits2)
-                logits3 = self.classifier3(feat)  # 病灶 1, (2，3，4)
-                score3 = F.sigmoid(logits3)
-                logits4 = self.classifier4(feat)  # 病灶 2, (3，4)
-                score4 = F.sigmoid(logits4)
-                logits5 = self.classifier5(feat)  # 病灶 3, (4)
-                score5 = F.sigmoid(logits5)
-
-                score_c5 = score1
-                score_L0 = 1-score1
-                score_c0 = score_L0 * score2
-                score_L1 = score_L0 * (1-score2)
-                score_c1 = score_L1 * score3
-                score_L2 = score_L1 * (1-score3)
-                score_c2 = score_L2 * score4
-                score_L3 = score_L2 * (1-score4)
-                score_c3 = score_L3 * score5
-                score_c4 = score_L3 * (1 - score5)
-
-                final_logits = torch.cat([score_c0, score_c1, score_c2, score_c3, score_c4, score_c5], dim=1)
-                #final_logits = torch.log(final_logits)  # 放到了loss里面，和nlll组合
-
-        elif self.classifierType == "post":
-            logits = self.base(x)
-            final_logits = self.finalClassifier(logits)
-        elif self.classifierType == "none":
+            final_logits = self.classifier(base_out)
+        else:
             final_logits = self.base(x)
 
         return final_logits   # 其他参数可以用model的成员变量来传递
 
 
+
+    # Hook Function
+    #1.保留中间输出——用于GradCAM
     def forward_hook_fn(self, module, input, output):
         self.inter_output.append(output)
-
     """
     def backward_hook_fn(self, module, grad_in, grad_out):
         if self.batchDistribution != 0:
@@ -385,7 +205,7 @@ class Baseline(nn.Module):
                 self.inter_gradient.append(grad_out[0])  # 将输入图像的梯度获取
     """
 
-    # Guided Backpropgation
+    #2. 用于Guided Backpropgation
     #用于Relu处的hook
     def guided_backward_hook_fn(self, module, grad_in, grad_out):
         #self.gradients = grad_in[1]
@@ -397,6 +217,12 @@ class Baseline(nn.Module):
         else:
             #print(2)
             pass
+
+    #3.用于打印梯度
+    def print_grad(self, module, grad_in, grad_out):
+        if self.guidedBPstate == 0:
+            print("start:")
+            print("mean:{},  max:{},  min:{}".format(grad_out[0].abs().mean().item(), grad_out[0].max().item(), grad_out[0].min().item()))
 
     def gcamNormalization(self, gcam):
         # 归一化 v1 使用均值，方差
@@ -564,12 +390,141 @@ class Baseline(nn.Module):
             m.track_running_stats = False
             #m.eval()
 
+
+    # choose backbone
+    def choose_backbone(self):
+        # 1.VGG
+        if self.base_name == 'vgg16':
+            self.base = vgg16(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+            self.in_planes = 512
+        elif self.base_name == "vgg19":
+            self.base = vgg19(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+
+        # 2.ResNet
+        elif self.base_name == 'resnet18':
+            self.in_planes = 512
+            self.base = resnet18(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+        elif self.base_name == 'resnet34':
+            self.in_planes = 512
+            self.base = resnet34(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+        elif self.base_name == 'resnet50':
+            self.base = resnet50(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+        elif self.base_name == 'resnet101':
+            self.base = resnet101(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+        elif self.base_name == 'resnet152':
+            self.base = resnet152(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+
+        # 3. DenseNet
+        elif self.base_name == "densenet121":
+            self.base = densenet121(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)  # densenet121o-640.yml
+            """
+            self.base = mbagnet121(num_classes=self.baseOutChannels,
+                                   preAct=True, fusionType="concat", reduction=1, complexity=0,
+                                   transitionType="non-linear",
+                                   outputType=self.baseOutputType,
+                                   hookType=self.hookType, segmentationType=self.segmentationType, seg_num_classes=self.seg_num_classes,
+                                   )
+            #"""
+            self.in_planes = self.base.num_features
+        elif self.base_name == "densenet201":
+            self.base = densenet201(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+            """
+            self.base = mbagnet201(num_classes=self.base_num_classes,
+                                   preAct=True, fusionType="concat", reduction=1, complexity=0,
+                                   transitionType="non-linear",
+                                   outputType=self.baseOutputType,
+                                   hookType=self.hookType, segmentationType=self.segmentationType,
+                                   seg_num_classes=self.seg_num_classes,
+                                   )
+            # """
+            self.in_planes = self.base.num_features
+
+        # 以下为了与multi_bagnet比较所做的调整网络
+        elif self.base_name == "bagnet":
+            self.base = bagnet9()
+            self.in_planes = 2048
+        elif self.base_name == "resnetS224":
+            self.base = resnetS224()
+            self.in_planes = self.base.num_output_features
+        elif self.base_name == "densenetS224":
+            self.base = densenetS224()
+            self.in_planes = self.base.num_features
+        elif self.base_name == "mbagnet121":
+            self.base = mbagnet121(num_classes=self.base_num_classes,
+                                   preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0,
+                                   transitionType="linear",
+                                   outputType=self.baseOutputType,
+                                   hookType=self.hookType, segmentationType=self.segmentationType,
+                                   seg_num_classes=self.seg_num_classes,
+                                   )
+            self.in_planes = self.base.num_features
+
+        elif self.base_name == "mbagnet201":
+            self.base = mbagnet201(num_classes=self.base_num_classes,
+                                   preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0,
+                                   transitionType="linear",
+                                   outputType=self.baseOutputType,
+                                   hookType=self.hookType, segmentationType=self.segmentationType,
+                                   seg_num_classes=self.seg_num_classes,
+                                   )
+            self.in_planes = self.base.num_features
+
+    def choose_classifier(self):
+        # （1）linear  （2）hierarchy_linear  （3）multi-layer  (4)none
+        if self.classifier_name == "linear":
+            self.classifier = nn.Linear(self.in_planes, self.num_classes)
+            self.classifier.apply(weights_init_classifier)
+        elif self.classifier_name == "hierarchy_linear":
+            self.classifier = HierarchyLinear(self.in_planes, self.num_classes)
+        elif self.classifier_name == "none":
+            print("Backbone with classifier itself.")
+
+    def set_hooks(self):
+        # 1.GradCAM hook               GradCAM 如果其不为none，那么就设置hook
+        if self.gcamState == True:
+            self.inter_output = []
+            self.inter_gradient = []
+
+            self.target_layer = [
+                "denseblock4"]  # ["denseblock3"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#, "denseblock2", "denseblock3", "denseblock4"]#, "denseblock2", "denseblock3", "denseblock4"]#"conv0"#"denseblock3"#"conv0"#"denseblock1"  "denseblock2", "denseblock3",
+            # "denseblock1", "denseblock2", "denseblock3",   ["denseblock4"]#  ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
+            if self.target_layer != []:
+                for tl in self.target_layer:
+                    for module_name, module in self.base.features.named_modules():
+                        # if isinstance(module, torch.nn.Conv2d):
+                        if module_name == tl:  # "transition1.conv":
+                            print("Grad-CAM hook on ", module_name)
+                            module.register_forward_hook(self.forward_hook_fn)
+                            # module.register_backward_hook(self.backward_hook_fn)  不以backward求取gcam了
+                            break
+        # 2.Guided Backpropagation Hook
+        if self.guidedBP == True:
+            print("Set GuidedBP Hook on Relu")
+            for module_name, module in self.named_modules():
+                if isinstance(module, torch.nn.ReLU) == True:
+                    module.register_backward_hook(self.guided_backward_hook_fn)
+        self.guidedBPstate = 0  # 用的时候再使用
+
+        # 3.观测梯度 hook
+        # 打印梯度
+        self.need_print_grad = 0
+        if self.need_print_grad == 1:
+            self.target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]
+            if self.target_layers != []:
+                for tl in self.target_layers:
+                    for module_name, module in self.base.features.named_modules():
+                        # if isinstance(module, torch.nn.Conv2d):
+                        if module_name == tl:  # "transition1.conv":
+                            print("Grad-CAM hook on ", module_name)
+                            module.register_backward_hook(self.print_grad)  # 不以backward求取gcam了
+                            break
+
     # 载入参数
     def load_param(self, loadChoice, model_path):
         param_dict = torch.load(model_path)
         b = self.base.state_dict()
 
-        # for densenet 参数名有差异，需要先行调整
+        # For DenseNet 预训练模型与pytorch模型的参数名有差异，故需要先行调整
         pattern = re.compile(
             r'^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$')
         for key in list(param_dict.keys()):
@@ -581,12 +536,14 @@ class Baseline(nn.Module):
 
         if loadChoice == "Base":
             for i in param_dict:
-                newi = i.replace("base.", "")
-                if newi not in self.base.state_dict() or "classifier" in newi or "fc" in newi:
+                module_name = i.replace("base.", "")
+                if module_name not in self.base.state_dict():
                     print("Cannot load %s, Maybe you are using incorrect framework"%i)
-                    #print(newi)
                     continue
-                self.base.state_dict()[newi].copy_(param_dict[i])
+                elif "fc" in module_name or "classifier" in module_name:
+                    print("Donot load %s, have changed this module for retraining" % i)
+                    continue
+                self.base.state_dict()[module_name].copy_(param_dict[i])
 
         elif loadChoice == "Overall":
             for i in param_dict:

@@ -17,7 +17,7 @@ DATA:
   IMS_PER_BATCH: 24
 
  TRANSFORM:
-  SIZE: [640, 640]       #[736, 736]#[640,640]#[512, 512]#[448, 448]#[224, 224]
+  SIZE: [224, 224]       #[736, 736]#[640,640]#[512, 512]#[448, 448]#[224, 224]
   MASK_SIZE_RATIO: 1
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
@@ -31,7 +31,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "resnet50"                                         #'densenet121'#'mbagnet121' 
  CLASSIFIER_NAME: "linear"
  NUM_CLASSES: 6
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"           #"f-c","pl-c","fl-n"
@@ -90,7 +90,7 @@ SOLVER:
   BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [8, 12, 16, 20] #[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
+  STEPS: [8, 12, 16, 20]#[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
@@ -115,14 +115,14 @@ TRAIN:
 
  # Train Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 2
+  CATEGORIES_PER_BATCH: 3
+  INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1
   ACCUMULATION_STEP: 1
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'
+  PRETRAIN_PATH: './pretrained/resnet50-19c8e357.pth'#vgg16-397923af.pth'#'./pretrained/densenet121_model_1.pth'#
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
@@ -140,7 +140,7 @@ VAL:
  # Val Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 2
+  INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1
 
 # -----------------------------------------------------------------------------
@@ -156,5 +156,5 @@ TEST:
  # Test Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 2
+  INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1

@@ -52,7 +52,7 @@ def train(cfg):
     num_classes = len(classes_list)
 
     # build model and load parameter
-    model = build_model(cfg, num_classes)
+    model = build_model(cfg)
     if cfg.SOLVER.SCHEDULER.RETRAIN_FROM_HEAD == True:
         if cfg.TRAIN.TRICK.PRETRAINED == True:
             model.load_param("Base", cfg.TRAIN.TRICK.PRETRAIN_PATH)

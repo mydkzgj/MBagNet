@@ -31,12 +31,13 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- NAME: 'resnet50'                                         #'densenet121'#'mbagnet121' 
- PRE_ACTIVATION: 1
- FUSION_TYPE: 'concat'                                        #"concat","add","none"
+ BACKBONE_NAME: "resnet50"                                         #'densenet121'#'mbagnet121' 
+ CLASSIFIER_NAME: "linear"
+ NUM_CLASSES: 6
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"           #"f-c","pl-c","fl-n"
 
- HIRERARCHY_CLASSIFIER: 0                               # 0, 1
+ PRE_ACTIVATION: 1
+ FUSION_TYPE: 'concat'                                        #"concat","add","none"
  
  BRANCH_CONFIG_TYPE: "none"                   
  BRANCH_IMG_NUM: 1
@@ -89,7 +90,7 @@ SOLVER:
   BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [8, 12, 16, 20]#[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
+  STEPS: [8, 12, 16, 20] #[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
@@ -115,13 +116,13 @@ TRAIN:
  # Train Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1
+  INSTANCES_PER_CATEGORY_IN_BATCH: 2
   MASK_PER_BATCH: 1
-  ACCUMULATION_STEP: 4
+  ACCUMULATION_STEP: 1
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/resnet50-19c8e357.pth'#'./pretrained/densenet121_model_1.pth'#
+  PRETRAIN_PATH: './pretrained/resnet50-19c8e357.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
@@ -139,7 +140,7 @@ VAL:
  # Val Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1
+  INSTANCES_PER_CATEGORY_IN_BATCH: 2
   MASK_PER_BATCH: 1
 
 # -----------------------------------------------------------------------------
@@ -155,5 +156,5 @@ TEST:
  # Test Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 6
-  INSTANCES_PER_CATEGORY_IN_BATCH: 1
+  INSTANCES_PER_CATEGORY_IN_BATCH: 2
   MASK_PER_BATCH: 1
