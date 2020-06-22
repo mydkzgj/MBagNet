@@ -279,7 +279,7 @@ class GradCamMaskLoss(object):
         # 用真值sef_mask监督CAM
         # """
         if not isinstance(gcam_gtmask, torch.Tensor) or not isinstance(gcam_mask_list, list):
-            return [0, 0, 0, 0]
+            return [0]
 
         # seg_mask 需要根据病灶重新生成分级所需要的掩膜
         # 每一个疾病提出三种与之相关的病灶： 1：决策依据   2：非决策依据   3：未知
@@ -309,7 +309,7 @@ class GradCamMaskLoss(object):
                 # 未知
                 sm_un = 1 - (sm_p + sm_n)
             elif gcam_label[i] == 3:
-                return [0,0,0,0]
+                return [0]
                 # 决策依据
                 sm_p = 0 * gcam_gtmask[i:i + 1, 1:2]   # 出血是不确定的
                 #sm_p = gcam_gtmask[i:i + 1, 1:2]
@@ -322,7 +322,7 @@ class GradCamMaskLoss(object):
                 # 未知
                 sm_un = 1 - (sm_p + sm_n)
             elif gcam_label[i] == 4:
-                return [0,0,0,0]
+                return [0]
                 # 决策依据
                 sm_p = 0 * gcam_gtmask[i:i + 1, 1:2]
                 # 非决策依据
@@ -368,7 +368,6 @@ class GradCamMaskLoss(object):
             gcam_gtscore = gcam_gtmask * pos_th + (1-gcam_gtmask) * neg_th
             loss = torch.pow(gcam_mask - gcam_gtscore, 2)
 
-
             # pos weight , neg weight   默认是1
             pos_weight = 1
             neg_weight = 1
@@ -412,12 +411,5 @@ class GradCamMaskLoss(object):
             else:
                 total_loss_list.append(total_loss)#pos_loss+neg_loss)   #pos_loss
 
-        while len(total_loss_list) < 4:
-            total_loss_list.append(0)
-
         return total_loss_list
 
-
-# a = torch.isnan(pos_loss)
-# if a.item() == 1:
-#    print("Nan")

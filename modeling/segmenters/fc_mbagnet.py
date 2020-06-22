@@ -44,14 +44,14 @@ class FCMBagNet(nn.Module):
           but slower. Default: *False*. See `"paper" <https://arxiv.org/pdf/1707.06990.pdf>`_
     """
 
-    def __init__(self, encoder_model, encoder_features_channels, num_classes, batchDistribution,
+    def __init__(self, encoder, encoder_features_channels, num_classes, batchDistribution,
                  growth_rate=32, block_config=(6, 12, 24, 16),
                  bn_size=4, drop_rate=0, memory_efficient=False,
                  preAct=True, fusionType="concat", reduction=1, complexity=0, transitionType="linear",):
         super(FCMBagNet, self).__init__()
 
         # 依据 BackBone （DenseNet或MBagNet的配置进行对应的配置）
-        self.encoder_model = encoder_model
+        #self.encoder = encoder
         self.decoder_features_channels = {}
         for i in encoder_features_channels.keys():
             if i == "final_output":
@@ -131,7 +131,7 @@ class FCMBagNet(nn.Module):
 
         # 设置为encoder网络设置hook，提取transition处的输出
         self.features_reserve = []
-        modules = self.encoder_model.named_modules()
+        modules = encoder.named_modules()
         for name, module in modules:
             if isinstance(module, nn.AvgPool2d) and "transition" in name:
                 print("Set hook on {} for Fc-MBagNet".format(name))

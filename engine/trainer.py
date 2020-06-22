@@ -175,11 +175,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 将label转为one - hot
         one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
         one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
-
         segBatchDistribution = (grade_num+seg_num-model.branch_img_num, model.branch_img_num)
         gcamBatchDistribution = (grade_num+seg_num-model.branch_img_num, model.branch_img_num)
 
-        # Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
+        # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:
             rimgs = imgs[grade_num:grade_num+seg_num].clone()
             rlabels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
@@ -214,6 +213,8 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # Branch 2 Grad-CAM
         if model.gcamState == True:
             gcam_list, gcam_max_list, overall_gcam = GenerateVisualization(model, logits, labels, gcamBatchDistribution, device)
+            model.visualization = overall_gcam
+
             if model.gcamSupervisedType == "seg_gtmask":
                 gcam_gtmasks = seg_gt_masks
                 gcam_labels = seg_labels
@@ -233,11 +234,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # Branch 3 Masked Img Reload
         if model.reloadState == True and model.preReload == 0:
-            rimgs = imgs[grade_num+seg_num-model.branch_img_num, grade_num+seg_num].clone()
+            rimgs = imgs[grade_num+seg_num-model.branch_img_num: grade_num+seg_num].clone()
             rlabels = labels[labels.shape[0] - rimgs.shape[0]:labels.shape[0]]
             #(1).Generate Soft Mask
             soft_mask = GenerateOcclusionMask(sourceType=model.maskedImgReloadType, fusionFunc=model.lesionFusion,
-                                              labels=None, gtmask=None, segmentation=None, visulization=None,)
+                                              labels=seg_labels, gtmask=seg_gt_masks, segmentation=model.segmentation, visulization=model.visualization,)
             #(2).Generate Masked Img
             rimgs = imgs[imgs.shape[0] - soft_mask.shape[0]:imgs.shape[0]].clone()
             pos_masked_img, neg_masked_img = GenerateMaskedImg(rimgs, soft_mask, occlusionType="zero", device=device)
@@ -305,7 +306,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if var_exists == True:
             gl_weight = gcam_max_list
         else:
-            gl_weight = [1, 1, 1, 1]
+            gl_weight = [1]
         loss = 0
         for lossKey in losses.keys():
             if lossKey == "gcam_mask_loss":
@@ -388,7 +389,7 @@ def GenerateVisualization(model, logits, labels, gcamBatchDistribution, device):
                            0]]  # 此处分离节点，别人皆不分离  .detach()
         inter_gradient = model.inter_gradient[i][
                          model.inter_gradient[i].shape[0] - gcamBatchDistribution[1]:model.inter_gradient[i].shape[0]]
-        if model.target_layer[i] == "denseblock4" and model.hierarchyClassifier == 0:  # 最后一层是denseblock4的输出，使用forward形式
+        if False:#model.target_layer[i] == "denseblock4":  # 最后一层是denseblock4的输出，使用forward形式
             gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
             # gcam = gcam /(gcam.shape[-1]*gcam.shape[-2])  #如此，形式上与其他层计算的gcam量级就相同了
             # gcam = torch.softmax(gcam, dim=-1)
@@ -397,7 +398,7 @@ def GenerateVisualization(model, logits, labels, gcamBatchDistribution, device):
             for j in range(pick_label.shape[0]):
                 pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
             gcam = torch.cat(pick_list, dim=0)
-        else:
+        else:  #backward形式
             gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
             gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
@@ -413,9 +414,9 @@ def GenerateVisualization(model, logits, labels, gcamBatchDistribution, device):
 
     # print("1")
     # 多尺度下的gcam进行融合
-    # overall_gcam = torch.cat(gcam_list, dim=1)
+    overall_gcam = torch.cat(gcam_list, dim=1)
     # mean值法
-    # overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
+    overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
     # max值法
     # overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
 
@@ -438,11 +439,11 @@ def GenerateVisualization(model, logits, labels, gcamBatchDistribution, device):
     model.inter_output.clear()
     model.inter_gradient.clear()
 
-    return gcam_list, gcam_max_list
+    return gcam_list, gcam_max_list, overall_gcam
 
 def GenerateOcclusionMask(sourceType=None, fusionFunc=None, labels=None, gtmask=None, segmentation=None, visulization=None,):
     # 1.generate initial soft_mask
-    if sourceType == "gtmask":
+    if sourceType == "seg_gtmask":
         soft_mask = gtmask
         soft_mask = fusionFunc(soft_mask, labels[labels.shape[0] - soft_mask.shape[0]:labels.shape[0]])
     elif sourceType == "segmentation":
@@ -585,16 +586,10 @@ def do_train(
             metrics_train["AVG-" + "seg_mask_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["seg_mask_loss"])
         elif lossName == "gcam_mask_loss":
-            #metrics_train["AVG-" + "gcam_mask_loss"] = RunningAverage(
-            #    output_transform=lambda x: x["losses"]["gcam_mask_loss"])
-            metrics_train["AVG-" + "gcam_mask_loss0"] = RunningAverage(
-                output_transform=lambda x: x["losses"]["gcam_mask_loss"][0])
-            metrics_train["AVG-" + "gcam_mask_loss1"] = RunningAverage(
-                output_transform=lambda x: x["losses"]["gcam_mask_loss"][1])
-            metrics_train["AVG-" + "gcam_mask_loss2"] = RunningAverage(
-                output_transform=lambda x: x["losses"]["gcam_mask_loss"][2])
-            metrics_train["AVG-" + "gcam_mask_loss3"] = RunningAverage(
-                output_transform=lambda x: x["losses"]["gcam_mask_loss"][3])
+            for index, layername in enumerate(model.target_layer):
+                gcam_mask_loss_name = "gcam_mask_loss" + "-" + layername
+                metrics_train["AVG-" + gcam_mask_loss_name] = RunningAverage(
+                    output_transform=lambda x: x["losses"]["gcam_mask_loss"][i])
         elif lossName == "pos_masked_img_loss":
             metrics_train["AVG-" + "pos_masked_img_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["pos_masked_img_loss"])
@@ -650,36 +645,7 @@ def do_train(
         logger.info("Model:{}".format(model.count_param()))
         inputshape = (3, cfg.DATA.TRANSFORM.SIZE[0], cfg.DATA.TRANSFORM.SIZE[1])
         logger.info("Model:{}".format(model.count_param2(input_shape=inputshape)))
-        #print(model)
-        #print(model.count_param())
-        #print(model.count_param2())
 
-        """
-        metrics = do_inference(cfg, model, val_loader, classes_list, loss_fn, plotFlag=False)
-
-        step = 0#len(train_loader) * (engine.state.epoch - 1) + engine.state.iteration
-        for preKey in metrics['precision'].keys():
-            writer_val.add_scalar("Precision/" + str(preKey), metrics['precision'][preKey], step)
-
-        for recKey in metrics['recall'].keys():
-            writer_val.add_scalar("Recall/" + str(recKey), metrics['recall'][recKey], step)
-
-        for aucKey in metrics['roc_auc'].keys():
-            writer_val.add_scalar("ROC_AUC/" + str(aucKey), metrics['roc_auc'][aucKey], step)
-
-        writer_val.add_scalar("OverallAccuracy", metrics["overall_accuracy"], step)
-
-        # writer.add_scalar("Val/"+"confusion_matrix", metrics['confusion_matrix'], step)
-
-        # 混淆矩阵 和 ROC曲线可以用图的方式来存储
-        roc_numpy = metrics["roc_figure"]
-        writer_val.add_image("ROC", roc_numpy, step, dataformats='HWC')
-
-        confusion_matrix_numpy = metrics["confusion_matrix_numpy"]
-        writer_val.add_image("ConfusionMatrix", confusion_matrix_numpy, step, dataformats='HWC')
-
-        writer_val.flush()
-        #"""
 
     @trainer.on(Events.EPOCH_COMPLETED) #_STARTED)   #注意，在pytorch1.2里面 scheduler.steo()应该放到 optimizer.step()之后
     def adjust_learning_rate(engine):
@@ -727,15 +693,15 @@ def do_train(
             avg_losses = {}
             for lossName in lossKeys:
                 if lossName == "gcam_mask_loss":
-                    for i in range(4):
-                        avg_losses[lossName+str(i)] = (float("{:.3f}".format(engine.state.metrics["AVG-" + lossName + str(i)])))
+                    for i, layername in enumerate(model.target_layer):
+                        avg_losses[lossName+"-"+layername] = (float("{:.3f}".format(engine.state.metrics["AVG-" + lossName +"-"+layername])))
                         scalarDict = {}
                         for j in range(len(optimizers)):
                             if j != engine.state.optimizer_index:
                                 scalarDict["optimizer" + str(j)] = 0
                             else:
-                                scalarDict["optimizer" + str(j)] = avg_losses[lossName+str(i)]
-                            writer_train[j].add_scalar("Loss/" + lossName + str(i), scalarDict["optimizer" + str(j)], step)
+                                scalarDict["optimizer" + str(j)] = avg_losses[lossName+"-"+layername]
+                            writer_train[j].add_scalar("Loss/" + lossName +"-"+layername, scalarDict["optimizer" + str(j)], step)
                             writer_train[j].flush()
                 else:
                     avg_losses[lossName] = (float("{:.3f}".format(engine.state.metrics["AVG-" + lossName])))

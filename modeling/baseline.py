@@ -122,12 +122,14 @@ class Baseline(nn.Module):
         # 1.Backbone
         self.choose_backbone()
 
-        # 2.以下是classifier的网络结构（3种）
+        # 2.classifier的网络结构
         self.choose_classifier()
 
-        # 3.以下是classifier的网络结构（3种）
+        # 3.classifier的网络结构
         self.choose_segmenter()
         self.segmentation = None
+
+        self.visualization = None
 
         # 4.所有的hook操作（按理来说应该放在各自的baseline里）
         self.set_hooks()
@@ -146,7 +148,10 @@ class Baseline(nn.Module):
             final_logits = self.base(x)
 
         if self.segmenter_name != "none":
-            self.segmentation = self.segmenter(self.segmenter.features_reserve[-1])
+            if self.segState == True:
+                self.segmentation = self.segmenter(self.segmenter.features_reserve[-1])
+            else:
+                self.segmenter.features_reserve.clear()   #如果不计算segmentation，那么就应该清除由hook保存的特征
 
         return final_logits   # 其他参数可以用model的成员变量来传递
 
@@ -412,14 +417,23 @@ class Baseline(nn.Module):
     def choose_segmenter(self):
         if self.segmenter_name == "fc_mbagnet":
             if "densenet" in self.base_name or "mbagnet" in self.base_name:
-                self.segmenter = FCMBagNet(encoder_model=self.base, encoder_features_channels=self.base.key_features_channels_record,
+                self.segmenter = FCMBagNet(encoder=self.base, encoder_features_channels=self.base.key_features_channels_record,
                                            num_classes=self.seg_num_classes, batchDistribution=self.batchDistribution,
                                            growth_rate=self.base.growth_rate, block_config=self.base.block_config, bn_size=self.base.bn_size,
                                            preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0, transitionType="linear",
                                            )
 
     def set_hooks(self):
+        # 0.different Network config
+        Layer_Net_Dict={
+            "MBagNet":["denseblock1", "denseblock2", "denseblock3", "denseblock4"],
+            "DenseNet":["denseblock1", "denseblock2", "denseblock3", "denseblock4"],
+            "ResNet": [],
+            "Vgg":[],
+        }
+
         # 1.GradCAM hook               GradCAM 如果其不为none，那么就设置hook
+        self.target_layer = []
         if self.gcamState == True:
             # 用于存储中间的特征输出和对应的梯度
             self.inter_output = []
