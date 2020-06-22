@@ -202,6 +202,15 @@ class _Transition(nn.Sequential):
             self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
 
 
+
+class _TransitionUp(nn.Sequential):
+    def __init__(self, num_input_features, num_output_features):
+        super(_TransitionUp, self).__init__()
+        #self.add_module('norm', nn.BatchNorm2d(num_input_features))
+        #self.add_module('relu', nn.ReLU(inplace=True))
+        self.add_module('tranconv', nn.ConvTranspose2d(num_input_features, num_output_features, kernel_size=2, stride=2, bias=False))
+
+
 class MultiBagNet(nn.Module):
     r"""Densenet-BC model class, based on
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_
@@ -226,14 +235,14 @@ class MultiBagNet(nn.Module):
 
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
                  num_init_features=32, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False,
-                 preAct=True, fusionType="concat", reduction=1, complexity=0, transitionType="linear",
-                 with_classifier=True,
-                 genarateLogitMapFlag=False,):
+                 preAct=True, fusionType="concat", reduction=1, complexity=0,
+                 transitionType="linear",
+                 outputType="final-logit",
+                 hookType="none", segmentationType="none", seg_num_classes=1):
 
         super(MultiBagNet, self).__init__()
 
         self.num_classes = num_classes
-        self.block_config = block_config
         self.num_layers = list(block_config)
         self.num_init_features = num_init_features
         self.growth_rate = growth_rate
@@ -252,17 +261,15 @@ class MultiBagNet(nn.Module):
         self.transition_output_channels = {}  # 用于记录downstream中的transition
 
         # classifier配置
-        self.with_classifier = with_classifier
+        self.outputType = outputType
 
-        # 是否genarateLogitMap
-        self.genarateLogitMapFlag = genarateLogitMapFlag
+        # segmentation配置
+        self.hookType = hookType
+        self.segmentationType = segmentationType
+        self.seg_num_classes = seg_num_classes
 
         # batch中grade和segmentation的比例，若为0则全部为grade样本， 1则全部为seg样本
         self.batchDistribution = 0
-
-        # 记录关键模块的输出，主要是用于Fc-DenseNet
-        self.key_features_channels_record = {}
-        self.key_features_channels_record["first_layer_out"] = num_init_features
 
 
         # First convolution
@@ -309,25 +316,27 @@ class MultiBagNet(nn.Module):
                                     transitionType=self.transitionType)
                 self.features.add_module('transition%d' % (i + 1), trans)
                 self.num_features = self.num_features // 2
-                self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
+                self.transition_output_channels['transition%d' % (i + 1)] = self.num_features
+
 
 
         # CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm
         #self.features.add_module('norm5', nn.BatchNorm2d(num_features))
 
-        self.key_features_channels_record["final_output"] = self.num_features
-
-        # GAP
-        self.gap = nn.AdaptiveAvgPool2d(1)
-
         # Linear layer
         #self.classifier = nn.Linear(num_features, num_classes)
         # 设置3种不同的classifier层
-        if self.with_classifier == True:
-            self.classifier = nn.Linear(self.num_features, self.num_classes, bias=False)
-        else:
+        if self.outputType == "feature":
             print("Just pass features! No classifier")
+
+        elif self.outputType == "pre-logit":
+            self.gap = nn.AdaptiveAvgPool2d(1)
+            self.classifier = nn.Linear(self.num_features, self.num_classes, bias=False)
+
+        elif self.outputType == "final-logit":
+            self.gap = nn.AdaptiveAvgPool2d(1)
+            self.classifier = nn.Linear(self.num_features, self.num_classes, bias=False)
 
         # 计算各模块感受野大小情况，记录到self.receptive_field_list中
         self.receptive_field_list = self.calculateRF()
@@ -341,20 +350,21 @@ class MultiBagNet(nn.Module):
             self.rf_inter_classifier = nn.Linear(self.num_receptive_field, 1)
         """
 
-        # 是否需要genarateLogitMapFlag，需要提前在reduction0处设置hook
-        if self.genarateLogitMapFlag==True:
+        if self.segmentationType == "denseFC":
+            self.make_segmentation_module()
+
+
+        # 设置hook  # hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
+        if hookType == "rflogitGenerate":
             self.rf_logits_reserve = []
             self.currentBlockIndex = 0   #用于知道hook提取的module的位置  与hook 配合
             self.currentLayerIndex = 0
-            for name, module in self.named_modules():
-                if isinstance(module, nn.Identity):
-                    if "reduction0" in name:
-                        print("Set hook on {}".format(name))
-                        module.register_forward_hook(self.generateRFlogitMap)
-                    if "reduction1" in name:
-                        print("Set hook on {}".format(name))
-                        module.register_forward_hook(self.generateRFlogitMap)
-
+            self.setReductionHook(self.generateRFlogitMap)
+        elif hookType == "featureReserve":
+            self.features_reserve = []
+            self.setTransitionHook(self.reserveFeature)
+        elif hookType == "none":
+            print("No hook!")
 
         # Official init from torch repo.
         for name, m in self.named_modules():
@@ -368,20 +378,133 @@ class MultiBagNet(nn.Module):
                 #nn.init.constant_(m.bias, 0)
 
 
-    def forward(self, x):
-        features = self.features(x)
-        global_feat = self.gap(features)  # (b, ?, 1, 1)
-        out = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-        if self.with_classifier == True:
-            out = self.classifier(out)
 
-        # 是否生成LogitMap
-        if self.genarateLogitMapFlag == True:
+
+    def forward(self, x):
+        # 求特征输出
+        features = self.features(x)
+
+        # 分割函数
+        if self.segmentationType == "denseFC":
+            if self.batchDistribution != 0:
+                if self.batchDistribution == 1:
+                    seg_features = features
+                else:
+                    seg_features = features[
+                                   self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+                self.seg_attention = self.densefc_seg(seg_features)
+                self.features_reserve.clear()
+                self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成, 0是全部不生成
+        elif self.segmentationType == "bagFeature":
             self.generateOverallRFlogitMap()
             self.currentBlockIndex = 0   #用于知道hook提取的module的位置  与hook 配合
             self.currentLayerIndex = 0
             self.batchDistribution = 0  # 用于确定生成mask的样本数量，如果是1就是全部生成, 0是全部不生成
+
+        # 输出类型
+        if self.outputType == "feature":  #不包含分类器，输出特征
+            return features
+        elif self.outputType == "pre-logit" or self.outputType == "final-logit":  #包含分类器，输出logits
+            # 求特征输出
+            features = self.features(x)
+            global_feat = self.gap(features)  # (b, ?, 1, 1)
+            feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+            final_logits = self.classifier(feat)
+            return final_logits
+
+    def forward_again(self, x):
+        # 求特征输出
+        features = self.features.conv0(x)
+        features = self.features.norm0(features)
+        features = self.features.relu0(features)
+        features = self.features.pool0(features)
+        return features
+
+
+    def make_segmentation_module(self):
+        if self.hookType != "featureReserve":
+            raise Exception("if segmentationType is 'denseFC', hookType must be 'featureReserve'")
+        # Segmentation Module
+        self.segmentation = nn.ModuleDict()
+        self.seg_num_features = self.num_features
+        # Each denseblock
+        for i, num_layers in enumerate(reversed(self.num_layers)):
+            if i == 0:
+                continue
+            index = len(self.num_layers) - i  # 为了保证序号是对应的
+
+            # transitionUp
+            transUp = _TransitionUp(num_input_features=self.seg_num_features,
+                                    num_output_features=self.seg_num_features // 2)  # 每个模块的输入为对应的transition层输出+前面的每个transitionUp的输出
+            # self.segmenters.add_module('transitionUp%d' % (j + 1), transUp)
+            self.segmentation['transitionUp%d' % (index)] = transUp
+            self.seg_num_features = self.seg_num_features // 2 + self.transition_output_channels[
+                'transition%d' % (index)]
+
+            # blockUp
+            self.seg_growth_rate = self.growth_rate#//4
+            blockUp = _MBagBlock(
+                num_layers=num_layers,
+                num_input_features=self.seg_num_features,
+                bn_size=self.bn_size,
+                growth_rate=self.seg_growth_rate,
+                drop_rate=self.drop_rate,
+                memory_efficient=self.memory_efficient,
+                preAct=self.preAct,
+                fusionType=self.fusionType,
+                reduction=self.reduction,
+                complexity=self.complexity
+            )
+            self.segmentation['denseblockUp%d' % (index)] = blockUp
+            self.seg_num_features = blockUp.out_channels - self.seg_num_features
+
+        # lastLayer
+        self.seg_num_last_features = self.num_init_features#//8  #缩减8倍
+        self.segmentation["last_layer"] = nn.Sequential(OrderedDict([
+            ('tranconv0',
+             nn.ConvTranspose2d(self.seg_num_features, self.seg_num_last_features, kernel_size=3, stride=2, padding=1,
+                                output_padding=1, bias=False)),
+            ('norm0', nn.BatchNorm2d(self.seg_num_last_features)),
+            ('relu0', nn.ReLU(inplace=True)),
+            ('tranconv1',
+             nn.ConvTranspose2d(self.seg_num_last_features, self.seg_num_last_features, kernel_size=7, stride=2, padding=3,
+                                output_padding=1, bias=False)),
+        ]))
+        self.seg_num_features = self.seg_num_last_features
+
+        # descriminator
+        self.segmentation["descriminator"] = nn.Conv2d(self.seg_num_features, self.seg_num_classes, kernel_size=1,
+                                                       bias=False)
+
+    def densefc_seg(self, features):
+        for name in self.segmentation.keys():
+            #print(name)
+            if "transitionUp" in name:
+                transitionIndex = int(name.replace("transitionUp", ""))
+                features = self.segmentation[name](features)
+                features = torch.cat([features, self.features_reserve[transitionIndex-1]], dim=1)
+            elif "denseblockUp" in name:
+                input_channels = features.shape[1]
+                features = self.segmentation[name](features)
+                output_channels = features.shape[1]
+                features = features[:, input_channels:output_channels]
+            elif "last_layer" in name:
+                features = self.segmentation[name](features)
+            elif "descriminator" in name:
+                out = self.segmentation[name](features)
+
         return out
+
+    def showDenseFCMask(self, seg_attention, imgs, labels, p_labels, masklabels=None, sample_index=0):
+        img = imgs[sample_index]
+        seg = torch.sigmoid(seg_attention[sample_index])
+        if isinstance(masklabels, torch.Tensor):
+            mask = masklabels[sample_index]
+        else:
+            mask =None
+        fV.drawDenseFCMask(img, seg, mask)
+
+
 
     # 计算网络每一层的感受野情况
     def calculateRF(self):
@@ -421,8 +544,6 @@ class MultiBagNet(nn.Module):
 
         return receptive_field_list
 
-
-    # 以下全是MBagNet特异性的操作
     # forward hook function : 依据每一个layer的输出，依据后续经过的transition线性层计算出最终的logit值
     def generateRFlogitMap(self, module, input, output):
         if self.currentLayerIndex == 0 and self.currentBlockIndex == 0:   #在第一个模块需要先将self.rf_logits_reserve清空
@@ -490,7 +611,19 @@ class MultiBagNet(nn.Module):
                 self.currentBlockIndex = self.currentBlockIndex + 1
                 self.currentLayerIndex = 0
 
+
+
+    # forward hook function : 保存module的输出（部分or全部）
+    def reserveFeature(self, module, input, output):
+        if self.batchDistribution != 0:
+            if self.batchDistribution != 1:
+                self.features_reserve.append(input[0][self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
+            else:
+                self.features_reserve.append(input[0])
+
+
     # 利用每一步生成的rf_logits_map,生成总决策图overall_rf_logits_map
+
     def generateOverallRFlogitMap(self):
         # CJY at 2020.1.7   将上述的图进行（上采样）融合
         rf_list = []
@@ -504,8 +637,25 @@ class MultiBagNet(nn.Module):
         # self.rf_logits_reserve.clear()
         self.rf_logits_reserve.append(overall_rf_logits)
 
+    # 对特定模块设置forward-hook
+    def setReductionHook(self, hook_fn_forward):
+        modules = self.named_modules()
+        for name, module in modules:
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Identity):
+                if "reduction0" in name and "segmenters" not in name:
+                    module.register_forward_hook(hook_fn_forward)
+                if "reduction1" in name and "segmenters" not in name:
+                    module.register_forward_hook(hook_fn_forward)
 
-    # 对不同rf的logits进行排序  for show 前几个激活的位置
+    def setTransitionHook(self, hook_fn_forward):
+        modules = self.named_modules()
+        for name, module in modules:
+            if isinstance(module, nn.AvgPool2d):
+                if "transition" in name:
+                    module.register_forward_hook(hook_fn_forward)
+
+
+    # 对不同rf的logits进行排序
     def rankEvidence(self, show_maps, rank_num_per_class=10):
         # CJY at 2019.12.5  计算不同感受野的图像的特征
         # 1.找到logits最大的几个evidence

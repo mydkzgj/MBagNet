@@ -65,6 +65,7 @@ _C.DATA.TRANSFORM.PADDING = 10
 # 2.Model General Setting. Can be replaced in respective sets  Structure Information
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
+# 2-1 Basic Config
 _C.MODEL = CN()
 # Using cuda or cpu for training
 _C.MODEL.DEVICE = "cuda"
@@ -73,46 +74,42 @@ _C.MODEL.DEVICE_ID = '0'
 # Name of backbone
 ###  se_resnext50 , se_resnet50 , resnet50 ,resnet34, mobilenetv3,resnet50_ibn_a,resnet50_ibn_a_old
 _C.MODEL.BACKBONE_NAME = 'densenet121'
-# Name of classifier      "linear","hierarchy_linear","none"
-_C.MODEL.CLASSIFIER_NAME = "linear"
 # baselineOutputType 和 classifierType  "f-c" "pl-c" "fl-n"
 _C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
-#
-_C.MODEL.NUM_CLASSES = 1000
+# Name of classifier      "linear","hierarchy_linear","none"
+_C.MODEL.CLASSIFIER_NAME = "linear"
+# classification classes
+_C.MODEL.CLA_NUM_CLASSES = 1000
+# Name of Segmenter
+_C.MODEL.SEGMENTER_NAME = "fc_mbagnet"
+# segmentation classes
+_C.MODEL.SEG_NUM_CLASSES = 1000
 
-# Specific For MBagNet
+# * （option）Specific For MBagNet
 # If block is pre_activated, options: 1 or 0
 _C.MODEL.PRE_ACTIVATION = 1
 # how block output fuse, options: "concat", "add", "none"
 _C.MODEL.FUSION_TYPE = "concat"
 
+# 2-2 Branches
 # supervisedType 3个支路的调配方案  若改变该项，则下述选项设定将无效    # S: - G: - R:
 # "none", "weakSu-segRe", "strongSu-segRe", "strongSu-gcamRe", "gcamRe"
 _C.MODEL.BRANCH_CONFIG_TYPE = "none"
 # num of samples used in branch
 _C.MODEL.BRANCH_IMG_NUM = 0
 
-# 1.Segmnetation Bracnch
-# hookType   "featureReserve":保存transition层features, "rflogitGenerate":生成rf_logit_map, "none"
-_C.MODEL.HOOK_TYPE = "none"
-# segType "denseFC", "bagFeature", "none"， "gradCAM"
-_C.MODEL.SEGMENTATION_TYPE = "none"
-# seg output channels
-_C.MODEL.SEG_NUM_CLASSES = 1
+# 2-2(1).Segmnetation Bracnch
 # seg supervised type   # "none", "seg_gtmask"
 _C.MODEL.SEG_SUPERVISED_TYPE = "none"
-
-# 2.Grad-CAM Branch
+# 2-2(2).Grad-CAM Branch
 # Grad-CAM 的作用限制
-_C.MODEL.GCAM_SUPERVISED_TYPE = "none"   # "none", "seg_gtmask", "seg_mask"  #gcam有如下三种监督方式
+# "none", "seg_gtmask", "seg_mask"  #gcam有如下三种监督方式
+_C.MODEL.GCAM_SUPERVISED_TYPE = "none"
 _C.MODEL.GCAM_GUIDED_BP = 0   #是否使用导向反向传播计算gcam所需的梯度
-
-# 3.Reload Branch
+# 2-2(3).Reload Branch
 # masked img reload type  "none", "seg_mask", "gcam_mask", "seg_gtmask", "joint"
 _C.MODEL.MASKED_IMG_RELOAD_TYPE = "none"
 _C.MODEL.PRE_RELOAD = 0  #reload是前置（与第一批同时送入）还是后置
-
-
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -129,7 +126,6 @@ _C.LOSS.MARGIN_RANK = 1.3  ### R = ALPHA - MARGIN_RANK
 _C.LOSS.ALPHA = 2.0
 _C.LOSS.TVAL = 1.0
 _C.LOSS.WEIGHT = 0.4       ### loss = softmax + w*ranked_loss
-
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

@@ -25,9 +25,6 @@ model_urls = {
 }
 
 
-#CJY 计算不同大小，不同位置的感受野提供的logits以及可视化
-
-
 
 def _bn_function_factory(norm, relu, conv, preAct=True):
     if preAct == True:
