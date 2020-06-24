@@ -95,7 +95,7 @@ SOLVER:
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
   LOSS_LR: 0.05
-  RETRAIN_FROM_HEAD: 1
+  RETRAIN_FROM_HEAD: 0
 
 
 # -----------------------------------------------------------------------------
@@ -122,7 +122,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/vgg16-397923af.pth'
+  PRETRAIN_PATH: './work_space/vgg16_model_15.pth'#'./pretrained/vgg16-397923af.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
