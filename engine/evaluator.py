@@ -19,6 +19,7 @@ from ignite.contrib.metrics import ROC_AUC
 from sklearn.metrics import roc_curve, auc
 from utils.plot_ROC import plotROC_OneClass, plotROC_MultiClass
 from utils.draw_ConfusionMatrix import drawConfusionMatrix
+
 import numpy as np
 
 """
@@ -105,8 +106,6 @@ def do_inference(
     def combineTensor(engine, y_pred, y_label):
         scores = engine.state.output["logits"].cpu().numpy().tolist()
         labels = engine.state.output["labels"].cpu().numpy().tolist()
-        #acc = (engine.state.output["logits"].max(1)[1] == engine.state.output["labels"]).float().mean()
-        #print(acc.item())
         y_pred = y_pred.extend(scores)   #注意，此处要用extend，否则+会产生新列表
         y_label = y_label.extend(labels)
 
@@ -147,27 +146,16 @@ def do_inference(
         metrics["confusion_matrix"] = confusion_matrix
 
     evaluator.run(test_loader)
-    # Draw ConfusionMatrix
+
+    # 1.Draw Confusion Matrix and Save it in numpy
     """
-    import matplotlib.pyplot as plt
-    import pandas as pd
-    import seaborn as sns
-    a = pd.DataFrame(metrics["confusion_matrix"], columns=classes_list, index=classes_list)
-    ax = sns.heatmap(a, annot=True)
-    ax.set_xlabel("Predict label")
-    ax.set_ylabel("True label")
-    ax.set_title("Confusion matrix")
-    plt.savefig("ConfusionMatrix.png", dpi=300)
-    plt.show()
-    plt.close()
+    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
+    metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
+    #"""
+
+    # 2.ROC
     """
-
-    #confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
-    #metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
-
-
-    # Plot ROC
-    # convert List to numpy
+    # (1).convert List to numpy
     y_label = np.array(y_label)
     y_label = convert_to_one_hot(y_label, num_classes)
     y_pred = np.array(y_pred)
@@ -175,8 +163,7 @@ def do_inference(
     #注：此处可以提前将多类label转化为one-hot label，并以每一类的confidence和label sub-vector送入计算
     #不一定要送入score（概率化后的值），只要confidengce与score等是正相关即可（单调递增）
 
-    # Compute ROC curve and ROC area for each class
-    """
+    # (2).Compute ROC curve and ROC area for each class    
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
@@ -194,13 +181,9 @@ def do_inference(
         roc_auc["micro"] = float("{:.3f}".format(auc(fpr["micro"], tpr["micro"])))
 
     logger.info("ROC_AUC: {}".format(roc_auc))
-
     metrics["roc_auc"] = roc_auc
-    #"""
 
-
-    # 好像绘制，在服务器上会出错，先取消吧
-    """
+    # (3).Draw ROC and Save it in numpy   # 好像绘制，在服务器上会出错，先取消吧
     if num_classes == 2:
         roc_numpy = plotROC_OneClass(fpr[pos_label], tpr[pos_label], roc_auc[pos_label], plot_flag=plotFlag)
     elif num_classes > 2:

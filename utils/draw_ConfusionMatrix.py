@@ -140,3 +140,19 @@ def drawConfusionMatrix(cm, classes,
         """
     plt.close("all")
     return data  # numpy  （W，H，C）  rgb
+
+
+# Draw ConfusionMatrix  Another Way Use seaborn
+"""
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+a = pd.DataFrame(metrics["confusion_matrix"], columns=classes_list, index=classes_list)
+ax = sns.heatmap(a, annot=True)
+ax.set_xlabel("Predict label")
+ax.set_ylabel("True label")
+ax.set_title("Confusion matrix")
+plt.savefig("ConfusionMatrix.png", dpi=300)
+plt.show()
+plt.close()
+"""

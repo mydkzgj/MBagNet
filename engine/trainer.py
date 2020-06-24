@@ -797,10 +797,10 @@ def do_train(
             for recKey in metrics['recall'].keys():
                 writer_val.add_scalar("Recall/" + str(recKey), metrics['recall'][recKey], step)
 
+            writer_val.add_scalar("OverallAccuracy", metrics["overall_accuracy"], step)
+
             #for aucKey in metrics['roc_auc'].keys():
             #    writer_val.add_scalar("ROC_AUC/" + str(aucKey), metrics['roc_auc'][aucKey], step)
-
-            writer_val.add_scalar("OverallAccuracy", metrics["overall_accuracy"], step)
 
             #writer.add_scalar("Val/"+"confusion_matrix", metrics['confusion_matrix'], step)
 
