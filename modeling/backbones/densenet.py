@@ -137,6 +137,11 @@ class DenseNet(nn.Module):
 
         self.with_classifier = with_classifier
 
+        # 记录关键模块的输出，主要是用于Fc-DenseNet
+        self.key_features_channels_record = {}
+        self.key_features_channels_record["first_layer_out"] = self.num_init_features
+
+
         # First convolution
         self.features = nn.Sequential(OrderedDict([
             ('conv0', Conv2d(3, num_init_features, kernel_size=7, stride=2,
@@ -164,6 +169,7 @@ class DenseNet(nn.Module):
                                     num_output_features=self.num_features // 2)
                 self.features.add_module('transition%d' % (i + 1), trans)
                 self.num_features = self.num_features // 2
+
 
         #CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm

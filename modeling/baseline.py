@@ -495,6 +495,7 @@ class Baseline(nn.Module):
                     continue
                 self.base.state_dict()[module_name].copy_(param_dict[i])
 
+
         elif loadChoice == "Overall":
             overall_dict = self.state_dict()
             for i in param_dict:
@@ -509,6 +510,8 @@ class Baseline(nn.Module):
                 if i not in self.classifier.state_dict():
                     continue
                 self.classifier.state_dict()[i].copy_(param_dict[i])
+
+        print("Complete Load Weight")
 
     # 计算网络参数量的方式（2种）
     def count_param(model):
