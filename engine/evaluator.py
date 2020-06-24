@@ -132,13 +132,15 @@ def do_inference(
 
         confusion_matrix = engine.state.metrics['confusion_matrix'].numpy()
 
+        kappa = compute_kappa(confusion_matrix)
+
         overall_accuracy = engine.state.metrics['overall_accuracy']
         logger.info("Test Results")
         logger.info("Precision: {}".format(precision_dict))
         logger.info("Recall: {}".format(recall_dict))
         logger.info("Overall_Accuracy: {:.3f}".format(overall_accuracy))
         logger.info("ConfusionMatrix: x-groundTruth  y-predict \n {}".format(confusion_matrix))
-
+        logger.info("Kappa: {}".format(kappa))
 
         metrics["precision"] = precision_dict
         metrics["recall"] = recall_dict
@@ -147,14 +149,20 @@ def do_inference(
 
     evaluator.run(test_loader)
 
+
     # 1.Draw Confusion Matrix and Save it in numpy
-    """
-    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
+    #"""
+    # CJY at 2020.6.24
+    classes_label_list = ["No DR", "Mild", "Moderate", "Severe", "Proliferative", "Ungradable"]
+    if len(classes_list) == 6:
+        classes_list = classes_label_list
+
+    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=True)
     metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
     #"""
 
     # 2.ROC
-    """
+    #"""
     # (1).convert List to numpy
     y_label = np.array(y_label)
     y_label = convert_to_one_hot(y_label, num_classes)
@@ -192,3 +200,17 @@ def do_inference(
     #"""
     return metrics
 
+
+def compute_kappa(matrix):
+    n = np.sum(matrix)
+    sum_po = 0
+    sum_pe = 0
+    for i in range(len(matrix[0])):
+        sum_po += matrix[i][i]
+        row = np.sum(matrix[i, :])
+        col = np.sum(matrix[:, i])
+        sum_pe += row * col
+    po = sum_po / n
+    pe = sum_pe / (n * n)
+    # print(po, pe)
+    return (po - pe) / (1 - pe)
