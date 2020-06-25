@@ -147,7 +147,7 @@ class FCMBagNet(nn.Module):
             elif isinstance(module, nn.AdaptiveAvgPool2d) and "gap" == name:
                 print("Set hook on {} for Fc-MBagNet".format(name))
                 module.register_forward_hook(self.reserveFeature)
-            """
+            #"""
 
     def forward(self, features):
         for name in self.decoder.keys():
