@@ -31,11 +31,11 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "mbagnet"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear"
  CLA_NUM_CLASSES: 6 
- SEGMENTER_NAME: "fc_mbagnet"                        #fc_mbagnet
+ SEGMENTER_NAME: "none"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
 
  # For MBagNet
@@ -47,7 +47,7 @@ MODEL:
  #(1). Segmentation Branch
  SEG_SUPERVISED_TYPE: "none"                                     #"none", "seg_gtmask" 
  #(2). Grad-CAM Branch 
- GCAM_SUPERVISED_TYPE: "none"                                 #"none", "seg_gtmask", "seg_mask" 
+ GCAM_SUPERVISED_TYPE: "seg_gtmask"                                 #"none", "seg_gtmask", "seg_mask" 
  GCAM_GUIDED_BP: 0
 #(3). Reload Branch
  MASKED_IMG_RELOAD_TYPE: "none"                 #"none", "seg_gtmask", "segmentation", "visualization",  "joint"

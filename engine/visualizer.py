@@ -81,7 +81,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             imgs, labels, seg_imgs, seg_masks, seg_labels = batch
             model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
             model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
-            model.heatmapType = "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
+            model.heatmapType = "computeSegMetric"#"GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
 
             if model.heatmapType == "grade":
                 imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
@@ -261,12 +261,15 @@ def do_visualization(
 
         confusion_matrix = engine.state.metrics['confusion_matrix'].numpy()
 
+        kappa = compute_kappa(confusion_matrix)
+
         overall_accuracy = engine.state.metrics['overall_accuracy']
         logger.info("Test Results")
         logger.info("Precision: {}".format(precision_dict))
         logger.info("Recall: {}".format(recall_dict))
         logger.info("Overall_Accuracy: {:.3f}".format(overall_accuracy))
         logger.info("ConfusionMatrix: x-groundTruth  y-predict \n {}".format(confusion_matrix))
+        logger.info("Kappa: {}".format(kappa))
 
 
         metrics["precision"] = precision_dict
@@ -305,27 +308,21 @@ def do_visualization(
 
 
     evaluator.run(test_loader)
-    # Draw ConfusionMatrix
-    """
-    import matplotlib.pyplot as plt
-    import pandas as pd
-    import seaborn as sns
-    a = pd.DataFrame(metrics["confusion_matrix"], columns=classes_list, index=classes_list)
-    ax = sns.heatmap(a, annot=True)
-    ax.set_xlabel("Predict label")
-    ax.set_ylabel("True label")
-    ax.set_title("Confusion matrix")
-    plt.savefig("ConfusionMatrix.png", dpi=300)
-    plt.show()
-    plt.close()
-    """
 
-    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix')
+    # 1.Draw Confusion Matrix and Save it in numpy
+    #"""
+    # CJY at 2020.6.24
+    classes_label_list = ["No DR", "Mild", "Moderate", "Severe", "Proliferative", "Ungradable"]
+    if len(classes_list) == 6:
+        classes_list = classes_label_list
+
+    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=True)
     metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
+    #"""
 
-
-    # Plot ROC
-    # convert List to numpy
+    # 2.ROC
+    #"""
+    # (1).convert List to numpy
     y_label = np.array(y_label)
     y_label = convert_to_one_hot(y_label, num_classes)
     y_pred = np.array(y_pred)
@@ -333,7 +330,7 @@ def do_visualization(
     #注：此处可以提前将多类label转化为one-hot label，并以每一类的confidence和label sub-vector送入计算
     #不一定要送入score（概率化后的值），只要confidengce与score等是正相关即可（单调递增）
 
-    # Compute ROC curve and ROC area for each class
+    # (2).Compute ROC curve and ROC area for each class
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
@@ -351,13 +348,29 @@ def do_visualization(
         roc_auc["micro"] = float("{:.3f}".format(auc(fpr["micro"], tpr["micro"])))
 
     logger.info("ROC_AUC: {}".format(roc_auc))
+    metrics["roc_auc"] = roc_auc
 
+    # (3).Draw ROC and Save it in numpy   # 好像绘制，在服务器上会出错，先取消吧
     if num_classes == 2:
         roc_numpy = plotROC_OneClass(fpr[pos_label], tpr[pos_label], roc_auc[pos_label], plot_flag=plotFlag)
     elif num_classes > 2:
         roc_numpy = plotROC_MultiClass(fpr, tpr, roc_auc, num_classes, plot_flag=plotFlag)
-
-    metrics["roc_auc"] = roc_auc
     metrics["roc_figure"] = roc_numpy
+    #"""
 
     return metrics
+
+
+def compute_kappa(matrix):
+    n = np.sum(matrix)
+    sum_po = 0
+    sum_pe = 0
+    for i in range(len(matrix[0])):
+        sum_po += matrix[i][i]
+        row = np.sum(matrix[i, :])
+        col = np.sum(matrix[:, i])
+        sum_pe += row * col
+    po = sum_po / n
+    pe = sum_pe / (n * n)
+    # print(po, pe)
+    return (po - pe) / (1 - pe)

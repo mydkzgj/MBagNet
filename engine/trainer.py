@@ -212,7 +212,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # Branch 2 Grad-CAM
         if model.gcamState == True:
-            gcam_list, gcam_max_list, overall_gcam = GenerateVisualization(model, logits, labels, gcamBatchDistribution, device)
+            gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
             model.visualization = overall_gcam
 
             if model.gcamSupervisedType == "seg_gtmask":
@@ -359,7 +359,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
     return engine
 
-
+"""  #放到了Baseline里
 def GenerateVisualization(model, logits, labels, gcamBatchDistribution, device):
     # 将label转为one - hot
     gcam_one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
@@ -420,26 +420,14 @@ def GenerateVisualization(model, logits, labels, gcamBatchDistribution, device):
     # max值法
     # overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
 
-    # gcam_list = [overall_gcam]
-    """
-    #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
-    #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
-    overall_gcam_index = torch.max(overall_gcam.abs(), dim=1, keepdim=True)[1]
-    overall_gcam_index_onehot = torch.nn.functional.one_hot(overall_gcam_index.permute(0, 2, 3, 1), target_layer_num).squeeze(3).permute(0, 3, 1, 2)
-    #if overall_gcam_index_onehot.shape[1] == 1:
-        #overall_gcam_index_onehot = overall_gcam_index_onehot + 1
-    overall_gcam = overall_gcam * overall_gcam_index_onehot
-    overall_gcam = torch.sum(overall_gcam, dim=1, keepdim=True)
-    #overall_gcam = torch.relu(overall_gcam)  # 只保留正值
-    #overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
-    #overall_gcam = torch.relu(overall_gcam)
-    gcam_list = [overall_gcam]
-    #"""
+    # gcam_list = [overall_gcam]    
 
     model.inter_output.clear()
     model.inter_gradient.clear()
 
     return gcam_list, gcam_max_list, overall_gcam
+"""
+
 
 def GenerateOcclusionMask(sourceType=None, fusionFunc=None, labels=None, gtmask=None, segmentation=None, visulization=None,):
     # 1.generate initial soft_mask
