@@ -201,6 +201,7 @@ class Baseline(nn.Module):
     def transimitBatchDistribution(self, BD):
         self.batchDistribution = BD
         self.base.batchDistribution = BD
+        self.segmenter.batchDistribution = BD
 
     def lesionFusion(self, LesionMask, GradeLabel):
         MaskList = []
