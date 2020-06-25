@@ -372,7 +372,7 @@ class Baseline(nn.Module):
             if "densenet" in self.base_name or "mbagnet" in self.base_name:
                 self.segmenter = FCMBagNet(encoder=self.base, encoder_features_channels=self.base.key_features_channels_record,
                                            num_classes=self.seg_num_classes, batchDistribution=self.batchDistribution,
-                                           growth_rate=self.base.growth_rate, block_config=self.base.block_config, bn_size=self.base.bn_size,
+                                           growth_rate=self.base.growth_rate//4, block_config=self.base.block_config, bn_size=self.base.bn_size,
                                            preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0, transitionType="linear",
                                            )
 
