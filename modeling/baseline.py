@@ -376,6 +376,16 @@ class Baseline(nn.Module):
                                            preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0, transitionType="linear",
                                            )
 
+    def choose_visualizer(self):
+        if self.visualizer_name == "grad-cam":
+            if "densenet" in self.base_name or "mbagnet" in self.base_name:
+                self.visualizer = FCMBagNet(encoder=self.base, encoder_features_channels=self.base.key_features_channels_record,
+                                           num_classes=self.seg_num_classes, batchDistribution=self.batchDistribution,
+                                           growth_rate=self.base.growth_rate, block_config=self.base.block_config, bn_size=self.base.bn_size,
+                                           preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0, transitionType="linear",
+                                           )
+
+
     def generateGCAM(self, logits, labels, gcamBatchDistribution, device):
         # 将label转为one - hot
         gcam_one_hot_labels = torch.nn.functional.one_hot(labels, self.num_classes).float()
