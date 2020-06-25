@@ -113,7 +113,7 @@ class FCMBagNet(nn.Module):
             self.num_features = blockUp.out_channels - self.num_features
 
         # lastLayer
-        self.last_layer_num_features = self.decoder_features_channels["last_layer_out"]//4 # //8  #缩减8倍
+        self.last_layer_num_features = self.decoder_features_channels["last_layer_out"]//8 # //8  #缩减8倍
         self.decoder["last_layer"] = nn.Sequential(OrderedDict([
             ('tranconv0',
              nn.ConvTranspose2d(self.num_features, self.last_layer_num_features, kernel_size=3, stride=2, padding=1,
