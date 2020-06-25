@@ -133,11 +133,13 @@ class FCMBagNet(nn.Module):
         self.features_reserve = []
         modules = encoder.named_modules()
         for name, module in modules:
+            """
             sub_name = name.split(".")
             if "denseblock" in sub_name[-1]:
                 print("Set hook on {} for Fc-MBagNet".format(name))
                 module.register_forward_hook(self.reserveFeature)
-            """
+            #"""
+            #"""
             # 下面这种模式，只是保留 avgpool模块前的输入  不等于 denseblock的输出
             if isinstance(module, nn.AvgPool2d) and "transition" in name:
                 print("Set hook on {} for Fc-MBagNet".format(name))
@@ -167,15 +169,7 @@ class FCMBagNet(nn.Module):
 
     # forward hook function : 保存module的输出（部分or全部）
     def reserveFeature(self, module, input, output):
-        # """
-        if self.batchDistribution != 0:
-            if self.batchDistribution != 1:
-                self.features_reserve.append(
-                    input[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
-            else:
-                self.features_reserve.append(input)
-        # """
-        """
+        #"""
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:
                 self.features_reserve.append(
