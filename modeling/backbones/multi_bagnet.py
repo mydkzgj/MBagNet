@@ -249,7 +249,6 @@ class MultiBagNet(nn.Module):
 
         # Transition配置
         self.transitionType = transitionType
-        self.transition_output_channels = {}  # 用于记录downstream中的transition
 
         # classifier配置
         self.with_classifier = with_classifier
@@ -304,19 +303,18 @@ class MultiBagNet(nn.Module):
             self.num_receptive_field = self.num_receptive_field + num_layers
 
             if i != len(block_config) - 1:
+                self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
                 trans = _Transition(num_input_features=self.num_features,
                                     num_output_features=self.num_features//2, num_groups=self.num_receptive_field,
                                     transitionType=self.transitionType)
                 self.features.add_module('transition%d' % (i + 1), trans)
                 self.num_features = self.num_features // 2
-                self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
 
+        self.key_features_channels_record["final_output"] = self.num_features
 
         # CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm
         #self.features.add_module('norm5', nn.BatchNorm2d(num_features))
-
-        self.key_features_channels_record["final_output"] = self.num_features
 
         # GAP
         self.gap = nn.AdaptiveAvgPool2d(1)

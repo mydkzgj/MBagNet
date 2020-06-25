@@ -178,9 +178,9 @@ class FCMBagNet(nn.Module):
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:
                 self.features_reserve.append(
-                    output[0][self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
+                    output[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
             else:
-                self.features_reserve.append(output[0])
+                self.features_reserve.append(output)
 
     # 显示分割结果
     def showDenseFCMask(self, seg_attention, imgs, labels, p_labels, masklabels=None, sample_index=0):

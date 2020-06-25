@@ -128,6 +128,7 @@ class DenseNet(nn.Module):
         super(DenseNet, self).__init__()
 
         self.num_classes = num_classes
+        self.block_config = block_config
         self.num_layers = list(block_config)
         self.num_init_features = num_init_features
         self.growth_rate = growth_rate
@@ -165,11 +166,13 @@ class DenseNet(nn.Module):
             self.features.add_module('denseblock%d' % (i + 1), block)
             self.num_features = self.num_features + num_layers * self.growth_rate
             if i != len(block_config) - 1:
+                self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
                 trans = _Transition(num_input_features=self.num_features,
                                     num_output_features=self.num_features // 2)
                 self.features.add_module('transition%d' % (i + 1), trans)
                 self.num_features = self.num_features // 2
 
+        self.key_features_channels_record["final_output"] = self.num_features
 
         #CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm

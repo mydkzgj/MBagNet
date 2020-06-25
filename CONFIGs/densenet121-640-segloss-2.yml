@@ -31,7 +31,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "mbagnet121"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear"
  CLA_NUM_CLASSES: 6 
