@@ -112,7 +112,7 @@ def main():
     else:
         step = 0
 
-    metrics = do_inference(cfg, model, val_loader, classes_list, loss_funcs, plotFlag=True)
+    metrics = do_inference(cfg, model, test_loader, classes_list, loss_funcs, plotFlag=True)
 
     for preKey in metrics['precision'].keys():
         writer_test.add_scalar("Precision/" + str(preKey), metrics['precision'][preKey], step)

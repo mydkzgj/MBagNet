@@ -126,9 +126,12 @@ class Baseline(nn.Module):
         self.choose_classifier()
 
         # 3.classifier的网络结构
-        self.choose_segmenter()
+        self.segmenter = None
         self.segmentation = None
+        self.choose_segmenter()
 
+        # 4.visualizer
+        self.visualizer = None
         self.visualization = None
 
         # 4.所有的hook操作（按理来说应该放在各自的baseline里）
@@ -147,11 +150,12 @@ class Baseline(nn.Module):
         else:
             final_logits = self.base(x)
 
-        if self.segmenter_name != "none":
-            if self.segState == True:
-                self.segmentation = self.segmenter(self.segmenter.features_reserve[-1])
-            else:
-                self.segmenter.features_reserve.clear()   #如果不计算segmentation，那么就应该清除由hook保存的特征
+        if self.segmenter_name != "none" and self.segmenter != None:
+            if self.segmenter.features_reserve != []:
+                if self.segState == True:
+                    self.segmentation = self.segmenter(self.segmenter.features_reserve[-1])
+                else:
+                    self.segmenter.features_reserve.clear()  # 如果不计算segmentation，那么就应该清除由hook保存的特征
 
         return final_logits   # 其他参数可以用model的成员变量来传递
 
@@ -201,7 +205,8 @@ class Baseline(nn.Module):
     def transimitBatchDistribution(self, BD):
         self.batchDistribution = BD
         self.base.batchDistribution = BD
-        self.segmenter.batchDistribution = BD
+        if self.segmenter != None:
+            self.segmenter.batchDistribution = BD
 
     def lesionFusion(self, LesionMask, GradeLabel):
         MaskList = []

@@ -151,7 +151,7 @@ def do_inference(
 
 
     # 1.Draw Confusion Matrix and Save it in numpy
-    """
+    #"""
     # CJY at 2020.6.24
     classes_label_list = ["No DR", "Mild", "Moderate", "Severe", "Proliferative", "Ungradable"]
     if len(classes_list) == 6:
@@ -162,7 +162,7 @@ def do_inference(
     #"""
 
     # 2.ROC
-    """
+    #"""
     # (1).convert List to numpy
     y_label = np.array(y_label)
     y_label = convert_to_one_hot(y_label, num_classes)
