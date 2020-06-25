@@ -167,7 +167,15 @@ class FCMBagNet(nn.Module):
 
     # forward hook function : 保存module的输出（部分or全部）
     def reserveFeature(self, module, input, output):
-        #"""
+        # """
+        if self.batchDistribution != 0:
+            if self.batchDistribution != 1:
+                self.features_reserve.append(
+                    input[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
+            else:
+                self.features_reserve.append(input)
+        # """
+        """
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:
                 self.features_reserve.append(
