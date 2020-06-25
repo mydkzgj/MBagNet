@@ -166,11 +166,12 @@ class DenseNet(nn.Module):
             self.features.add_module('denseblock%d' % (i + 1), block)
             self.num_features = self.num_features + num_layers * self.growth_rate
             if i != len(block_config) - 1:
-                self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
+                #self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
                 trans = _Transition(num_input_features=self.num_features,
                                     num_output_features=self.num_features // 2)
                 self.features.add_module('transition%d' % (i + 1), trans)
                 self.num_features = self.num_features // 2
+                self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
 
         self.key_features_channels_record["final_output"] = self.num_features
 

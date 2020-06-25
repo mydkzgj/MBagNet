@@ -113,7 +113,7 @@ class FCMBagNet(nn.Module):
             self.num_features = blockUp.out_channels - self.num_features
 
         # lastLayer
-        self.last_layer_num_features = self.decoder_features_channels["last_layer_out"]//8 # //8  #缩减8倍
+        self.last_layer_num_features = self.decoder_features_channels["last_layer_out"] # //8  #缩减8倍
         self.decoder["last_layer"] = nn.Sequential(OrderedDict([
             ('tranconv0',
              nn.ConvTranspose2d(self.num_features, self.last_layer_num_features, kernel_size=3, stride=2, padding=1,
@@ -167,7 +167,7 @@ class FCMBagNet(nn.Module):
 
     # forward hook function : 保存module的输出（部分or全部）
     def reserveFeature(self, module, input, output):
-        """
+        #"""
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:
                 self.features_reserve.append(
@@ -175,12 +175,14 @@ class FCMBagNet(nn.Module):
             else:
                 self.features_reserve.append(input[0])
         #"""
+        """
         if self.batchDistribution != 0:
             if self.batchDistribution != 1:
                 self.features_reserve.append(
                     output[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
             else:
                 self.features_reserve.append(output)
+        #"""
 
     # 显示分割结果
     def showDenseFCMask(self, seg_attention, imgs, labels, p_labels, masklabels=None, sample_index=0):
