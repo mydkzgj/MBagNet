@@ -15,6 +15,8 @@ from .classifiers.hierarchy_linear import *
 
 from .segmenters.fc_mbagnet import *
 
+from .visualizers.grad_cam import *
+
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
 
@@ -131,17 +133,21 @@ class Baseline(nn.Module):
         self.choose_segmenter()
 
         # 4.visualizer
+        self.visualizer_name = "grad-cam"
+        self.target_layer = [""]#["base.features.denseblock4"]
         self.visualizer = None
         self.visualization = None
+        self.choose_visualizer()
 
         # 4.所有的hook操作（按理来说应该放在各自的baseline里）
-        self.set_hooks()
+        #self.set_hooks()
 
 
     def forward(self, x):
-        if self.gcamState == True:
-            self.inter_output.clear()
-            self.inter_gradient.clear()
+        #if self.gcamState == True:
+        #    self.inter_output.clear()
+        #    self.inter_gradient.clear()
+        x.requires_grad_(True)
 
         # 分为两种情况：
         if self.classifier_name != "none":
@@ -150,8 +156,8 @@ class Baseline(nn.Module):
         else:
             final_logits = self.base(x)
 
-        if self.segmenter_name != "none" and self.segmenter != None:
-            if self.segmenter.features_reserve != []:
+        if self.segmenter != None:
+            if self.segmenter.batchDistribution != 0:  #self.segmenter.features_reserve != []:
                 if self.segState == True:
                     self.segmentation = self.segmenter(self.segmenter.features_reserve[-1])
                 else:
@@ -384,12 +390,7 @@ class Baseline(nn.Module):
 
     def choose_visualizer(self):
         if self.visualizer_name == "grad-cam":
-            if "densenet" in self.base_name or "mbagnet" in self.base_name:
-                self.visualizer = FCMBagNet(encoder=self.base, encoder_features_channels=self.base.key_features_channels_record,
-                                           num_classes=self.seg_num_classes, batchDistribution=self.batchDistribution,
-                                           growth_rate=self.base.growth_rate, block_config=self.base.block_config, bn_size=self.base.bn_size,
-                                           preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0, transitionType="linear",
-                                           )
+            self.visualizer = GradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
 
 
     def generateGCAM(self, logits, labels, gcamBatchDistribution, device):

@@ -196,6 +196,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # 设定有多少样本需要进行支路的运算
         model.transimitBatchDistribution(segBatchDistribution)
         model.transmitClassifierWeight()    #如果是BOF 会回传分类器权重
+        #imgs.requires_grad_(True)
         logits = model(imgs)                #为了减少显存，还是要区分grade和seg
         grade_logits = logits[0:grade_num]
 
@@ -212,8 +213,10 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # Branch 2 Grad-CAM
         if model.gcamState == True:
-            gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
-            model.visualization = overall_gcam
+            if model.visualizer != None:
+                gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, visual_num=gcamBatchDistribution[1])
+                #gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
+                model.visualization = overall_gcam
 
             if model.gcamSupervisedType == "seg_gtmask":
                 gcam_gtmasks = seg_gt_masks
