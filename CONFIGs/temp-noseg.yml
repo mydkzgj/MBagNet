@@ -31,7 +31,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "vgg16"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear"
  CLA_NUM_CLASSES: 6 
@@ -150,7 +150,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "./work_space/vgg16_model_21.pth"
+ WEIGHT: "./work_space/densenet121_model_20.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

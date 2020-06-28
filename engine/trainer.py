@@ -214,9 +214,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # Branch 2 Grad-CAM
         if model.gcamState == True:
             if model.visualizer != None:
+                savePath = r"D:\MIP\Experiment\1"
                 gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, visual_num=gcamBatchDistribution[1])
+                model.visualizer.DrawVisualization(imgs[imgs.shape[0]-gcamBatchDistribution[1]:imgs.shape[0]], seg_gt_masks, savePath)
                 #gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
                 model.visualization = overall_gcam
+
 
             if model.gcamSupervisedType == "seg_gtmask":
                 gcam_gtmasks = seg_gt_masks
@@ -361,75 +364,6 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         metric.attach(engine, name)
 
     return engine
-
-"""  #放到了Baseline里
-def GenerateVisualization(model, logits, labels, gcamBatchDistribution, device):
-    # 将label转为one - hot
-    gcam_one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-    gcam_one_hot_labels = gcam_one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else gcam_one_hot_labels
-
-    # 回传one-hot向量  已弃用 由于其会对各变量生成梯度，而使用op.zero_grad 或model.zero_grad 都会使程序出现问题，故改用torch.autograd.grad
-    # logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)  #这样会对所有w求取梯度，且建立回传图会很大
-
-    # 求取model.inter_output对应的gradient
-    # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
-    model.guidedBPstate = 1  # 是否开启guidedBP
-    inter_gradients = torch.autograd.grad(outputs=logits, inputs=model.inter_output,
-                                          grad_outputs=gcam_one_hot_labels, retain_graph=True)  # , create_graph=True)
-    model.inter_gradient = list(inter_gradients)
-    model.guidedBPstate = 0
-
-    # 生成CAM
-    target_layer_num = len(model.target_layer)
-    gcam_list = []
-    gcam_max_list = []  #记录每个Grad-CAM的归一化最大值
-    for i in range(target_layer_num):
-        gcam_max_list.append(1)
-
-    for i in range(target_layer_num):
-        inter_output = model.inter_output[i][
-                       model.inter_output[i].shape[0] - gcamBatchDistribution[1]:model.inter_output[i].shape[
-                           0]]  # 此处分离节点，别人皆不分离  .detach()
-        inter_gradient = model.inter_gradient[i][
-                         model.inter_gradient[i].shape[0] - gcamBatchDistribution[1]:model.inter_gradient[i].shape[0]]
-        if False:#model.target_layer[i] == "denseblock4":  # 最后一层是denseblock4的输出，使用forward形式
-            gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-            # gcam = gcam /(gcam.shape[-1]*gcam.shape[-2])  #如此，形式上与其他层计算的gcam量级就相同了
-            # gcam = torch.softmax(gcam, dim=-1)
-            pick_label = labels[labels.shape[0] - gcamBatchDistribution[1]:labels.shape[0]]
-            pick_list = []
-            for j in range(pick_label.shape[0]):
-                pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
-            gcam = torch.cat(pick_list, dim=0)
-        else:  #backward形式
-            gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-            gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-            gcam = torch.relu(gcam)  # CJY at 2020.4.18
-
-        # print(gcam.sum(), gcam.mean(), gcam.abs().max())
-        gcam = torch.relu(gcam)
-        norm_gcam, gcam_max = model.gcamNormalization(gcam)
-
-        # 插值
-        # gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
-        gcam_list.append(norm_gcam)  # 将不同模块的gcam保存到gcam_list中
-        gcam_max_list[i] = gcam_max.detach().mean().item() / 2  # CJY for pos_masked
-
-    # print("1")
-    # 多尺度下的gcam进行融合
-    overall_gcam = torch.cat(gcam_list, dim=1)
-    # mean值法
-    overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
-    # max值法
-    # overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
-
-    # gcam_list = [overall_gcam]    
-
-    model.inter_output.clear()
-    model.inter_gradient.clear()
-
-    return gcam_list, gcam_max_list, overall_gcam
-"""
 
 
 def GenerateOcclusionMask(sourceType=None, fusionFunc=None, labels=None, gtmask=None, segmentation=None, visulization=None,):

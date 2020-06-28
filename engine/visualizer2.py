@@ -38,7 +38,7 @@ def activated_output_transform(output):
     return y_pred, labels_one_hot
 """
 
-
+heatmapType = ""
 TP = 0
 FP = 0
 TN = 0
@@ -47,14 +47,21 @@ FN = 0
 def convert_to_one_hot(y, C):
     return np.eye(C)[y.reshape(-1)]
 
-def computeIOU(seg_map, seg_mask, th=0.5):
-    seg_pmask = torch.gt(torch.sigmoid(seg_map), th)
+def prepareForComputeSegMetric(seg_map, seg_mask, th=0.5):   # 适用于多标签
+    seg_pmask = torch.gt(seg_map, th)
     seg_mask = seg_mask.bool()
 
     tp = (seg_pmask & seg_mask).sum(-1).sum(-1)
     fp = (seg_pmask & (~seg_mask)).sum(-1).sum(-1)
     tn = ((~seg_pmask) & (~seg_mask)).sum(-1).sum(-1)
     fn = ((~seg_pmask) & seg_mask).sum(-1).sum(-1)
+
+    global TP, FP, TN, FN
+    TP = TP + tp
+    FP = FP + fp
+    TN = TN + tn
+    FN = FN + fn
+
     return tp, fp, tn, fn
 
 
@@ -77,123 +84,70 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
     def _inference(engine, batch):
         model.eval()
-        with torch.no_grad():
-            imgs, labels, seg_imgs, seg_masks, seg_labels = batch
-            model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
-            model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
-            model.heatmapType = "computeSegMetric"#"GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
+        grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch
+        grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
+        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 else grade_labels
+        seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+        seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
+        seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
 
-            if model.heatmapType == "grade":
-                imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-                labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+        model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
+        model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
+
+        global heatmapType
+        dataType = "seg"
+        heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
+        savePath = r"D:\MIP\Experiment\1"
+
+        if dataType == "grade":
+            imgs = grade_imgs
+            labels = grade_labels
+        elif dataType == "seg":
+            imgs = seg_imgs
+            labels = seg_labels
+        elif dataType == "joint":
+            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
+            labels = torch.cat([grade_labels, seg_labels], dim=0)
+
+        if heatmapType == "segmentation":
+            with torch.no_grad():
                 logits = model(imgs)
+                scores = torch.softmax(logits, dim=1)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
-                if model.segmentationType == "denseFC":
-                    model.base.showDenseFCMask(model.base.seg_attention, imgs, labels, p_labels,)
-                elif model.segmentationType == "bagFeature":
-                    model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, )
                 return {"logits": logits, "labels": labels}
 
-            elif model.heatmapType == "segmenters":
-                seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-                seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-                logits = model(seg_imgs)
-                p_labels = torch.argmax(logits, dim=1)  # predict_label
-                if model.segmentationType == "denseFC":
-                    model.base.showDenseFCMask(model.base.seg_attention, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
-                elif model.segmentationType == "bagFeature":
-                    model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
-                return {"logits": logits, "labels": seg_labels}
+        elif heatmapType == "visualization":
+            # 由于需要用到梯度，所以就不加入with torch.no_grad()了
+            logits = model(seg_imgs)
+            scores = torch.softmax(logits, dim=1)
+            p_labels = torch.argmax(logits, dim=1)  # predict_label
 
-            elif model.heatmapType == "computeSegMetric":
-                seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-                seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-                logits = model(seg_imgs)
-                global TP, FP, TN, FN
-                tps, fps, tns, fns = computeIOU(model.base.seg_attention.cpu(), seg_masks.cpu(), th=0.5)
-                TP = TP + tps
-                FP = FP + fps
-                TN = TN + tns
-                FN = FN + fns
-                return {"logits": logits, "labels": seg_labels}
+            binary_threshold = 0.5
+            showFlag = 1
+            input_size = (imgs.shape[2], imgs.shape[3])
+            visualBD = [grade_imgs.shape[0], seg_imgs.shape[0]]
+            gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, input_size, visual_num=visualBD[1])
+            if showFlag ==1:
+                model.visualizer.DrawVisualization(imgs[imgs.shape[0] - visualBD[1]:imgs.shape[0]],
+                                                   labels[imgs.shape[0] - visualBD[1]:imgs.shape[0]],
+                                                   p_labels[imgs.shape[0] - visualBD[1]:imgs.shape[0]],
+                                                   seg_masks, binary_threshold, savePath)
+            segmentations = overall_gcam.gt(binary_threshold)
+            gtmasks = torch.max(seg_masks, dim=1, keepdim=True)[0]
+            prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(), th=0.5)
 
-        if model.heatmapType == "GradCAM":
-            model.transimitBatchDistribution(0)  # 所有样本均要生成可视化seg
-            #seg_imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-            #seg_labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-            seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-            seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-            seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
+            return {"logits": logits.detach(), "labels": seg_labels,}
 
-            #logits2 = model(seg_imgs)
-
-            """
-            soft_mask = seg_masks.clone()
-            soft_mask = model.lesionFusion(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
-            max_kernel_size = 10#40#20#random.randint(30, 240)
-            soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1, padding=max_kernel_size)
-            avg_kernel_size = 20#40  #平滑用
-            soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #max增加aks
-            soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #avg变化
-            rimgs = seg_imgs
-            rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
-            mean = torch.Tensor([[0.485, 0.456, 0.406]]).unsqueeze(-1).unsqueeze(-1).cuda()
-            std = torch.Tensor([[0.229, 0.224, 0.225]]).unsqueeze(-1).unsqueeze(-1).cuda()
-            rimg_fill = (torch.rand_like(rimgs)-mean)/std
-            pos_masked_img = soft_mask * rimgs #+ (1 - soft_mask) * rimg_fill
-            neg_masked_img = (1 - soft_mask) * rimgs# + soft_mask * rimg_mean
-            seg_imgs = torch.cat([pos_masked_img, seg_imgs],dim=0)#pos_masked_img
-            seg_masks = soft_mask
-            #"""
-
+        elif model.heatmapType == "computeSegMetric":
             with torch.no_grad():
+                seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
+                seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
                 logits = model(seg_imgs)
-                print(logits)
-                logits = logits[0:1]
-                scores = torch.softmax(logits, dim=-1)
-                p_labels = torch.argmax(logits, dim=1)  # predict_label
 
-            """
-            # PG-CAM ()
-            target_layers = ["denseblock3", "denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:#seg_labels[0] != p_labels[0]:
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0],
-                               label_num=6, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise", show_pos=False, show_overall=False, only_show_false_grade=False)
-            #"""
-            #"""
-            # Guided PG-CAM
-            target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:#seg_labels[0] != p_labels[0]:
-                #copy.deepcopy(model)
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0],
-                               label_num=1, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=True, only_show_false_grade=False)
-            #"""
+                prepareForComputeSegMetric(model.base.seg_attention.cpu(), seg_masks.cpu(), th=0.5)
 
-            # For Val only show False Grade
-            """
-            # PG-CAM ()
-            target_layers = ["denseblock3",
-                             "denseblock4"]  # ["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:  # seg_labels[0] != p_labels[0]:
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers,
-                               mask=seg_masks[0],
-                               label_num=6, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise", show_pos=False,
-                               show_overall=False, only_show_false_grade=True)
-            # """
-            """
-            # Guided PG-CAM
-            target_layers = ["denseblock1", "denseblock2", "denseblock3",
-                             "denseblock4"]  # ["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:  # seg_labels[0] != p_labels[0]:
-                # copy.deepcopy(model)
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers,
-                               mask=seg_masks[0],
-                               label_num=1, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True,
-                               show_overall=True, only_show_false_grade=True)
-            # """
+                return {"logits": logits, "labels": seg_labels}
 
-
-            return {"logits": logits, "labels": seg_labels}
 
     engine = Engine(_inference)
 
@@ -222,12 +176,18 @@ def do_visualization(
                     "precision": Precision(output_transform=lambda x: (x["logits"], x["labels"])),
                     "recall": Recall(output_transform=lambda x: (x["logits"], x["labels"])),
                     "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], x["labels"])),
+                    #"seg_confusion_matrix": ConfusionMatrix(num_classes=1, output_transform=lambda x: (x["segmentations"], x["gtmasks"])), #会选取最大值作为预测标签，那么对于多标签有些无力
                     }
     evaluator = create_supervised_visualizer(model, metrics=metrics_eval, loss_fn=loss_fn, device=device)
 
     y_pred = []
     y_label = []
     metrics = dict()
+
+    @evaluator.on(Events.ITERATION_COMPLETED)
+    def log_eval_step(engine):
+        print("Iteration[{} / {}]".format(engine.state.iteration, len(test_loader)))
+
 
     @evaluator.on(Events.ITERATION_COMPLETED, y_pred, y_label)
     def combineTensor(engine, y_pred, y_label):
@@ -277,34 +237,35 @@ def do_visualization(
         metrics["overall_accuracy"] = overall_accuracy
         metrics["confusion_matrix"] = confusion_matrix
 
-        if model.heatmapType == "computeSegMetric":
-            global TP, FP, TN, FN
+        global TP, FP, TN, FN
+        if TP!=0 or FP!=0 or TN!=0 or FN!=0:
+            seg_class = TP.shape[1]
             # CJY at 2020.3.1  add seg IOU 等metrics
             Accuracy = (TP + TN) / (TP + FP + TN + FN + 1E-12)
-            Acc = [Accuracy[0][i].item() for i in range(4)]
-            Acc_mean = (Acc[0] + Acc[1] + Acc[2] + Acc[3]) / 4
+            Acc = [Accuracy[0][i].item() for i in range(seg_class)]
+            Acc_mean = torch.mean(Accuracy).item()
 
             Precision = TP / (TP + FP + 1E-12)
-            Pre = [Precision[0][i].item() for i in range(4)]
-            Pre_mean = (Pre[0] + Pre[1] + Pre[2] + Pre[3]) / 4
+            Pre = [Precision[0][i].item() for i in range(seg_class)]
+            Pre_mean = torch.mean(Precision).item()
 
             Recall = TP / (TP + FN + 1E-12)
-            Rec = [Recall[0][i].item() for i in range(4)]
-            Rec_mean = (Rec[0] + Rec[1] + Rec[2] + Rec[3]) / 4
+            Rec = [Recall[0][i].item() for i in range(seg_class)]
+            Rec_mean = torch.mean(Recall).item()
 
             IOU = TP / (TP + FP + FN + 1E-12)
-            IU = [IOU[0][i].item() for i in range(4)]
-            IU_mean = (IU[0] + IU[1] + IU[2] + IU[3]) / 4
+            IU = [IOU[0][i].item() for i in range(seg_class)]
+            IU_mean = torch.mean(IOU).item()
 
             logger.info("Segmentation Metrics")
             logger.info(
-                "Accuracy : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Acc[0], Acc[1], Acc[2], Acc[3], Acc_mean))
+                "Accuracy : {}, mean: {:.3f}".format(Acc, Acc_mean))
             logger.info(
-                "Precision: {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Pre[0], Pre[1], Pre[2], Pre[3], Pre_mean))
+                "Precision: {}, mean: {:.3f}".format(Pre, Pre_mean))
             logger.info(
-                "Recall   : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Rec[0], Rec[1], Rec[2], Rec[3], Rec_mean))
+                "Recall   : {}, mean: {:.3f}".format(Rec, Rec_mean))
             logger.info(
-                "IOU      : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(IU[0], IU[1], IU[2], IU[3], IU_mean))
+                "IOU      : {}, mean: {:.3f}".format(IU, IU_mean))
 
 
     evaluator.run(test_loader)

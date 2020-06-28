@@ -134,7 +134,7 @@ class Baseline(nn.Module):
 
         # 4.visualizer
         self.visualizer_name = "grad-cam"
-        self.target_layer = [""]#["base.features.denseblock4"]
+        self.target_layer = ["base.features.denseblock4"]#["base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4"]#[""]#["base.features.denseblock4"]
         self.visualizer = None
         self.visualization = None
         self.choose_visualizer()
@@ -166,33 +166,8 @@ class Baseline(nn.Module):
         return final_logits   # 其他参数可以用model的成员变量来传递
 
 
-
     # Hook Function
-    #1.保留中间输出——用于GradCAM
-    def forward_hook_fn(self, module, input, output):
-        self.inter_output.append(output)
-    """
-    # 最好不要在这里去切分输出的特征，因为后续如果要对其求梯度是不行的，必须先保留整体
-    def backward_hook_fn(self, module, grad_in, grad_out):  
-        if self.batchDistribution != 0:
-            if self.batchDistribution != 1:
-                self.inter_gradient.append(grad_out[0][self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]])
-            else:
-                # self.inter_gradient = grad_out[0]  #将输入图像的梯度获取
-                self.inter_gradient.append(grad_out[0])  # 将输入图像的梯度获取
-    """
-
-    #2. 用于Guided Backpropgation
-    #用于Relu处的hook
-    def guided_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedBPstate == True:
-            pos_grad_out = grad_out[0].gt(0)
-            result_grad = pos_grad_out * grad_in[0]
-            return (result_grad,)
-        else:
-            pass
-
-    #3.用于打印梯度
+    #用于打印梯度
     def print_grad(self, module, grad_in, grad_out):
         if self.guidedBPstate == 0:
             print("start:")
@@ -393,173 +368,8 @@ class Baseline(nn.Module):
             self.visualizer = GradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
 
 
-    def generateGCAM(self, logits, labels, gcamBatchDistribution, device):
-        # 将label转为one - hot
-        gcam_one_hot_labels = torch.nn.functional.one_hot(labels, self.num_classes).float()
-        gcam_one_hot_labels = gcam_one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else gcam_one_hot_labels
-
-        # 回传one-hot向量  已弃用 由于其会对各变量生成梯度，而使用op.zero_grad 或model.zero_grad 都会使程序出现问题，故改用torch.autograd.grad
-        # logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)  #这样会对所有w求取梯度，且建立回传图会很大
-
-        # 求取model.inter_output对应的gradient
-        # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
-        self.guidedBPstate = 1  # 是否开启guidedBP
-        inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
-                                              grad_outputs=gcam_one_hot_labels,
-                                              retain_graph=True)  # , create_graph=True)
-        self.inter_gradient = list(inter_gradients)
-        self.guidedBPstate = 0
-
-        # 生成CAM
-        target_layer_num = len(self.target_layer)
-        gcam_list = []
-        gcam_max_list = []  # 记录每个Grad-CAM的归一化最大值
-        for i in range(target_layer_num):
-            gcam_max_list.append(1)
-
-        for i in range(target_layer_num):
-            inter_output = self.inter_output[i][
-                           self.inter_output[i].shape[0] - gcamBatchDistribution[1]:self.inter_output[i].shape[0]]  # 此处分离节点，别人皆不分离  .detach()
-            inter_gradient = self.inter_gradient[i][
-                             self.inter_gradient[i].shape[0] - gcamBatchDistribution[1]:self.inter_gradient[i].shape[0]]
-            if False:  # model.target_layer[i] == "denseblock4":  # 最后一层是denseblock4的输出，使用forward形式
-                gcam = F.conv2d(inter_output, model.classifier.weight.unsqueeze(-1).unsqueeze(-1))
-                # gcam = gcam /(gcam.shape[-1]*gcam.shape[-2])  #如此，形式上与其他层计算的gcam量级就相同了
-                # gcam = torch.softmax(gcam, dim=-1)
-                pick_label = labels[labels.shape[0] - gcamBatchDistribution[1]:labels.shape[0]]
-                pick_list = []
-                for j in range(pick_label.shape[0]):
-                    pick_list.append(gcam[j, pick_label[j]].unsqueeze(0).unsqueeze(0))
-                gcam = torch.cat(pick_list, dim=0)
-            else:  # backward形式
-                gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-                gcam = gcam * (
-                            gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-                gcam = torch.relu(gcam)  # CJY at 2020.4.18
-
-            # print(gcam.sum(), gcam.mean(), gcam.abs().max())
-            gcam = torch.relu(gcam)
-            norm_gcam, gcam_max = self.gcamNormalization(gcam)
-
-            # 插值
-            # gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
-            gcam_list.append(norm_gcam)  # 将不同模块的gcam保存到gcam_list中
-            gcam_max_list[i] = gcam_max.detach().mean().item() / 2  # CJY for pos_masked
-
-        # print("1")
-        # 多尺度下的gcam进行融合
-        overall_gcam = torch.cat(gcam_list, dim=1)
-        # mean值法
-        overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
-        # max值法
-        # overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
-
-        # gcam_list = [overall_gcam]
-        """
-        #overall_gcam_index1 = torch.max(overall_gcam, dim=1, keepdim=True)[1]
-        #overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
-        overall_gcam_index = torch.max(overall_gcam.abs(), dim=1, keepdim=True)[1]
-        overall_gcam_index_onehot = torch.nn.functional.one_hot(overall_gcam_index.permute(0, 2, 3, 1), target_layer_num).squeeze(3).permute(0, 3, 1, 2)
-        #if overall_gcam_index_onehot.shape[1] == 1:
-            #overall_gcam_index_onehot = overall_gcam_index_onehot + 1
-        overall_gcam = overall_gcam * overall_gcam_index_onehot
-        overall_gcam = torch.sum(overall_gcam, dim=1, keepdim=True)
-        #overall_gcam = torch.relu(overall_gcam)  # 只保留正值
-        #overall_gcam = torch.mean(overall_gcam, dim=1, keepdim=True)
-        #overall_gcam = torch.relu(overall_gcam)
-        gcam_list = [overall_gcam]
-        #"""
-
-        self.inter_output.clear()
-        self.inter_gradient.clear()
-
-        return gcam_list, gcam_max_list, overall_gcam
-
-    def gcamNormalization(self, gcam):
-        # 归一化 v1 使用均值，方差
-        """
-        gcam_flatten = gcam.view(gcam.shape[0], -1)
-        gcam_var = torch.var(gcam_flatten, dim=1).detach()
-        gcam = gcam/gcam_var
-        gcam = torch.sigmoid(gcam)
-        #"""
-        # 归一化 v2 正负分别用最大值归一化
-        """        
-        pos = torch.gt(gcam, 0).float()
-        gcam_pos = gcam * pos
-        gcam_neg = gcam * (1 - pos)
-        gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        sigma = 1  # 0.8
-        gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + gcam_neg / gcam_neg_abs_max.clamp(
-            min=1E-12).detach()  # [-1,+1]
-        #"""
-        # 归一化 v3 正负统一用绝对值最大值归一化
-        gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0]
-        gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  # [-1,+1]
-        # print("gcam_max{}".format(gcam_abs_max.mean().item()))
-        return gcam, gcam_abs_max  # .mean().item()
-
-        # 其他
-        # gcam = torch.relu(torch.tanh(gcam))
-        # gcam = gcam/gcam_abs_max
-        # gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
-        #    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-
-        # gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
-        # gcam_neg_mean = (torch.sum(gcam_neg) / torch.sum(1-pos).clamp(min=1E-12))
-
-        # gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # cjy
-        # gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_mean.clamp(min=1E-12).detach()) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
-        # gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
-        # gcam = gcam_pos / gcam_pos_mean.clamp(min=1E-12).detach() #+ gcam_neg / gcam_neg_mean.clamp(min=1E-12).detach()
-        # gcam = gcam/2 + 0.5
-
-        # gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        # gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        # gcam = torch.relu(gcam) / gcam_max.detach()
-
-        # gcam = torch.tanh(gcam*4)
-        # gcam = torch.relu(gcam)
-
     def set_hooks(self):
-        # 0.different Network config
-        Layer_Net_Dict={
-            "MBagNet":["denseblock1", "denseblock2", "denseblock3", "denseblock4"],
-            "DenseNet":["denseblock1", "denseblock2", "denseblock3", "denseblock4"],
-            "ResNet": [],
-            "Vgg":[],
-        }
-
-        # 1.GradCAM hook               GradCAM 如果其不为none，那么就设置hook
-        self.target_layer = []
-        if self.gcamState == True:
-            # 用于存储中间的特征输出和对应的梯度
-            self.inter_output = []
-            self.inter_gradient = []
-
-            self.target_layer = ["denseblock4"]  # ["denseblock3"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#, "denseblock2",
-            if self.target_layer != []:
-                for tl in self.target_layer:
-                    for module_name, module in self.base.features.named_modules():
-                        if module_name == tl:
-                            print("Grad-CAM hook on ", module_name)
-                            module.register_forward_hook(self.forward_hook_fn)
-                            # module.register_backward_hook(self.backward_hook_fn)  不以backward求取gcam了，why，因为这种回传会在模型中保存梯度，然后再清零会出问题
-                            break
-
-        # 2.Guided Backpropagation Hook
-        if self.guidedBP == True:
-            print("Set GuidedBP Hook on Relu")
-            for module_name, module in self.named_modules():
-                if isinstance(module, torch.nn.ReLU) == True:
-                    module.register_backward_hook(self.guided_backward_hook_fn)
-        self.guidedBPstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-
-        # 3.观测梯度 hook
+        # 观测梯度 hook
         # 打印梯度
         self.need_print_grad = 0
         if self.need_print_grad == 1:
