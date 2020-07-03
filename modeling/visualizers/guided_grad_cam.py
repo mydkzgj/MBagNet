@@ -1,0 +1,64 @@
+"""
+Created on Thu Oct 26 11:06:51 2017
+
+@author: Utku Ozbulak - github.com/utkuozbulak
+"""
+from PIL import Image
+import numpy as np
+import torch
+from .grad_cam import *
+from .guided_backpropagation import *
+
+from .draw_tool import draw_visualization
+
+
+class GuidedGradCAM():
+    def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
+        self.num_classes = num_classes
+        self.target_layer = target_layer  #注：需要让input可计算梯度； target_layer  # 最好按forward顺序写
+        self.draw_index = 0
+
+        # 子模块
+        self.gcam = GradCAM(model, num_classes, target_layer, useGuidedBP)
+        self.guidedBP = GuidedBackpropagation(model, num_classes)
+
+
+    # Generate Visualiztions Function   # 统一用GenerateVisualiztion这个名字吧
+    def GenerateVisualiztions(self, logits, labels, input_size, visual_num):
+        self.observation_class = labels.cpu().numpy().tolist()
+        gcam_list, self.gcam_max_list, self.overall_gcam = self.gcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
+        gbp_list, _, _ = self.guidedBP.GenerateVisualiztions(logits, labels, input_size, visual_num)
+
+        gbp = gbp_list[0]
+        self.gcam_list = []
+        for i, cam in enumerate(gcam_list):
+            resized_cam = torch.nn.functional.interpolate(cam, input_size, mode='bilinear')
+            ggcam = resized_cam * (gbp-0.5) + 0.5
+            self.gcam_list.append(ggcam)
+
+        return self.gcam_list, self.gcam_max_list, self.overall_gcam
+
+    def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath):
+        """
+        :param imgs: 待可视化图像
+        :param labels: 对应的label
+        :param plabels: 预测的label
+        :param gtmasks: 掩膜真值
+        :param threshold: 二值化阈值 0-1
+        :param savePath: 存储路径
+        :return:
+        """
+        for j in range(imgs.shape[0]):
+            for i, gcam in enumerate(self.gcam_list):
+                layer_name = self.target_layer[i]
+                label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
+                visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
+                draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
+            self.draw_index = self.draw_index + 1
+        return 0
+
+
+
+
+
+

@@ -12,7 +12,7 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class GradCAM():
+class GradCAMpp():
     def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
         self.model = model
         self.num_classes = num_classes
@@ -164,13 +164,26 @@ class GradCAM():
 
 
     # Generate Single CAM (backward)
-    def GenerateCAM(self, inter_output, inter_gradient):
+    def GenerateCAM(self, inter_output, inter_gradient, logits, labels):  #这种计算很耗显存
         # backward形式
-        avg_gradient = torch.mean(torch.mean(inter_gradient, dim=-1, keepdim=True), dim=-2, keepdim=True)
-        gcam = torch.sum(avg_gradient * inter_output, dim=1, keepdim=True)
-        gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam = torch.relu(gcam)  # CJY at 2020.4.18
-        return gcam
+        #gradients = inter_gradient
+        #activations = inter_output
+        logit = torch.gather(logits, dim=1, index=labels.view(-1,1))
+        b, k, u, v = inter_gradient.shape
+        alpha_num = inter_gradient.pow(2)
+        alpha_denom = inter_gradient.pow(2).mul(2) + \
+                      inter_output.mul(inter_gradient.pow(3)).view(b, k, u * v).sum(-1, keepdim=True).view(b, k, 1, 1)
+
+        alpha_denom = torch.where(alpha_denom != 0.0, alpha_denom, torch.ones_like(alpha_denom))  # 避免分母为0
+
+        #alpha = alpha_num.div(alpha_denom + 1e-7)
+        #positive_gradients = torch.relu(logit.exp() * inter_gradient)  # ReLU(dY/dA) == ReLU(exp(S)*dS/dA))
+        #weights = (alpha * positive_gradients).view(b, k, u * v).sum(-1).view(b, k, 1, 1)
+        weights = (alpha_num.div(alpha_denom + 1e-7) * torch.relu(logit.exp() * inter_gradient)).view(b, k, u * v).sum(-1).view(b, k, 1, 1)
+
+        saliency_map = (weights * inter_output).sum(1, keepdim=True)
+        saliency_map = saliency_map.relu_()
+        return saliency_map
 
     """
     def GenerateCAM(self):
@@ -234,7 +247,7 @@ class GradCAM():
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
 
             # 2.生成CAM
-            gcam = self.GenerateCAM(inter_output, inter_gradient)
+            gcam = self.GenerateCAM(inter_output, inter_gradient, logits, labels)
 
             # 3.Post Process
             # Amplitude Normalization

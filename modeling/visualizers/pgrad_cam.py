@@ -12,7 +12,7 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class GradCAM():
+class PGradCAM():
     def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
         self.model = model
         self.num_classes = num_classes
@@ -166,8 +166,7 @@ class GradCAM():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
-        avg_gradient = torch.mean(torch.mean(inter_gradient, dim=-1, keepdim=True), dim=-2, keepdim=True)
-        gcam = torch.sum(avg_gradient * inter_output, dim=1, keepdim=True)
+        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -269,7 +268,7 @@ class GradCAM():
             for i, gcam in enumerate(self.gcam_list):
                 layer_name = self.target_layer[i]
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
-                visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
+                visual_prefix = layer_name.replace(".", "-") + "_S{}".format( self.observation_class[j])
                 draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
             self.draw_index = self.draw_index + 1
         return 0

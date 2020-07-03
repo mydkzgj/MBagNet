@@ -12,15 +12,16 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class GradCAM():
-    def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
+class PGradBackCAM():
+    def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
         self.target_layer = target_layer  # 最好按forward顺序写
-        self.num_terget_layer = len(self.target_layer)
+        self.num_target_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
-        self.useGuidedBP = useGuidedBP
+        self.useGuidedBP = True  # GuideBackPropagation的变体
+        self.relu_input = []
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
 
         self.hookIndex = 0
@@ -56,11 +57,15 @@ class GradCAM():
             raise Exception("Without target layer can not generate Visualization")
 
         # 2.Set Guided-Backpropagation Hook
+        self.num_relu_layer = 0
+        self.reluhookIndex = 0
         if self.useGuidedBP == True:
             print("Set GuidedBP Hook on Relu")
             for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.ReLU) == True:
-                    module.register_backward_hook(self.guided_backward_hook_fn)
+                if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
+                    self.num_relu_layer = self.num_relu_layer + 1
+                    module.register_forward_hook(self.relu_forward_hook_fn)
+                    module.register_backward_hook(self.relu_backward_hook_fn)
 
     # Hook Function
     def set_requires_gradients_firstlayer(self, module, input, output):
@@ -72,20 +77,38 @@ class GradCAM():
 
     def reserve_features_hook_fn(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
-        if self.hookIndex % self.num_terget_layer == 0:
+        if self.hookIndex % self.num_target_layer == 0:
             self.hookIndex = 0
             self.inter_output.clear()
             self.inter_gradient.clear()
         self.inter_output.append(output)
         self.hookIndex = self.hookIndex + 1
 
-    def guided_backward_hook_fn(self, module, grad_in, grad_out):
+    def relu_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
             pos_grad_out = grad_out[0].gt(0)
             result_grad = pos_grad_out * grad_in[0]
+            relu_input = self.relu_input.pop()
+            print("backward:{}".format(len(self.relu_input)))
+            pgcam = torch.sum(relu_input * result_grad, dim=1, keepdim=True)
+            pgcam, pgcam_max = self.gcamNormalization(pgcam)
+            result_grad = result_grad * pgcam
+            #raise Exception("1")
+
             return (result_grad,)
         else:
             pass
+
+    def relu_forward_hook_fn(self, module, input, output):
+        if self.reluhookIndex == 0:
+            print("before reset relu:{}".format(len(self.relu_input)))
+            self.relu_input.clear()
+        self.relu_input.append(input[0])
+        self.reluhookIndex = self.reluhookIndex + 1
+        print("forward:{}".format(len(self.relu_input)))
+        if self.reluhookIndex % self.num_relu_layer == 0:
+            self.reluhookIndex = 0
+
 
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
@@ -166,8 +189,7 @@ class GradCAM():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
-        avg_gradient = torch.mean(torch.mean(inter_gradient, dim=-1, keepdim=True), dim=-2, keepdim=True)
-        gcam = torch.sum(avg_gradient * inter_output, dim=1, keepdim=True)
+        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -269,8 +291,11 @@ class GradCAM():
             for i, gcam in enumerate(self.gcam_list):
                 layer_name = self.target_layer[i]
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
-                visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
-                draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
+                visual_prefix = layer_name.replace(".", "-") + "_S{}".format( self.observation_class[j])
+                if isinstance(gtmasks, torch.Tensor) == True:
+                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
+                else:
+                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
             self.draw_index = self.draw_index + 1
         return 0
 

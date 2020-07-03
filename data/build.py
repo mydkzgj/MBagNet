@@ -183,7 +183,7 @@ def make_seg_data_loader(cfg):
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.MASK_PER_BATCH, num_workers=num_workers, #shuffle=True,
         # CJY  为了保证类别均衡
-        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, 4, is_train=True),
+        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, 4, is_train=False),    #此处不让其类别均衡了 CJY at 2020.6.29
         collate_fn=collate_fn_seg
     )
 

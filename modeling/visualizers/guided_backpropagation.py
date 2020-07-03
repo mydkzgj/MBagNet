@@ -12,15 +12,15 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class GradCAM():
-    def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
+class GuidedBackpropagation():
+    def __init__(self, model, num_classes,):
         self.model = model
         self.num_classes = num_classes
-        self.target_layer = target_layer  # 最好按forward顺序写
+        self.target_layer = [""] #注：需要让input可计算梯度； target_layer  # 最好按forward顺序写
         self.num_terget_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
-        self.useGuidedBP = useGuidedBP
+        self.useGuidedBP = True
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
 
         self.hookIndex = 0
@@ -136,7 +136,7 @@ class GradCAM():
         # 归一化 v3 正负统一用绝对值最大值归一化
         gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0]
         gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  # [-1,+1]
+        gcam = gcam / gcam_abs_max_expand.clamp(min=1E-12).detach() *0.5 + 0.5  # [-1, 1]
         # print("gcam_max{}".format(gcam_abs_max.mean().item()))
         return gcam, gcam_abs_max  # .mean().item()
 
@@ -166,10 +166,8 @@ class GradCAM():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
-        avg_gradient = torch.mean(torch.mean(inter_gradient, dim=-1, keepdim=True), dim=-2, keepdim=True)
-        gcam = torch.sum(avg_gradient * inter_output, dim=1, keepdim=True)
-        gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam = torch.relu(gcam)  # CJY at 2020.4.18
+        gcam = inter_gradient
+        #gcam = torch.sum(gcam.abs(), dim=1, keepdim=True)
         return gcam
 
     """

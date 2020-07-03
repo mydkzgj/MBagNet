@@ -16,6 +16,11 @@ from .classifiers.hierarchy_linear import *
 from .segmenters.fc_mbagnet import *
 
 from .visualizers.grad_cam import *
+from .visualizers.pgrad_cam import *
+from .visualizers.grad_cam_plusplus import *
+from .visualizers.guided_backpropagation import *
+from .visualizers.guided_grad_cam import *
+from .visualizers.pgrad_back_cam import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -133,8 +138,8 @@ class Baseline(nn.Module):
         self.choose_segmenter()
 
         # 4.visualizer
-        self.visualizer_name = "grad-cam"
-        self.target_layer = ["base.features.denseblock4"]#["base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4"]#[""]#["base.features.denseblock4"]
+        self.visualizer_name = "pgrad-back-cam"#"grad-cam"#"pgrad-cam-GBP"  #["base.features.denseblock3"]#
+        self.target_layer = ["base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4"]#[""]#["base.features.denseblock4"]
         self.visualizer = None
         self.visualization = None
         self.choose_visualizer()
@@ -366,6 +371,23 @@ class Baseline(nn.Module):
     def choose_visualizer(self):
         if self.visualizer_name == "grad-cam":
             self.visualizer = GradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
+        if self.visualizer_name == "grad-cam-GBP":
+            self.visualizer = GradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
+        elif self.visualizer_name == "pgrad-cam":  #pixel-wise grad-cam
+            self.visualizer = PGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
+        elif self.visualizer_name == "pgrad-cam-GBP":  #pixel-wise grad-cam
+            self.visualizer = PGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
+        elif self.visualizer_name == "grad-cam++":   #grad-cam++
+            self.visualizer = GradCAMpp(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
+        elif self.visualizer_name == "grad-cam++-GBP":  # pixel-wise grad-cam
+            self.visualizer = GradCAMpp(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
+        elif self.visualizer_name == "guided-backpropagation":  #
+            self.visualizer = GuidedBackpropagation(model=self, num_classes=self.num_classes)
+        elif self.visualizer_name == "guided-grad-cam":
+            self.visualizer = GuidedGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
+        elif self.visualizer_name == "pgrad-back-cam":
+            self.visualizer = PGradBackCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+
 
 
     def set_hooks(self):

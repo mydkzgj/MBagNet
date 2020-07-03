@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('ddr_DRgrading')
+  NAMES: ('examples')#('ddr_DRgrading')
   ROOT_DIR: ('./data')
 
  DATALOADER:
@@ -115,7 +115,7 @@ TRAIN:
 
  # Train Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 3
+  CATEGORIES_PER_BATCH: 2
   INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1
   ACCUMULATION_STEP: 1
@@ -139,7 +139,7 @@ VAL:
 
  # Val Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 3
+  CATEGORIES_PER_BATCH: 2
   INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1
 
@@ -155,6 +155,6 @@ TEST:
 
  # Test Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 3
+  CATEGORIES_PER_BATCH: 2
   INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1

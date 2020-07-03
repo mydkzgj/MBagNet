@@ -20,13 +20,13 @@ def colormap_name(id):
     }
     return switcher.get(id, 'NONE')
 
-# 色彩映射
+# 色彩映射  注：bgr
 def color_name(id):
     switcher = {
-        0 : [255,0,0],
-        1 : [0,255,0],
-        2 : [0,0,255],
-        3 : [255,255,0],
+        0 : [0,255,0], #紫[255,48,155],
+        1 : [0,255,255],
+        2 : [0,165,255],  #255 165 0   #224,255,255
+        3 : [0,0,255],
         4 : [0,255,255],
         5 : [255,0,255],
         6 : [255,255,255],
@@ -39,7 +39,7 @@ def color_name(id):
     return switcher.get(id, 'NONE')
 
 
-def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, index_prefix, visual_prefix):
+def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, index_prefix, label_prefix, visual_prefix):
     """
     single img
     """
@@ -47,27 +47,39 @@ def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, i
     img_numpy, visual_numpy, gtmask_numpy = convertTensorToNumpy(img, visualization, gtmask)
 
     # 2.将visualization_numpy转化为伪彩色图
-    visual_numpy_color = cv.applyColorMap(visual_numpy, cv.COLORMAP_JET)
+    if len(visual_numpy.shape) == 2:
+        visual_numpy_color = cv.applyColorMap(visual_numpy, cv.COLORMAP_JET)
+    else:  # for 3-channels visualization  (Guided Backpropagation)  [0,255]
+        visual_numpy_color = visual_numpy
+        # 灰度图的合成方式有两种：1.abs sum  2. non-zero binary
+        visual_numpy = np.mean(np.abs((visual_numpy_color-127.0))*2, axis=2)#cv.cvtColor(visual_numpy_color, cv.COLOR_BGR2GRAY)
+        visual_numpy = (visual_numpy/visual_numpy.max() *255).astype(np.uint8)
+        #th, visual_numpy = cv.threshold(np.mean(np.abs(visual_numpy_color-127.0), axis=2).astype(np.uint8), 0, 255, cv.THRESH_BINARY)
     th, visual_numpy_binary = cv.threshold(visual_numpy, int(binary_threshold*255), 255, cv.THRESH_BINARY)
 
     # 3.将visualization和img叠加
     img_ratio = 0.8
-    visual_ratio = 1 -img_ratio
+    visual_ratio = 1 - img_ratio
     img_with_visual = cv.addWeighted(img_numpy, img_ratio, visual_numpy_color, visual_ratio, 0)
+
+    visual_numpy_binary = cv.cvtColor(visual_numpy_binary, cv.COLOR_GRAY2BGR)
+    gtmask_with_visual = cv.addWeighted(gtmask_numpy, 0.5, visual_numpy_binary, 0.5, 0)
 
     # 4.Save
     if index_prefix != "":
         index_prefix = index_prefix + "_"
-    cv.imwrite(os.path.join(savePath, "{}image.jpg".format(index_prefix)), img_numpy)
-    cv.imwrite(os.path.join(savePath, "{}visualization_gray_{}.jpg".format(index_prefix, visual_prefix)), visual_numpy)
-    cv.imwrite(os.path.join(savePath, "{}visualization_binary_{}_th{}.jpg".format(index_prefix, visual_prefix, str(binary_threshold))), visual_numpy_binary)
-    cv.imwrite(os.path.join(savePath, "{}visualization_color_{}.jpg".format(index_prefix, visual_prefix)), visual_numpy_color)
-    cv.imwrite(os.path.join(savePath, "{}visualization_on_image_{}.jpg".format(index_prefix, visual_prefix)),img_with_visual)
-    cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth.jpg".format(index_prefix)), gtmask_numpy)
+    cv.imwrite(os.path.join(savePath, "{}image_{}.jpg".format(index_prefix, label_prefix)), img_numpy)
+    #cv.imwrite(os.path.join(savePath, "{}visualization_gray_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy)
+    cv.imwrite(os.path.join(savePath, "{}visualization_binary_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), visual_numpy_binary)
+    cv.imwrite(os.path.join(savePath, "{}visualization_color_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy_color)
+    cv.imwrite(os.path.join(savePath, "{}visualization_on_image_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)),img_with_visual)
+    cv.imwrite(os.path.join(savePath, "{}visualization_binary_on_gtmask_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), gtmask_with_visual)
+    cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth_{}.jpg".format(index_prefix, label_prefix)), gtmask_numpy)
     if gtmask_numpy.shape[2] == 3:
         gt_gray = cv.cvtColor(gtmask_numpy, cv.COLOR_RGB2GRAY)
-        th, gt_binary = cv.threshold(gt_gray, 1, 255, cv.THRESH_BINARY)
-        cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth_binary.jpg".format(index_prefix)), gt_binary)
+        th, gt_binary = cv.threshold(gt_gray, 0, 255, cv.THRESH_BINARY)
+        #cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth_binary_{}.jpg".format(index_prefix, label_prefix)), gt_binary)
+
 
 
 def convertTensorToNumpy(img, visualization, gtmask):
@@ -88,24 +100,27 @@ def convertTensorToNumpy(img, visualization, gtmask):
     img_numpy = (img_numpy_bgr * 255).astype(np.uint8)
 
     # (2).转化可视化化结果 （单通道）
-    visual_numpy = visualization[0].cpu().detach().numpy()
+    visual_numpy = visualization.permute(1,2,0).squeeze(2).cpu().detach().numpy()
     if visual_numpy.shape[1] != img_numpy.shape[1]:
         visual_numpy = cv.resize(visual_numpy, (img_numpy.shape[0], img_numpy.shape[1]), interpolation=cv.INTER_LINEAR)   #https://blog.csdn.net/xidaoliang/article/details/86504720
     #visual_numpy = (128 + visual_numpy * 127).astype(np.uint8)
     visual_numpy = (visual_numpy * 255).astype(np.uint8)
 
     # (3).转化Ground Truth (多/单通道) 转化为 彩图/灰度图
-    gtmask_channel = gtmask.shape[0]
-    if gtmask_channel == 1:
-        gtmask_numpy = gtmask.cpu().detach().numpy()
+    if isinstance(gtmask, np.ndarray) == True:
+        gtmask_channel = gtmask.shape[0]
+        if gtmask_channel == 1:
+            gtmask_numpy = gtmask.cpu().detach().numpy()
+        else:
+            mutichannel_gtmask_numpy = gtmask.cpu().detach().numpy()
+            color_gtmask_numpy = 0
+            for i in range(gtmask_channel):
+                single_gtmask_numpy = mutichannel_gtmask_numpy[i]
+                single_gtmask_numpy = np.expand_dims(single_gtmask_numpy, axis=2).repeat(3, axis=2)
+                color_gtmask_numpy = color_gtmask_numpy + single_gtmask_numpy * np.array(color_name(i))
+            gtmask_numpy = color_gtmask_numpy.astype(np.uint8)
     else:
-        mutichannel_gtmask_numpy = gtmask.cpu().detach().numpy()
-        color_gtmask_numpy = 0
-        for i in range(gtmask_channel):
-            single_gtmask_numpy = mutichannel_gtmask_numpy[i]
-            single_gtmask_numpy = np.expand_dims(single_gtmask_numpy, axis=2).repeat(3,axis=2)
-            color_gtmask_numpy = color_gtmask_numpy + single_gtmask_numpy * np.array(color_name(i))
-        gtmask_numpy = color_gtmask_numpy.astype(np.uint8)
+        gtmask_numpy = np.zeros_like(img_numpy)
 
     return img_numpy, visual_numpy, gtmask_numpy
 
