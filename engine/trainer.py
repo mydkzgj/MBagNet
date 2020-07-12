@@ -159,24 +159,33 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         grade_imgs, grade_labels, seg_imgs, seg_gt_masks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
         #seg_gt_masks = torch.gt(seg_gt_masks, 0).float()
         # 记录grade和seg的样本数量
-        grade_num = grade_imgs.shape[0]
-        seg_num = seg_gt_masks.shape[0]
+        grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
+        seg_num = seg_gt_masks.shape[0] if seg_imgs is not None else 0
+        segBatchDistribution = (grade_num + seg_num - model.branch_img_num, model.branch_img_num)
+        gcamBatchDistribution = (grade_num + seg_num - model.branch_img_num, model.branch_img_num)
         # 将grade和seg样本concat起来
-        imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
-        labels = torch.cat([grade_labels, seg_labels], dim=0)
+        if grade_num > 0 and seg_num > 0:
+            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
+            labels = torch.cat([grade_labels, seg_labels], dim=0)
+        elif grade_num > 0 and seg_num == 0:
+            imgs = grade_imgs
+            labels = grade_labels
+        elif grade_num == 0 and seg_num > 0:
+            imgs = seg_imgs
+            labels =seg_labels
+
         # 置入cuda
         #one_hot_labels = torch.nn.functional.one_hot(grade_labels, scores.shape[1]).float()
         #grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
-        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 else grade_labels
-        seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-        seg_gt_masks = seg_gt_masks.to(device) if torch.cuda.device_count() >= 1 else seg_gt_masks
-        imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-        labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None else grade_labels
+        seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
+        seg_gt_masks = seg_gt_masks.to(device) if torch.cuda.device_count() >= 1 and seg_gt_masks is not None else seg_gt_masks
+        imgs = imgs.to(device) if torch.cuda.device_count() >= 1 and imgs is not None else imgs
+        labels = labels.to(device) if torch.cuda.device_count() >= 1 and labels is not None else labels
         # 将label转为one - hot
         one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-        one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else one_hot_labels
-        segBatchDistribution = (grade_num+seg_num-model.branch_img_num, model.branch_img_num)
-        gcamBatchDistribution = (grade_num+seg_num-model.branch_img_num, model.branch_img_num)
+        one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 and one_hot_labels is not None else one_hot_labels
+
 
         # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:
@@ -197,8 +206,9 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         model.transimitBatchDistribution(segBatchDistribution)
         model.transmitClassifierWeight()    #如果是BOF 会回传分类器权重
         #imgs.requires_grad_(True)
+        #print(labels)
         logits = model(imgs)                #为了减少显存，还是要区分grade和seg
-        grade_logits = logits[0:grade_num]
+        #grade_logits = logits[0:grade_num]
 
         # Branch 1 Segmentation
         if model.segState == True:
@@ -214,7 +224,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         # Branch 2 Grad-CAM
         if model.gcamState == True:
             if model.visualizer != None:
-                savePath = r"D:\MIP\Experiment\1"
+                #savePath = r"D:\MIP\Experiment\1"
                 gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, visual_num=gcamBatchDistribution[1])
                 model.visualizer.DrawVisualization(imgs[imgs.shape[0]-gcamBatchDistribution[1]:imgs.shape[0]], seg_gt_masks, savePath)
                 #gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
@@ -321,12 +331,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                     gcam_loss = gcam_loss + gl * gl_weight[index]
                 loss = loss + gcam_loss * weight[lossKey]
             elif lossKey == "pos_masked_img_loss":
-                loss = loss + losses[lossKey] * weight[lossKey]# * max_opL
+                loss = loss + losses[lossKey] * weight[lossKey] # * max_opL
             elif lossKey == "neg_masked_img_loss":
                 loss = loss + losses[lossKey] * weight[lossKey] #* max_onL
             else:
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
+
 
         """
         if model.need_print_grad == 1:
@@ -357,7 +368,17 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # compute acc
         #acc = (scores.max(1)[1] == grade_labels).float().mean()
-        return {"scores": grade_logits, "labels": grade_labels, "losses": losses, "total_loss": loss.item()}
+
+        #"""
+        # 如果不加入这个，当开启img的require_grad时，不会自动释放显存（显存逐步增加，目前还不太清楚原因）
+        for lossKey in losses.keys():
+            if lossKey == "gcam_mask_loss":
+                for index, gl in enumerate(losses[lossKey]):
+                    losses[lossKey][index] = losses[lossKey][index].detach() if isinstance(losses[lossKey][index], torch.Tensor) else losses[lossKey][index] #CJY
+            else:
+                losses[lossKey] = losses[lossKey].detach() if isinstance(losses[lossKey], torch.Tensor) else losses[lossKey] # CJY
+        #"""
+        return {"scores": logits, "labels": labels, "losses": losses, "total_loss": loss.item()}
     engine = Engine(_update)
 
     for name, metric in metrics.items():

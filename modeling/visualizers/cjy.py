@@ -8,21 +8,26 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class PGradCAM():
-    def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
+class CJY():
+    def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
         self.target_layer = target_layer  # 最好按forward顺序写
         self.num_target_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
-        self.useGuidedBP = True#useGuidedBP
+        self.useGuidedBP = True  # GuideBackPropagation的变体
+        self.relu_input = []
+        self.relu_index = 0  #后续设定为len(relu_input)
+        self.conv_bias = []
+        self.conv_output = []
+        #self.conv_end = 0
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
 
         self.hookIndex = 0
         self.setHook(model)
 
-        self.reservePos = False
+        self.reservePos = True
 
         self.draw_index = 0
 
@@ -54,11 +59,25 @@ class PGradCAM():
             raise Exception("Without target layer can not generate Visualization")
 
         # 2.Set Guided-Backpropagation Hook
+        self.num_relu_layer = 0
+        self.reluhookIndex = 0
+        self.num_conv_layer = 0
+        self.convhookIndex = 0
         if self.useGuidedBP == True:
             print("Set GuidedBP Hook on Relu")
             for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.ReLU) == True:
-                    module.register_backward_hook(self.guided_backward_hook_fn)
+                if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
+                    self.num_relu_layer = self.num_relu_layer + 1
+                    module.register_forward_hook(self.relu_forward_hook_fn)
+                    module.register_backward_hook(self.relu_backward_hook_fn)
+
+
+        for module_name, module in model.named_modules():
+            if isinstance(module, torch.nn.Conv2d) == True or isinstance(module, torch.nn.Linear):
+                module.register_forward_hook(self.conv_forward_hook_fn)
+                #module.register_backward_hook(self.conv_backward_hook_fn)
+                self.num_conv_layer = self.num_conv_layer + 1
+
 
     # Hook Function
     def set_requires_gradients_firstlayer(self, module, input, output):
@@ -67,9 +86,10 @@ class PGradCAM():
             self.hookIndex = 0
             self.inter_output.clear()
             self.inter_gradient.clear()
-        # input[0].requires_grad_(True)   # 在这里改input的grad好像没用；只能在forward之前更改
+        #input[0].requires_grad_(True)   # 在这里改input的grad好像没用；只能在forward之前更改
         self.inter_output.append(input[0])
         self.hookIndex = self.hookIndex + 1
+
 
     def reserve_features_hook_fn(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
@@ -80,15 +100,53 @@ class PGradCAM():
         self.inter_output.append(output)
         self.hookIndex = self.hookIndex + 1
 
-    def guided_backward_hook_fn(self, module, grad_in, grad_out):
+    def relu_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
-            if grad_in[0].ndimension() < 4:
-                return grad_in
-            pos_grad_out = grad_out[0].lt(0)
-            result_grad = pos_grad_out * grad_in[0]
+            self.relu_index = self.relu_index - 1
+            relu_input = self.relu_input[self.relu_index]
+            conv_bias = -1*torch.relu(-1*self.conv_bias[self.relu_index])
+
+            if relu_input.ndimension() == 4:
+                r_conv_bias = conv_bias.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(relu_input)
+            elif relu_input.ndimension() == 2:
+                r_conv_bias = conv_bias.unsqueeze(0).expand_as(relu_input)
+
+            ratio = torch.relu(relu_input)/(torch.relu(relu_input)-r_conv_bias).clamp(min=1E-12)
+            print("ratio max:{},min:{}".format(ratio.max().item(), ratio.min().item()))
+            result_grad = grad_in[0] * ratio
+            print("rg max:{},min:{}".format(result_grad.max().item(), result_grad.min().item()))
+
+            if relu_input.ndimension() == 4:
+                a = grad_out[0] * torch.relu(self.relu_input[self.relu_index])
+                l = a.sum(3).sum(2).sum(1)
+                print("l: {}".format(l[0].item()))
+
+            #raise Exception("1")
             return (result_grad,)
         else:
             pass
+
+    def relu_forward_hook_fn(self, module, input, output):
+        if self.reluhookIndex == 0:
+            #print("before reset relu:{}".format(len(self.relu_input)))
+            self.relu_input.clear()
+        self.relu_input.append(input[0])
+        self.reluhookIndex = self.reluhookIndex + 1
+        #print("forward:{}".format(len(self.relu_input)))
+        if self.reluhookIndex % self.num_relu_layer == 0:
+            self.reluhookIndex = 0
+
+    def conv_forward_hook_fn(self, module, input, output):
+        if self.convhookIndex == 0:
+            #self.conv_output.clear()
+            self.conv_bias.clear()
+        #self.conv_output.append(output)
+        self.conv_bias.append(module.bias)
+        self.convhookIndex = self.convhookIndex + 1
+        if self.convhookIndex % self.num_conv_layer == 0:
+            self.convhookIndex = 0
+
+
 
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
@@ -108,9 +166,11 @@ class PGradCAM():
         # 求取model.inter_output对应的gradient
         # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
         self.guidedBPstate = 1  # 是否开启guidedBP
+        self.relu_index = len(self.relu_input)
+        self.conv_index = len(self.conv_output)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
-                                              retain_graph=True)  # , create_graph=True)
+                                              retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
         self.inter_gradient = list(inter_gradients)
         self.guidedBPstate = 0
 
@@ -138,10 +198,10 @@ class PGradCAM():
         #"""
         # 归一化 v3 正负统一用绝对值最大值归一化
         gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0]
-        for i in range(gcam.ndimension() - 1):
+        for i in range(gcam.ndimension()-1):
             gcam_abs_max = gcam_abs_max.unsqueeze(-1)
         gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).expand_as(gcam)
-        gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  #[-1,+1]
+        gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  # [-1,+1]
         if self.reservePos != True:
             gcam = gcam * 0.5 + 0.5                                    #[0, 1]
         # print("gcam_max{}".format(gcam_abs_max.mean().item()))
@@ -242,6 +302,7 @@ class PGradCAM():
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
+            #p = gcam.sum(3).sum(2).sum(1)
 
             # 3.Post Process
             # Amplitude Normalization

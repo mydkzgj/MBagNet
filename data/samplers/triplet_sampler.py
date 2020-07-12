@@ -34,7 +34,7 @@ class RandomSampler(Sampler):
         self.is_train = is_train
 
         #num_categories_per_batch不能小于总的类别数
-        if self.num_categories_per_batch > max_num_categories or self.num_categories_per_batch < 2:
+        if self.num_categories_per_batch > max_num_categories:# or self.num_categories_per_batch < 2:
             raise Exception("Invalid Num_categories_per_batch!", self.num_categories_per_batch)
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
@@ -234,13 +234,11 @@ class RandomSamplerForSegmentation(Sampler):
         final_idxs = []   #迭代器核心列表
         if self.is_train == True:
             num_categories_th = self.num_categories_per_batch - 1
-            selected_categories = [0]
             while len(copy_categories) > num_categories_th:#2:#num_categories_th:   #若其小于每个batch需要抽取的class则停止
                 if self.is_train == True:
-                    if selected_categories[0] < 4:#2: #4  #顺序挑选  #我先改为2吧
-                        selected_categories[0] = selected_categories[0] + 1
-                    else:
-                        selected_categories[0] = 1
+                    sc = copy_categories.pop(0)
+                    selected_categories = [sc]
+                    copy_categories.append(sc)
                     #selected_categories = random.sample(copy_categories, self.num_categories_per_batch)   #随机挑选类别
 
                 batch_idxs = []

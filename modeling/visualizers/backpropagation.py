@@ -8,15 +8,15 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class PGradCAM():
-    def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
+class Backpropagation():
+    def __init__(self, model, num_classes,):
         self.model = model
         self.num_classes = num_classes
-        self.target_layer = target_layer  # 最好按forward顺序写
+        self.target_layer = [""] #注：需要让input可计算梯度； target_layer  # 最好按forward顺序写
         self.num_target_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
-        self.useGuidedBP = True#useGuidedBP
+        self.useGuidedBP = False
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
 
         self.hookIndex = 0
@@ -73,7 +73,7 @@ class PGradCAM():
 
     def reserve_features_hook_fn(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
-        if self.hookIndex % self.num_target_layer == 0:
+        if self.hookIndex % self.num_terget_layer == 0:
             self.hookIndex = 0
             self.inter_output.clear()
             self.inter_gradient.clear()
@@ -82,10 +82,9 @@ class PGradCAM():
 
     def guided_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
-            if grad_in[0].ndimension() < 4:
-                return grad_in
-            pos_grad_out = grad_out[0].lt(0)
-            result_grad = pos_grad_out * grad_in[0]
+            pos_grad_out = grad_out[0].gt(0)
+            result_grad = pos_grad_out * grad_out[0]  #核心区别
+            print(torch.equal(grad_in[0], result_grad))
             return (result_grad,)
         else:
             pass
@@ -144,7 +143,6 @@ class PGradCAM():
         gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  #[-1,+1]
         if self.reservePos != True:
             gcam = gcam * 0.5 + 0.5                                    #[0, 1]
-        # print("gcam_max{}".format(gcam_abs_max.mean().item()))
         return gcam, gcam_abs_max  # .mean().item()
 
         # 其他
@@ -173,10 +171,8 @@ class PGradCAM():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
-        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-        gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        if self.reservePos == True:
-            gcam = torch.relu(gcam)  # CJY at 2020.4.18
+        gcam = inter_gradient
+        #gcam = torch.sum(gcam.abs(), dim=1, keepdim=True)
         return gcam
 
     """

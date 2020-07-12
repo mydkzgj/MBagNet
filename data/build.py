@@ -106,6 +106,9 @@ def make_data_loader(cfg):
     # 建立classes_list
     classes_list = dataset.category
 
+    if cfg.TRAIN.DATALOADER.IMS_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
+        return None, None, None, classes_list
+
     #train set
     #是否要进行label-smoothing
     #train_set = ImageDataset(dataset.train, train_transforms)
@@ -169,11 +172,11 @@ def make_seg_data_loader(cfg):
     test_mask_transforms = build_seg_transforms(cfg, is_train=False, type="mask")
 
     num_workers = cfg.DATA.DATALOADER.NUM_WORKERS
-    if len(cfg.DATA.DATASETS.NAMES) == 1:
+    if len(cfg.DATA.DATASETS.SEG_NAMES) == 1:
         dataset = init_dataset(cfg.DATA.DATALOADER.NAMES, root=cfg.DATA.DATALOADER.ROOT_DIR)
     else:
         # TODO: add multi dataset to train
-        dataset = init_dataset("ddr_DRgrading_WeakSupervision", root=cfg.DATA.DATASETS.ROOT_DIR)
+        dataset = init_dataset(cfg.DATA.DATASETS.SEG_NAMES, root=cfg.DATA.DATASETS.ROOT_DIR)
 
 
     # train set
@@ -183,7 +186,7 @@ def make_seg_data_loader(cfg):
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.MASK_PER_BATCH, num_workers=num_workers, #shuffle=True,
         # CJY  为了保证类别均衡
-        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, 4, is_train=False),    #此处不让其类别均衡了 CJY at 2020.6.29
+        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, dataset.num_categories, is_train=True),    #此处让所有分类标签的按顺序以1为单位交替进行
         collate_fn=collate_fn_seg
     )
 

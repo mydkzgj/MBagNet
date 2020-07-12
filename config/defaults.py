@@ -26,7 +26,8 @@ _C.DATA = CN()
 # -----------------------------------------------------------------------------
 _C.DATA.DATASETS = CN()
 # List of the dataset names for training, as present in paths_catalog.py
-_C.DATA.DATASETS.NAMES = ('dukemtmc')
+_C.DATA.DATASETS.NAMES = ('ddr_DRgrading')
+_C.DATA.DATASETS.SEG_NAMES = ("ddr_DRgrading_WeakSupervision")
 # Root directory where datasets should be used (and downloaded if not found)
 _C.DATA.DATASETS.ROOT_DIR = ('./data')
 # -----------------------------------------------------------------------------
@@ -81,9 +82,13 @@ _C.MODEL.CLASSIFIER_NAME = "linear"
 # classification classes
 _C.MODEL.CLA_NUM_CLASSES = 1000
 # Name of Segmenter
-_C.MODEL.SEGMENTER_NAME = "fc_mbagnet"
+_C.MODEL.SEGMENTER_NAME = "none"#"fc_mbagnet"
 # segmentation classes
 _C.MODEL.SEG_NUM_CLASSES = 1000
+
+_C.MODEL.VISUALIZER_NAME = "none"
+
+_C.MODEL.VISUAL_TARGET_LAYERS = "none"
 
 # * （option）Specific For MBagNet
 # If block is pre_activated, options: 1 or 0

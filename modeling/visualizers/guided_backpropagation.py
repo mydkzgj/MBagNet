@@ -1,14 +1,10 @@
 """
-Created on Thu Oct 26 11:06:51 2017
+Created on 2020.7.4
 
-@author: Utku Ozbulak - github.com/utkuozbulak
+@author: Jiayang Chen - github.com/mydkzgj
 """
-from PIL import Image
-import numpy as np
+
 import torch
-
-#from .misc_functions import get_example_params, save_class_activation_images
-
 from .draw_tool import draw_visualization
 
 
@@ -17,7 +13,7 @@ class GuidedBackpropagation():
         self.model = model
         self.num_classes = num_classes
         self.target_layer = [""] #注：需要让input可计算梯度； target_layer  # 最好按forward顺序写
-        self.num_terget_layer = len(self.target_layer)
+        self.num_target_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
         self.useGuidedBP = True
@@ -25,6 +21,8 @@ class GuidedBackpropagation():
 
         self.hookIndex = 0
         self.setHook(model)
+
+        self.reservePos = False
 
         self.draw_index = 0
 
@@ -65,10 +63,13 @@ class GuidedBackpropagation():
     # Hook Function
     def set_requires_gradients_firstlayer(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
-        self.inter_output.clear()
-        self.inter_gradient.clear()
-        #input[0].requires_grad_(True)   # 在这里改input的grad好像没用；只能在forward之前更改
+        if self.hookIndex % self.num_target_layer == 0:
+            self.hookIndex = 0
+            self.inter_output.clear()
+            self.inter_gradient.clear()
+        # input[0].requires_grad_(True)   # 在这里改input的grad好像没用；只能在forward之前更改
         self.inter_output.append(input[0])
+        self.hookIndex = self.hookIndex + 1
 
     def reserve_features_hook_fn(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
@@ -135,8 +136,12 @@ class GuidedBackpropagation():
         #"""
         # 归一化 v3 正负统一用绝对值最大值归一化
         gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0]
-        gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
-        gcam = gcam / gcam_abs_max_expand.clamp(min=1E-12).detach() *0.5 + 0.5  # [-1, 1]
+        for i in range(gcam.ndimension() - 1):
+            gcam_abs_max = gcam_abs_max.unsqueeze(-1)
+        gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).expand_as(gcam)
+        gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach()) # [-1,+1]
+        if self.reservePos != True:
+            gcam = gcam * 0.5 + 0.5                                    #[0, 1]
         # print("gcam_max{}".format(gcam_abs_max.mean().item()))
         return gcam, gcam_abs_max  # .mean().item()
 
@@ -253,7 +258,7 @@ class GuidedBackpropagation():
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam
 
-    def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath):
+    def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath, imgsName):
         """
         :param imgs: 待可视化图像
         :param labels: 对应的label
@@ -268,8 +273,10 @@ class GuidedBackpropagation():
                 layer_name = self.target_layer[i]
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
-                draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
-            self.draw_index = self.draw_index + 1
+                if gtmasks is not None:
+                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                else:
+                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
         return 0
 
 

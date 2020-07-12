@@ -1,6 +1,6 @@
 # encoding: utf-8
 """
-@author:  JiayangChen
+@author:  Jiayang Chen
 @contact: sychenjiayang@163.com
 """
 import re
@@ -10,6 +10,7 @@ from .backbones.densenet import *
 from .backbones.multi_bagnet import *
 from .backbones.bagnet import *
 from .backbones.vgg import *
+from .backbones.scnet import *
 
 from .classifiers.hierarchy_linear import *
 
@@ -18,9 +19,13 @@ from .segmenters.fc_mbagnet import *
 from .visualizers.grad_cam import *
 from .visualizers.pgrad_cam import *
 from .visualizers.grad_cam_plusplus import *
+from .visualizers.backpropagation import *
+from .visualizers.deconvolution import *
 from .visualizers.guided_backpropagation import *
 from .visualizers.guided_grad_cam import *
 from .visualizers.pgrad_back_cam import *
+from .visualizers.visual_backpropagation import *
+from .visualizers.cjy import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -50,6 +55,7 @@ class Baseline(nn.Module):
     def __init__(self, base_name,
                  classifier_name="linear", num_classes=6, base_classifier_Type="f-c",
                  segmenter_name="none", seg_num_classes=0,
+                 visualizer_name="none", visual_target_layers="none",
                  preAct=True, fusionType="concat",
                  segSupervisedType="none",
                  gcamSupervisedType="none", guidedBP=0,
@@ -65,6 +71,8 @@ class Baseline(nn.Module):
         self.num_classes = num_classes
         self.segmenter_name = segmenter_name
         self.seg_num_classes = seg_num_classes
+        self.visualizer_name = visualizer_name
+        self.target_layer = visual_target_layers.split(" ") if visual_target_layers != "none" else []
         self.accumulation_steps = accumulation_steps
 
         # 用于处理mbagnet的模块类型
@@ -138,8 +146,22 @@ class Baseline(nn.Module):
         self.choose_segmenter()
 
         # 4.visualizer
-        self.visualizer_name = "pgrad-back-cam"#"grad-cam"#"pgrad-cam-GBP"  #["base.features.denseblock3"]#
-        self.target_layer = ["base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4"]#[""]#["base.features.denseblock4"]
+        # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
+        # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
+        # "guided-grad-cam","pgrad-back-cam"
+        self.visualizer_name = "guided-backpropagation"#"none"#"pgrad-cam"
+        #self.target_layer = ["base.features.1", "base.features.11", "base.features.20", "base.features.29", ""]
+        #self.target_layer = ["base.features.denseblock4"]#["base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4", ""]
+        #self.target_layer = ["base.features."+str(i) for i in [1,3,6,20,29]]   #1,3,6,8,11,13,15,18,20,22,25,27,29
+
+        #"""
+        self.target_layer = []
+        for module_name, module in self.named_modules():
+            if isinstance(module, torch.nn.ReLU) and "segmenter" not in module_name and "classifier" not in module_name:
+                self.target_layer.append(module_name)
+        #"""
+        self.target_layer.append("")
+
         self.visualizer = None
         self.visualization = None
         self.choose_visualizer()
@@ -149,10 +171,8 @@ class Baseline(nn.Module):
 
 
     def forward(self, x):
-        #if self.gcamState == True:
-        #    self.inter_output.clear()
-        #    self.inter_gradient.clear()
-        x.requires_grad_(True)
+        if self.visualizer != None:
+            x.requires_grad_(True)   #设置了这个，显存会随轮数增长，是因为无法释放吗?
 
         # 分为两种情况：
         if self.classifier_name != "none":
@@ -167,6 +187,14 @@ class Baseline(nn.Module):
                     self.segmentation = self.segmenter(self.segmenter.features_reserve[-1])
                 else:
                     self.segmenter.features_reserve.clear()  # 如果不计算segmentation，那么就应该清除由hook保存的特征
+
+        # for scnet
+        if self.segmenter_name == "scnet":
+            if self.batchDistribution != 0:
+                if self.batchDistribution != 1:
+                    self.segmentation = self.base.segmentation[self.batchDistribution[0]:self.batchDistribution[0] + self.batchDistribution[1]]
+                else:
+                    self.segmentation = self.base.segmentation
 
         return final_logits   # 其他参数可以用model的成员变量来传递
 
@@ -335,6 +363,11 @@ class Baseline(nn.Module):
                                    )
             self.in_planes = self.base.num_features
 
+        # 5.scnet
+        elif self.base_name == "scnet":
+            self.base = SCNet()
+            self.in_planes = 1000
+
         # 以下为了与multi_bagnet比较所做的调整网络
         elif self.base_name == "bagnet":
             self.base = bagnet9()
@@ -356,7 +389,7 @@ class Baseline(nn.Module):
         elif self.classifier_name == "hierarchy_linear":
             self.classifier = HierarchyLinear(self.in_planes, self.num_classes)
         elif self.classifier_name == "none":
-            print("Backbone with classifier itself.")
+            print("Without Independent Classifier! (Backbone with classifier itself.)")
 
 
     def choose_segmenter(self):
@@ -368,10 +401,14 @@ class Baseline(nn.Module):
                                            preAct=self.preAct, fusionType=self.fusionType, reduction=1, complexity=0, transitionType="linear",
                                            )
 
+        elif self.segmenter_name == "none":
+            self.segmenter = None
+            print("Without Segmenter!")
+
     def choose_visualizer(self):
         if self.visualizer_name == "grad-cam":
             self.visualizer = GradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
-        if self.visualizer_name == "grad-cam-GBP":
+        elif self.visualizer_name == "grad-cam-GBP":
             self.visualizer = GradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
         elif self.visualizer_name == "pgrad-cam":  #pixel-wise grad-cam
             self.visualizer = PGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
@@ -381,12 +418,25 @@ class Baseline(nn.Module):
             self.visualizer = GradCAMpp(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
         elif self.visualizer_name == "grad-cam++-GBP":  # pixel-wise grad-cam
             self.visualizer = GradCAMpp(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
+        elif self.visualizer_name == "backpropagation":  #
+            self.visualizer = Backpropagation(model=self, num_classes=self.num_classes)
+        elif self.visualizer_name == "deconvolution":  #
+            self.visualizer = Deconvolution(model=self, num_classes=self.num_classes)
         elif self.visualizer_name == "guided-backpropagation":  #
             self.visualizer = GuidedBackpropagation(model=self, num_classes=self.num_classes)
+        elif self.visualizer_name == "visual-backpropagation":  #
+            self.visualizer = VisualBackpropagation(model=self, num_classes=self.num_classes)
         elif self.visualizer_name == "guided-grad-cam":
             self.visualizer = GuidedGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
         elif self.visualizer_name == "pgrad-back-cam":
             self.visualizer = PGradBackCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "cjy":
+            self.visualizer = CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "none":
+            self.visualizer = None
+            print("Without Visualizer!")
+
+
 
 
 
@@ -433,10 +483,14 @@ class Baseline(nn.Module):
         elif loadChoice == "Overall":
             overall_dict = self.state_dict()
             for i in param_dict:
-                if i not in self.state_dict():
+                if i in self.state_dict():
+                    self.state_dict()[i].copy_(param_dict[i])
+                elif "base."+i in self.state_dict():
+                    self.state_dict()["base."+i].copy_(param_dict[i])
+                else:
                     print("Cannot load %s, Maybe you are using incorrect framework"%i)
                     continue
-                self.state_dict()[i].copy_(param_dict[i])
+
 
         elif loadChoice == "Classifier":
             classifier_dict = self.classifier.state_dict()

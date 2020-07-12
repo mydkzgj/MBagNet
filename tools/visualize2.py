@@ -113,7 +113,7 @@ def main():
     else:
         step = 0
 
-    metrics = do_visualization(cfg, model, train_loader, classes_list, loss_funcs, plotFlag=True)
+    metrics = do_visualization(cfg, model, test_loader, classes_list, loss_funcs, plotFlag=True)
 
     for preKey in metrics['precision'].keys():
         writer_test.add_scalar("Precision/" + str(preKey), metrics['precision'][preKey], step)
@@ -121,19 +121,19 @@ def main():
     for recKey in metrics['recall'].keys():
         writer_test.add_scalar("Recall/" + str(recKey), metrics['recall'][recKey], step)
 
-    for aucKey in metrics['roc_auc'].keys():
-        writer_test.add_scalar("ROC_AUC/" + str(aucKey), metrics['roc_auc'][aucKey], step)
+    #for aucKey in metrics['roc_auc'].keys():
+    #    writer_test.add_scalar("ROC_AUC/" + str(aucKey), metrics['roc_auc'][aucKey], step)
 
     writer_test.add_scalar("OverallAccuracy", metrics["overall_accuracy"], step)
 
     # writer.add_scalar("Val/"+"confusion_matrix", metrics['confusion_matrix'], step)
 
     # 混淆矩阵 和 ROC曲线可以用图的方式来存储
-    roc_numpy = metrics["roc_figure"]
-    writer_test.add_image("ROC", roc_numpy, step, dataformats='HWC')
+    #roc_numpy = metrics["roc_figure"]
+    #writer_test.add_image("ROC", roc_numpy, step, dataformats='HWC')
 
-    confusion_matrix_numpy = metrics["confusion_matrix_numpy"]
-    writer_test.add_image("ConfusionMatrix", confusion_matrix_numpy, step, dataformats='HWC')
+    #confusion_matrix_numpy = metrics["confusion_matrix_numpy"]
+    #writer_test.add_image("ConfusionMatrix", confusion_matrix_numpy, step, dataformats='HWC')
 
     writer_test.close()
 

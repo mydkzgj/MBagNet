@@ -41,7 +41,7 @@ def activated_output_transform(output):
     return y_pred, labels_one_hot
 """
 
-
+imgsName = []
 segmentationMetric = {}  # 用于保存TP,FP,TN,FN
 
 def convert_to_one_hot(y, C):
@@ -128,14 +128,15 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
 
-        dataType = "grade"
+        dataType = "seg"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
         savePath = r"D:\MIP\Experiment\1"
 
+        # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
         if dataType == "grade":
             imgs = grade_imgs
-            labels = grade_labels
-            masks = torch.zeros_like(imgs)
+            labels = torch.zeros_like(grade_labels) + 333#243
+            masks = None
         elif dataType == "seg":
             imgs = seg_imgs
             labels = seg_labels
@@ -157,39 +158,50 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             logits = model(imgs)
             scores = torch.softmax(logits, dim=1)
             p_labels = torch.argmax(logits, dim=1)  # predict_label
+            global imgsName
+            if imgsName == []:
+                imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
+            else:
+                imgsName = [str(int(i)+imgs.shape[0]) for i in imgsName]
 
-            #if engine.state.iteration > 10:
-            #   return {"logits": logits.detach(), "labels": seg_labels, }
+            oblabelList = [labels]
+            #oblabelList = [p_labels]
+            #oblabelList = [labels, p_labels]
+            #oblabelList = [labels*0 + i for i in range(model.num_classes)]
 
-            #lesionsStatistics(seg_masks, seg_labels.item())
+            for oblabels in oblabelList:
+                binary_threshold = 0.5
+                showFlag = 1
+                input_size = (imgs.shape[2], imgs.shape[3])
+                visual_num = imgs.shape[0]
+                gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, oblabels, input_size, visual_num=visual_num)
 
-            binary_threshold = 0.5
-            showFlag = 1
-            input_size = (imgs.shape[2], imgs.shape[3])
-            visualBD = [grade_imgs.shape[0], grade_imgs.shape[0]]#seg_imgs.shape[0]]
-            gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, input_size, visual_num=visualBD[1])
+                # 用于visualizaztion的数据
+                vimgs = imgs[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vlabels = labels[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vplabels = p_labels[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vmasks = masks[masks.shape[0] - visual_num:masks.shape[0]] if masks is not None else None
 
-            # 用于visualizaztion的数据
-            vimgs = imgs[imgs.shape[0] - visualBD[1]:imgs.shape[0]]
-            vlabels = labels[imgs.shape[0] - visualBD[1]:imgs.shape[0]]
-            vplabels = p_labels[imgs.shape[0] - visualBD[1]:imgs.shape[0]]
-            vmasks = masks[masks.shape[0] - visualBD[1]:masks.shape[0]]
+                if showFlag == 1:
+                    # 绘制可视化结果
+                    model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, imgsName)
 
-            if showFlag ==1:
-                model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath)
+                if dataType == "seg":
+                    # 计算Metric
+                    binary_gtmasks = torch.max(vmasks, dim=1, keepdim=True)[0]
+                    gtmasks = torch.cat([vmasks, 1 - binary_gtmasks, binary_gtmasks], dim=1)
+                    for i, v in enumerate(gcam_list):
+                        rv = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
+                        segmentations = rv  # .gt(binary_threshold)
+                        prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(), "all",
+                                                   layer_name=model.visualizer.target_layer[i], th=binary_threshold)
+                        prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(),
+                                                   labels[imgs.shape[0] - visual_num:imgs.shape[0]].item(),
+                                                   layer_name=model.visualizer.target_layer[i], th=binary_threshold)
 
-            if dataType == "seg":
-                binary_gtmasks = torch.max(vmasks, dim=1, keepdim=True)[0]
-                gtmasks = torch.cat([vmasks, 1 - binary_gtmasks, binary_gtmasks], dim=1)
-                for i, v in enumerate(gcam_list):
-                    rv = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
-                    segmentations = rv  # .gt(binary_threshold)
-                    prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(), "all",
-                                               layer_name=model.visualizer.target_layer[i], th=binary_threshold)
-                    prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(),
-                                               labels[imgs.shape[0] - visualBD[1]:imgs.shape[0]].item(),
-                                               layer_name=model.visualizer.target_layer[i], th=binary_threshold)
-            return {"logits": logits.detach(), "labels": labels,}
+            return {"logits": logits.detach(), "labels": labels, }
+
+
 
         elif model.heatmapType == "computeSegMetric":
             with torch.no_grad():
@@ -374,18 +386,18 @@ def do_visualization(
     evaluator.run(test_loader)
 
     # 1.Draw Confusion Matrix and Save it in numpy
-    #"""
+    """
     # CJY at 2020.6.24
     classes_label_list = ["No DR", "Mild", "Moderate", "Severe", "Proliferative", "Ungradable"]
     if len(classes_list) == 6:
         classes_list = classes_label_list
 
-    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=True)
+    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=False)  #此处就不画混淆矩阵了
     metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
     #"""
 
     # 2.ROC
-    #"""
+    """
     # (1).convert List to numpy
     y_label = np.array(y_label)
     y_label = convert_to_one_hot(y_label, num_classes)

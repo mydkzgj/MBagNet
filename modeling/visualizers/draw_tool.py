@@ -1,3 +1,10 @@
+"""
+Created on 2020.7.4
+
+@author: Jiayang Chen - github.com/mydkzgj
+"""
+
+
 import os
 import cv2 as cv
 import numpy as np
@@ -70,9 +77,9 @@ def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, i
         index_prefix = index_prefix + "_"
     cv.imwrite(os.path.join(savePath, "{}image_{}.jpg".format(index_prefix, label_prefix)), img_numpy)
     #cv.imwrite(os.path.join(savePath, "{}visualization_gray_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy)
-    cv.imwrite(os.path.join(savePath, "{}visualization_binary_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), visual_numpy_binary)
+    #cv.imwrite(os.path.join(savePath, "{}visualization_binary_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), visual_numpy_binary)
     cv.imwrite(os.path.join(savePath, "{}visualization_color_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy_color)
-    cv.imwrite(os.path.join(savePath, "{}visualization_on_image_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)),img_with_visual)
+    #cv.imwrite(os.path.join(savePath, "{}visualization_on_image_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)),img_with_visual)
     cv.imwrite(os.path.join(savePath, "{}visualization_binary_on_gtmask_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), gtmask_with_visual)
     cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth_{}.jpg".format(index_prefix, label_prefix)), gtmask_numpy)
     if gtmask_numpy.shape[2] == 3:
@@ -107,7 +114,7 @@ def convertTensorToNumpy(img, visualization, gtmask):
     visual_numpy = (visual_numpy * 255).astype(np.uint8)
 
     # (3).转化Ground Truth (多/单通道) 转化为 彩图/灰度图
-    if isinstance(gtmask, np.ndarray) == True:
+    if gtmask is not None:
         gtmask_channel = gtmask.shape[0]
         if gtmask_channel == 1:
             gtmask_numpy = gtmask.cpu().detach().numpy()
@@ -120,7 +127,7 @@ def convertTensorToNumpy(img, visualization, gtmask):
                 color_gtmask_numpy = color_gtmask_numpy + single_gtmask_numpy * np.array(color_name(i))
             gtmask_numpy = color_gtmask_numpy.astype(np.uint8)
     else:
-        gtmask_numpy = np.zeros_like(img_numpy)
+        gtmask_numpy = img_numpy
 
     return img_numpy, visual_numpy, gtmask_numpy
 

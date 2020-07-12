@@ -1,11 +1,9 @@
 """
-Created on Thu Oct 26 11:06:51 2017
+Created on 2020.7.4
 
-@author: Utku Ozbulak - github.com/utkuozbulak
+@author: Jiayang Chen - github.com/mydkzgj
 """
-from PIL import Image
-import numpy as np
-import torch
+
 from .grad_cam import *
 from .guided_backpropagation import *
 
@@ -38,7 +36,7 @@ class GuidedGradCAM():
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam
 
-    def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath):
+    def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath, imgsName):
         """
         :param imgs: 待可视化图像
         :param labels: 对应的label
@@ -53,8 +51,10 @@ class GuidedGradCAM():
                 layer_name = self.target_layer[i]
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
-                draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
-            self.draw_index = self.draw_index + 1
+                if gtmasks is not None:
+                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                else:
+                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
         return 0
 
 

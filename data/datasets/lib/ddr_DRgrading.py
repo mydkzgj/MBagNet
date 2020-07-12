@@ -227,6 +227,8 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
         self.seg_val = self._process_segmentation_dir(self.seg_val_dir)
         self.seg_test = self._process_segmentation_dir(self.seg_test_dir)
 
+        self.num_categories = 4  #有4个等级的DR
+
         self._check_before_run()
 
         """

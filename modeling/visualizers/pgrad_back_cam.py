@@ -1,14 +1,10 @@
 """
-Created on Thu Oct 26 11:06:51 2017
+Created on 2020.7.4
 
-@author: Utku Ozbulak - github.com/utkuozbulak
+@author: Jiayang Chen - github.com/mydkzgj
 """
-from PIL import Image
-import numpy as np
+
 import torch
-
-#from .misc_functions import get_example_params, save_class_activation_images
-
 from .draw_tool import draw_visualization
 
 
@@ -22,10 +18,13 @@ class PGradBackCAM():
         self.inter_gradient = []
         self.useGuidedBP = True  # GuideBackPropagation的变体
         self.relu_input = []
+        self.relu_index = 0  #后续设定为len(relu_input)
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
 
         self.hookIndex = 0
         self.setHook(model)
+
+        self.reservePos = True
 
         self.draw_index = 0
 
@@ -70,10 +69,13 @@ class PGradBackCAM():
     # Hook Function
     def set_requires_gradients_firstlayer(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
-        self.inter_output.clear()
-        self.inter_gradient.clear()
+        if self.hookIndex % self.num_target_layer == 0:
+            self.hookIndex = 0
+            self.inter_output.clear()
+            self.inter_gradient.clear()
         #input[0].requires_grad_(True)   # 在这里改input的grad好像没用；只能在forward之前更改
         self.inter_output.append(input[0])
+        self.hookIndex = self.hookIndex + 1
 
     def reserve_features_hook_fn(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
@@ -86,26 +88,30 @@ class PGradBackCAM():
 
     def relu_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
-            pos_grad_out = grad_out[0].gt(0)
-            result_grad = pos_grad_out * grad_in[0]
-            relu_input = self.relu_input.pop()
-            print("backward:{}".format(len(self.relu_input)))
-            pgcam = torch.sum(relu_input * result_grad, dim=1, keepdim=True)
-            pgcam, pgcam_max = self.gcamNormalization(pgcam)
-            result_grad = result_grad * pgcam
+            #pos_grad_out = grad_out[0].gt(0)
+            result_grad = grad_in[0] #* pos_grad_out
+            self.relu_index = self.relu_index - 1
+            relu_input = self.relu_input[self.relu_index]
+            #print("backward:{}".format(len(self.relu_input)))
+            if grad_in[0].ndimension() == 4:
+                pgcam = torch.relu(torch.sum(relu_input * result_grad, dim=1, keepdim=True))
+                #pgcam, pgcam_max = self.gcamNormalization(pgcam)
+                result_grad = result_grad * pgcam#.gt(0)  #* pos_grad_out
+            else:
+                result_grad = result_grad #* pos_grad_out
             #raise Exception("1")
 
-            return (result_grad,)
+            return (result_grad, )
         else:
             pass
 
     def relu_forward_hook_fn(self, module, input, output):
         if self.reluhookIndex == 0:
-            print("before reset relu:{}".format(len(self.relu_input)))
+            #print("before reset relu:{}".format(len(self.relu_input)))
             self.relu_input.clear()
         self.relu_input.append(input[0])
         self.reluhookIndex = self.reluhookIndex + 1
-        print("forward:{}".format(len(self.relu_input)))
+        #print("forward:{}".format(len(self.relu_input)))
         if self.reluhookIndex % self.num_relu_layer == 0:
             self.reluhookIndex = 0
 
@@ -128,9 +134,10 @@ class PGradBackCAM():
         # 求取model.inter_output对应的gradient
         # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
         self.guidedBPstate = 1  # 是否开启guidedBP
+        self.relu_index = len(self.relu_input)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
-                                              retain_graph=True)  # , create_graph=True)
+                                              retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
         self.inter_gradient = list(inter_gradients)
         self.guidedBPstate = 0
 
@@ -158,8 +165,12 @@ class PGradBackCAM():
         #"""
         # 归一化 v3 正负统一用绝对值最大值归一化
         gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0]
-        gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        for i in range(gcam.ndimension()-1):
+            gcam_abs_max = gcam_abs_max.unsqueeze(-1)
+        gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).expand_as(gcam)
         gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  # [-1,+1]
+        if self.reservePos != True:
+            gcam = gcam * 0.5 + 0.5                                    #[0, 1]
         # print("gcam_max{}".format(gcam_abs_max.mean().item()))
         return gcam, gcam_abs_max  # .mean().item()
 
@@ -191,7 +202,8 @@ class PGradBackCAM():
         # backward形式
         gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam = torch.relu(gcam)  # CJY at 2020.4.18
+        if self.reservePos == True:
+            gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
 
     """
@@ -277,7 +289,7 @@ class PGradBackCAM():
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam
 
-    def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath):
+    def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath, imgsName):
         """
         :param imgs: 待可视化图像
         :param labels: 对应的label
@@ -291,12 +303,11 @@ class PGradBackCAM():
             for i, gcam in enumerate(self.gcam_list):
                 layer_name = self.target_layer[i]
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
-                visual_prefix = layer_name.replace(".", "-") + "_S{}".format( self.observation_class[j])
-                if isinstance(gtmasks, torch.Tensor) == True:
-                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
+                visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
+                if gtmasks is not None:
+                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
                 else:
-                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, str(self.draw_index), label_prefix, visual_prefix)
-            self.draw_index = self.draw_index + 1
+                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
         return 0
 
 

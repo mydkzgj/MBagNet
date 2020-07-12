@@ -62,14 +62,36 @@ class Examples(BaseImageDataset):
         self.val = val
         self.test = test
 
-        self.num_categories = len(train_l2c)
+        import scipy.io as sio
 
-        self.category = []
-        for index in range(self.num_categories):
-            self.category.append(train_l2c[index])
+        def parse_meta_mat(devkit_root):
+            metafile = os.path.join(devkit_root, "data", "meta.mat")
+            meta = sio.loadmat(metafile, squeeze_me=True)['synsets']
+            nums_children = list(zip(*meta))[4]
+            meta = [meta[idx] for idx, num_children in enumerate(nums_children)
+                    if num_children == 0]
+            idcs, wnids, classes = list(zip(*meta))[:3]
+            classes = [tuple(clss.split(', ')) for clss in classes]
+            idx_to_wnid = {idx: wnid for idx, wnid in zip(idcs, wnids)}
+            wnid_to_classes = {wnid: clss for wnid, clss in zip(wnids, classes)}
+            f = open("imagenet_class.txt", "w")
+            for index, i in enumerate(classes):
+                f.write("{} {}\n".format(index, i))
+            f.close()
 
-        self.category2label = train_c2l
-        self.label2category = train_l2c
+            return classes, idx_to_wnid, wnid_to_classes
+
+        classes, idx_to_wnid, wnid_to_classes = parse_meta_mat(
+            "D:\MIP\Experiment\MBagNet\data\DATABASE\examples\ILSVRC2012_devkit_t12")
+
+        self.num_categories = 1000  # len(train_l2c)
+
+        self.category = classes
+        # for index in range(self.num_categories):
+        #    self.category.append(train_l2c[index])
+
+        # self.category2label = train_c2l
+        # self.label2category = train_l2c
 
         self.num_train_statistics = train_statistics
         self.num_val_statistics = val_statistics

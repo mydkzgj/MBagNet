@@ -92,8 +92,9 @@ class SegmentationDataset(Dataset):
             mask = Image.open(mask_path)
             if self.target_transform is not None:
                 mask = self.target_transform(mask)
-            mask_list.append(mask)
+            mask_list.append(mask[0:1])    # cjy 由于读进来的可能是3通道，所以增加[0:1]
         mask = torch.cat(mask_list)
+
 
         #上面让mask读入的为原图尺寸标签
         mask = self.MaxPool(mask)

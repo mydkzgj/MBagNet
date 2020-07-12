@@ -10,8 +10,9 @@ from data.datasets.lib.cuhk03 import CUHK03
 from data.datasets.lib.dukemtmcreid import DukeMTMCreID
 from data.datasets.lib.market1501 import Market1501
 from data.datasets.lib.msmt17 import MSMT17
-from data.datasets.lib.fundusTR import FundusTR
+#from data.datasets.lib.fundusTR import FundusTR
 from data.datasets.lib.ddr_DRgrading import DDR_DRgrading, DDR_DRgrading_WeakSupervision
+from data.datasets.lib.fundusTRjoint import FundusTR_DRgrading, FundusTR_DRgrading_WeakSupervision
 from data.datasets.lib.examples import Examples
 
 __factory = {
@@ -19,10 +20,12 @@ __factory = {
     'cuhk03': CUHK03,
     'dukemtmc': DukeMTMCreID,
     'msmt17': MSMT17,
-    'fundusTR': FundusTR,
+    #'fundusTR': FundusTR,   # 最初  弃
     'ddr_DRgrading': DDR_DRgrading,
     'ddr_DRgrading_WeakSupervision':  DDR_DRgrading_WeakSupervision,
     'examples':  Examples,
+    'fundusTR': FundusTR_DRgrading,
+    'fundusTRjoint': FundusTR_DRgrading_WeakSupervision,
 }
 
 
