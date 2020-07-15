@@ -57,12 +57,23 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
         model.eval()
         with torch.no_grad():
 
-            imgs, labels, seg_imgs, seg_masks, seg_labels = batch
+            grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch
+
+            # 记录grade和seg的样本数量
+            grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
+            seg_num = seg_masks.shape[0] if seg_imgs is not None else 0
+            # 将grade和seg样本concat起来
+            if grade_num > 0 and seg_num > 0:
+                imgs = grade_imgs
+                labels = grade_labels
+            elif grade_num == 0 and seg_num > 0:
+                imgs = seg_imgs
+                labels = seg_labels
 
             imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
             labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
 
-            model.transimitBatchDistribution(0)
+            model.transimitBatchDistribution(0)  #不生成seg
             logits = model(imgs)
 
             return {"logits": logits, "labels": labels}

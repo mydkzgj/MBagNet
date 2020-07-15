@@ -17,7 +17,7 @@ from .densenet import *
 
 
 model_urls = {
-    'densenet121': 'https://download.pytorch.org/models/densenet121-a639ec97.pth',
+    'scnet121': 'https://download.pytorch.org/models/densenet121-a639ec97.pth',  #densenet
     'densenet169': 'https://download.pytorch.org/models/densenet169-b2777c0a.pth',
     'densenet201': 'https://download.pytorch.org/models/densenet201-c1103571.pth',
     'densenet161': 'https://download.pytorch.org/models/densenet161-8d451a50.pth',
@@ -116,7 +116,7 @@ class PreNet(nn.Module):
           but slower. Default: *False*. See `"paper" <https://arxiv.org/pdf/1707.06990.pdf>`_
     """
 
-    def __init__(self, growth_rate=32, block_config=(4, 4,),
+    def __init__(self, growth_rate=32, block_config=(6, 12,),
                  num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000, memory_efficient=False,):
 
         super(PreNet, self).__init__()
@@ -136,13 +136,16 @@ class PreNet(nn.Module):
 
 
         # First convolution
+        self.features = nn.Sequential()
+        #"""
         self.features = nn.Sequential(OrderedDict([
-            ('conv0', Conv2d(3, num_init_features, kernel_size=3, stride=1,
+            ('convN0', Conv2d(3, num_init_features, kernel_size=3, stride=1,
                                 padding=1, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
             ('relu0', nn.ReLU(inplace=True)),
             #('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
         ]))
+        #"""
 
         # Each denseblock
         self.num_features = num_init_features
@@ -158,24 +161,24 @@ class PreNet(nn.Module):
             self.features.add_module('denseblock%d' % (i + 1), block)
             self.num_features = self.num_features + num_layers * self.growth_rate
             if 1:#i != len(block_config) - 1:
-                self.key_features_channels_record["transition%d" % (i + 1)] = self.num_features
+                self.key_features_channels_record["transitionN%d" % (i + 1)] = self.num_features
                 trans = _Transition(num_input_features=self.num_features,
                                     num_output_features=self.num_features // 2)
-                self.features.add_module('transition%d' % (i + 1), trans)
+                self.features.add_module('transitionN%d' % (i + 1), trans)
                 self.num_features = self.num_features // 2
 
         self.key_features_channels_record["final_output"] = self.num_features
 
         #CJY 原论文中没有最后的 norm 和 relu
         # Final batch norm
-        self.features.add_module('norm5', nn.BatchNorm2d(self.num_features))
+        self.features.add_module('normN5', nn.BatchNorm2d(self.num_features))
 
         # 2020.7.5 CJY 源代码中relu操作用在了forward中，那么就无法找到该模块。此处加进来
         self.features.add_module('relu5', nn.ReLU())
 
         # Linear layer
         # CJY at 2020.6.20
-        self.classifier = nn.Conv2d(self.num_features, num_classes, kernel_size=1, stride=1, bias=False)
+        self.pclassifier = nn.Conv2d(self.num_features, num_classes, kernel_size=1, stride=1, bias=False)
 
 
         # Official init from torch repo.
@@ -197,7 +200,7 @@ class PreNet(nn.Module):
         out = self.features(x)
         #out = F.adaptive_avg_pool2d(out, (1, 1))
         #out = torch.flatten(out, 1)
-        out = self.classifier(out)
+        out = self.pclassifier(out)
         return out
 
 
@@ -222,14 +225,74 @@ class SCNet(nn.Module):
         super(SCNet, self).__init__()
 
         # 2个子网络
-        self.preSNet = PreNet(num_classes=seg_num_classes,)
+        self.SNet = PreNet(num_classes=seg_num_classes, block_config=(6,))
         self.Relay = nn.Conv2d(seg_num_classes, 3, kernel_size=3, stride=1, padding=1, bias=False)     #中继
-        self.CNet = DenseNet(num_classes=num_classes)  #换成你自己的网络
+        self.CNet = densenet121(num_classes=num_classes,)  #换成你自己的网络
         self.segmentation = None
 
     def forward(self, x):
-        self.segmentation = self.preSNet(x)
+        self.segmentation = self.SNet(x)
         input = self.Relay(torch.sigmoid(self.segmentation))
         out = self.CNet(input)
         return out
 
+
+def _load_state_dict(model, model_url, progress):
+    # '.'s are no longer allowed in module names, but previous _DenseLayer
+    # has keys 'norm.1', 'relu.1', 'conv.1', 'norm.2', 'relu.2', 'conv.2'.
+    # They are also in the checkpoints in model_urls. This pattern is used
+    # to find such keys.
+    param_dict = load_state_dict_from_url(model_url, progress=progress)
+    # For DenseNet 预训练模型与pytorch模型的参数名有差异，故需要先行调整
+    pattern = re.compile(
+        r'^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$')
+    for key in list(param_dict.keys()):
+        res = pattern.match(key)
+        if res:
+            new_key = res.group(1) + res.group(2)
+            param_dict[new_key] = param_dict[key]
+            del param_dict[key]
+
+    #"""
+    SNet_dict = model.SNet.state_dict()
+    for i in param_dict:
+        module_name = i.replace("base.", "")
+        if module_name not in model.SNet.state_dict():
+            print("Cannot load %s, Maybe you are using incorrect framework" % i)
+            continue
+        elif "fc" in module_name or "classifier" in module_name:
+            print("Donot load %s, have changed this module for retraining" % i)
+            continue
+        model.SNet.state_dict()[module_name].copy_(param_dict[i])
+    #"""
+
+    CNet_dict = model.CNet.state_dict()
+    for i in param_dict:
+        module_name = i.replace("base.", "")
+        if module_name not in model.CNet.state_dict():
+            print("Cannot load %s, Maybe you are using incorrect framework" % i)
+            continue
+        elif "fc" in module_name or "classifier" in module_name:
+            print("Donot load %s, have changed this module for retraining" % i)
+            continue
+        model.CNet.state_dict()[module_name].copy_(param_dict[i])
+
+def _scnet(arch, seg_num_classes, num_classes, pretrained, progress,
+              **kwargs):
+    model = SCNet(seg_num_classes=seg_num_classes, num_classes=num_classes)
+    if pretrained:
+        _load_state_dict(model, model_urls[arch], progress)
+    return model
+
+def scnet121(seg_num_classes=5, num_classes=2, pretrained=False, progress=True, **kwargs):
+    r"""Densenet-121 model from
+    `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+        memory_efficient (bool) - If True, uses checkpointing. Much more memory efficient,
+          but slower. Default: *False*. See `"paper" <https://arxiv.org/pdf/1707.06990.pdf>`_
+    """
+    return _scnet('scnet121', seg_num_classes, num_classes, pretrained, progress,
+                     **kwargs)

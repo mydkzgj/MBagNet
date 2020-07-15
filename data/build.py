@@ -32,6 +32,10 @@ def collate_fn(batch):
     return torch.stack(imgs, dim=0), labels
 
 def make_data_loader(cfg):
+    if cfg.DATA.DATASETS.NAMES == "none" and cfg.TRAIN.DATALOADER.IMS_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
+        classes_list = ["{}".format(i) for i in range(cfg.MODEL.CLA_NUM_CLASSES)]
+        return None, None, None, classes_list
+
     # CJY at 2019.11.20 加入其他非医学图像数据集
     if cfg.DATA.DATASETS.NAMES in ["cifa10"]:
         BATCH_SIZE = 128  # 批处理尺寸(batch_size)
@@ -106,9 +110,6 @@ def make_data_loader(cfg):
     # 建立classes_list
     classes_list = dataset.category
 
-    if cfg.TRAIN.DATALOADER.IMS_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
-        return None, None, None, classes_list
-
     #train set
     #是否要进行label-smoothing
     #train_set = ImageDataset(dataset.train, train_transforms)
@@ -164,6 +165,10 @@ def make_data_loader(cfg):
 
 #CJY at 2020.1.8  用于弱监督，引入segmentation_loader
 def make_seg_data_loader(cfg):
+    if cfg.DATA.DATASETS.SEG_NAMES == "none" or cfg.TRAIN.DATALOADER.MASK_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
+        classes_list = []
+        return None, None, None, classes_list
+
     train_transforms = build_seg_transforms(cfg, is_train=True, type="img")
     val_transforms = build_seg_transforms(cfg, is_train=False, type="img")
     test_transforms = build_seg_transforms(cfg, is_train=False, type="img")
@@ -178,6 +183,8 @@ def make_seg_data_loader(cfg):
         # TODO: add multi dataset to train
         dataset = init_dataset(cfg.DATA.DATASETS.SEG_NAMES, root=cfg.DATA.DATASETS.ROOT_DIR)
 
+    # 建立classes_list
+    classes_list = dataset.category
 
     # train set
     # 是否要进行label-smoothing
@@ -205,4 +212,4 @@ def make_seg_data_loader(cfg):
         test_set, batch_size=cfg.TEST.DATALOADER.MASK_PER_BATCH, shuffle=False, num_workers=num_workers,
         collate_fn=collate_fn_seg
     )
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, classes_list

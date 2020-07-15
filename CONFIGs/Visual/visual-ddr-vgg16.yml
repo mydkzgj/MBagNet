@@ -7,6 +7,7 @@
 DATA:
  DATASETS:
   NAMES: ('ddr_DRgrading')
+  SEG_NAMES: ("ddr_DRgrading_WeakSupervision")
   ROOT_DIR: ('./data')
 
  DATALOADER:
@@ -37,6 +38,8 @@ MODEL:
  CLA_NUM_CLASSES: 6 
  SEGMENTER_NAME: "fc_mbagnet"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
+ VISUALIZER_NAME: "none"
+ VISUAL_TARGET_LAYERS: "none"
 
  # For MBagNet
  PRE_ACTIVATION: 1

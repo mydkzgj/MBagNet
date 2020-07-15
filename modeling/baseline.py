@@ -365,7 +365,7 @@ class Baseline(nn.Module):
 
         # 5.scnet
         elif self.base_name == "scnet":
-            self.base = SCNet()
+            self.base = scnet121(pretrained=True)
             self.in_planes = 1000
 
         # 以下为了与multi_bagnet比较所做的调整网络

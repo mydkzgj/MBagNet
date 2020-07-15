@@ -79,11 +79,12 @@ def main():
 
     #build
     #train_loader, val_loader, test_loader, classes_list = make_data_loader(cfg)
-    train_grad_loader, val_grad_loader, test_grad_loader, classes_list = make_data_loader(cfg)
-    train_seg_loader, val_seg_loader, test_seg_loader = make_seg_data_loader(cfg)
+    train_grad_loader, val_grad_loader, test_grad_loader, cla_classes_list = make_data_loader(cfg)
+    train_seg_loader, val_seg_loader, test_seg_loader, seg_classes_list = make_seg_data_loader(cfg)
     train_loader = WeakSupervisionDataloader(train_grad_loader, train_seg_loader, recycling=True)
     val_loader = WeakSupervisionDataloader(val_grad_loader, val_seg_loader)#, recycling=False)  #Fasle 不循环使用seg_data
     test_loader = WeakSupervisionDataloader(test_grad_loader, test_seg_loader)#, recycling=False)
+    classes_list = cla_classes_list if cla_classes_list != [] else seg_classes_list
     num_classes = len(classes_list)
 
     model = build_model(cfg)

@@ -119,16 +119,16 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch
-        grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
-        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 else grade_labels
-        seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-        seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
-        seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
+        grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 and grade_imgs is not None else grade_imgs
+        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None  else grade_labels
+        seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 and seg_imgs is not None else seg_imgs
+        seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 and seg_masks is not None else seg_masks
+        seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
 
-        dataType = "seg"
+        dataType = "grade"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
         savePath = r"D:\MIP\Experiment\1"
 
