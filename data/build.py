@@ -31,7 +31,7 @@ def collate_fn(batch):
     labels = torch.tensor(labels, dtype=torch.int64)
     return torch.stack(imgs, dim=0), labels
 
-def make_data_loader(cfg):
+def make_data_loader(cfg, for_train):
     if cfg.DATA.DATASETS.NAMES == "none" or cfg.TRAIN.DATALOADER.IMS_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
         classes_list = ["{}".format(i) for i in range(cfg.MODEL.CLA_NUM_CLASSES)]
         return None, None, None, classes_list
@@ -94,7 +94,7 @@ def make_data_loader(cfg):
 
 
 
-    train_transforms = build_transforms(cfg, is_train=True)
+    train_transforms = build_transforms(cfg, is_train=for_train)
     val_transforms = build_transforms(cfg, is_train=False)
     test_transforms = build_transforms(cfg, is_train=False)
 
@@ -125,14 +125,16 @@ def make_data_loader(cfg):
             train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH,
             sampler=RandomSampler(dataset.train, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
                                   cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, dataset.num_categories,
-                                  is_train=True),
+                                  is_train=for_train),
             # sampler=RandomIdentitySampler_alignedreid(dataset.train, cfg.DATALOADER.NUM_INSTANCE),      # new add by gu
             num_workers=num_workers, collate_fn=collate_fn
         )
     else:
         train_loader = DataLoader(
             train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH,
-            sampler=RandomSampler(dataset.train, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH, cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, dataset.num_categories, is_train=True),
+            sampler=RandomSampler(dataset.train, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
+                                  cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, dataset.num_categories,
+                                  is_train=for_train),
             # sampler=RandomIdentitySampler_alignedreid(dataset.train, cfg.DATALOADER.NUM_INSTANCE),      # new add by gu
             num_workers=num_workers, collate_fn=collate_fn
         )
@@ -164,15 +166,15 @@ def make_data_loader(cfg):
 
 
 #CJY at 2020.1.8  用于弱监督，引入segmentation_loader
-def make_seg_data_loader(cfg):
+def make_seg_data_loader(cfg, for_train):
     if cfg.DATA.DATASETS.SEG_NAMES == "none" or cfg.TRAIN.DATALOADER.MASK_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
         classes_list = []
         return None, None, None, classes_list
 
-    train_transforms = build_seg_transforms(cfg, is_train=True, type="img")
+    train_transforms = build_seg_transforms(cfg, is_train=for_train, type="img")
     val_transforms = build_seg_transforms(cfg, is_train=False, type="img")
     test_transforms = build_seg_transforms(cfg, is_train=False, type="img")
-    train_mask_transforms = build_seg_transforms(cfg, is_train=True, type="mask")
+    train_mask_transforms = build_seg_transforms(cfg, is_train=for_train, type="mask")
     val_mask_transforms = build_seg_transforms(cfg, is_train=False, type="mask")
     test_mask_transforms = build_seg_transforms(cfg, is_train=False, type="mask")
 
@@ -193,7 +195,7 @@ def make_seg_data_loader(cfg):
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.MASK_PER_BATCH, num_workers=num_workers, #shuffle=True,
         # CJY  为了保证类别均衡
-        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, dataset.num_categories, is_train=True),    #此处让所有分类标签的按顺序以1为单位交替进行
+        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, dataset.num_categories, is_train=for_train),    #此处让所有分类标签的按顺序以1为单位交替进行
         collate_fn=collate_fn_seg
     )
 

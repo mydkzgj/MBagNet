@@ -80,8 +80,8 @@ def main():
 
     #build
     #train_loader, val_loader, test_loader, classes_list = make_data_loader(cfg)
-    train_grad_loader, val_grad_loader, test_grad_loader, cla_classes_list = make_data_loader(cfg)
-    train_seg_loader, val_seg_loader, test_seg_loader, seg_classes_list = make_seg_data_loader(cfg)
+    train_grad_loader, val_grad_loader, test_grad_loader, cla_classes_list = make_data_loader(cfg, for_train=False)
+    train_seg_loader, val_seg_loader, test_seg_loader, seg_classes_list = make_seg_data_loader(cfg, for_train=False)
     train_loader = WeakSupervisionDataloader(train_grad_loader, train_seg_loader, recycling=False)  #True
     val_loader = WeakSupervisionDataloader(val_grad_loader, val_seg_loader, recycling=False)  #Fasle 不循环使用seg_data
     test_loader = WeakSupervisionDataloader(test_grad_loader, test_seg_loader, recycling=False)
@@ -114,7 +114,7 @@ def main():
     else:
         step = 0
 
-    metrics = do_visualization(cfg, model, test_loader, classes_list, loss_funcs, plotFlag=True)
+    metrics = do_visualization(cfg, model, train_loader, classes_list, loss_funcs, plotFlag=True)
 
     for preKey in metrics['precision'].keys():
         writer_test.add_scalar("Precision/" + str(preKey), metrics['precision'][preKey], step)

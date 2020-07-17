@@ -79,8 +79,8 @@ def main():
 
     #build
     #train_loader, val_loader, test_loader, classes_list = make_data_loader(cfg)
-    train_grad_loader, val_grad_loader, test_grad_loader, cla_classes_list = make_data_loader(cfg)
-    train_seg_loader, val_seg_loader, test_seg_loader, seg_classes_list  = make_seg_data_loader(cfg)
+    train_grad_loader, val_grad_loader, test_grad_loader, cla_classes_list = make_data_loader(cfg, for_train=True)
+    train_seg_loader, val_seg_loader, test_seg_loader, seg_classes_list  = make_seg_data_loader(cfg, for_train=True)
     train_loader = WeakSupervisionDataloader(train_grad_loader, train_seg_loader)
     val_loader = WeakSupervisionDataloader(val_grad_loader, val_seg_loader)
     test_loader = WeakSupervisionDataloader(test_grad_loader, test_seg_loader)
