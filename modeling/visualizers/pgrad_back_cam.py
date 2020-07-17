@@ -24,7 +24,7 @@ class PGradBackCAM():
         self.hookIndex = 0
         self.setHook(model)
 
-        self.reservePos = True
+        self.reservePos = False#True
 
         self.draw_index = 0
 
@@ -96,7 +96,7 @@ class PGradBackCAM():
             if grad_in[0].ndimension() == 4:
                 pgcam = torch.relu(torch.sum(relu_input * result_grad, dim=1, keepdim=True))
                 #pgcam, pgcam_max = self.gcamNormalization(pgcam)
-                result_grad = result_grad * pgcam#.gt(0)  #* pos_grad_out
+                result_grad = result_grad * pgcam.gt(0)  #* pos_grad_out
             else:
                 result_grad = result_grad #* pos_grad_out
             #raise Exception("1")
@@ -200,10 +200,16 @@ class PGradBackCAM():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
+
         gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
+
+        print(inter_gradient.shape)
+        if inter_gradient.shape[-1]<56:
+            print("inter_gradient")
+            print(inter_output.abs().sum(dim=1).gt(0))
         return gcam
 
     """

@@ -32,7 +32,7 @@ def collate_fn(batch):
     return torch.stack(imgs, dim=0), labels
 
 def make_data_loader(cfg):
-    if cfg.DATA.DATASETS.NAMES == "none" and cfg.TRAIN.DATALOADER.IMS_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
+    if cfg.DATA.DATASETS.NAMES == "none" or cfg.TRAIN.DATALOADER.IMS_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12
         classes_list = ["{}".format(i) for i in range(cfg.MODEL.CLA_NUM_CLASSES)]
         return None, None, None, classes_list
 

@@ -105,7 +105,7 @@ class FundusTR_DRgrading(BaseImageDataset):
             label2category[index] = category
             if "." in category:
                 continue
-            category_path = osp.join(dir_path, category, "image")   #CJY at 2020.7.11
+            category_path = osp.join(dir_path, category, "img")   #CJY at 2020.7.11
             c_i = 0
             imgList = os.listdir(category_path)
             for img in imgList:
@@ -146,7 +146,11 @@ class FundusTR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
         self.seg_val, self.val_c2l, self.val_l2c = self._process_segmentation_dir(self.seg_val_dir)
         self.seg_test, self.test_c2l, self.test_l2c = self._process_segmentation_dir(self.seg_test_dir)
 
-        self.num_categories = 2  # 有4个等级的DR
+        self.num_categories = 2  # stable worse
+
+        self.category = []
+        for index in range(self.num_categories):
+            self.category.append(self.train_l2c[index])
 
         self._check_before_run()
 
@@ -176,8 +180,8 @@ class FundusTR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
             if "." in category:
                 continue
             category_path = osp.join(dir_path, category)
-            image_path = os.path.join(category_path, "image")
-            label_path = os.path.join(category_path, "label")
+            image_path = os.path.join(category_path, "img")
+            label_path = os.path.join(category_path, "mask/category")
             for imgfile in os.listdir(image_path):
                 pre, ext = os.path.splitext(imgfile)
                 if ext != ".JPG" and ext != ".jpg":

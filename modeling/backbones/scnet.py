@@ -255,6 +255,7 @@ def _load_state_dict(model, model_url, progress):
 
     #"""
     SNet_dict = model.SNet.state_dict()
+    print("load SNet")
     for i in param_dict:
         module_name = i.replace("base.", "")
         if module_name not in model.SNet.state_dict():
@@ -267,6 +268,7 @@ def _load_state_dict(model, model_url, progress):
     #"""
 
     CNet_dict = model.CNet.state_dict()
+    print("load CNet")
     for i in param_dict:
         module_name = i.replace("base.", "")
         if module_name not in model.CNet.state_dict():
@@ -276,6 +278,7 @@ def _load_state_dict(model, model_url, progress):
             print("Donot load %s, have changed this module for retraining" % i)
             continue
         model.CNet.state_dict()[module_name].copy_(param_dict[i])
+    print("finish load")
 
 def _scnet(arch, seg_num_classes, num_classes, pretrained, progress,
               **kwargs):

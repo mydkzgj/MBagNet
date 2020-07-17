@@ -149,7 +149,7 @@ class Baseline(nn.Module):
         # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
         # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
         # "guided-grad-cam","pgrad-back-cam"
-        self.visualizer_name = "guided-backpropagation"#"none"#"pgrad-cam"
+        #self.visualizer_name = "pgrad-back-cam"#"none"#"pgrad-cam"
         #self.target_layer = ["base.features.1", "base.features.11", "base.features.20", "base.features.29", ""]
         #self.target_layer = ["base.features.denseblock4"]#["base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4", ""]
         #self.target_layer = ["base.features."+str(i) for i in [1,3,6,20,29]]   #1,3,6,8,11,13,15,18,20,22,25,27,29

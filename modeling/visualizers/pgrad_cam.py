@@ -82,9 +82,9 @@ class PGradCAM():
 
     def guided_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
-            if grad_in[0].ndimension() < 4:
+            if grad_in[0].ndimension() < 4:  #CJY 非卷积层内的relu应该怎么处理
                 return grad_in
-            pos_grad_out = grad_out[0].lt(0)
+            pos_grad_out = grad_out[0].gt(0)
             result_grad = pos_grad_out * grad_in[0]
             return (result_grad,)
         else:
