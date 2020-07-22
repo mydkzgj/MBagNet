@@ -15,7 +15,7 @@ import torch
 from torch.utils.data import DataLoader
 
 def collate_fn_seg(batch):
-    imgs, masks, labels = zip(*batch)
+    imgs, masks, labels, imgs_path = zip(*batch)
 
     labels = torch.tensor(labels, dtype=torch.int64)
     """
@@ -24,12 +24,12 @@ def collate_fn_seg(batch):
         for j in range(224):
             a.add(masks[0][0][i][j].item())
     """
-    return torch.stack(imgs, dim=0), torch.stack(masks, dim=0), labels
+    return torch.stack(imgs, dim=0), torch.stack(masks, dim=0), labels, imgs_path
 
 def collate_fn(batch):
-    imgs, labels, _, = zip(*batch)
+    imgs, labels, imgs_path, = zip(*batch)
     labels = torch.tensor(labels, dtype=torch.int64)
-    return torch.stack(imgs, dim=0), labels
+    return torch.stack(imgs, dim=0), labels, imgs_path
 
 def make_data_loader(cfg, for_train):
     if cfg.DATA.DATASETS.NAMES == "none" or cfg.TRAIN.DATALOADER.IMS_PER_BATCH == 0:  #如果batch为0，那么就返回空  CJY at 2020.7.12

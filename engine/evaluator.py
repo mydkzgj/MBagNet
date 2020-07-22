@@ -57,7 +57,7 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
         model.eval()
         with torch.no_grad():
 
-            grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch
+            grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
 
             # 记录grade和seg的样本数量
             grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0

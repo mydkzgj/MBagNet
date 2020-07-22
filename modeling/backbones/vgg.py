@@ -33,10 +33,10 @@ class VGG(nn.Module):
         if self.with_classifier == True:
             self.classifier = nn.Sequential(
                 nn.Linear(512 * 7 * 7, 4096),
-                nn.ReLU(True),
+                nn.ReLU(),#True),
                 nn.Dropout(),
                 nn.Linear(4096, 4096),
-                nn.ReLU(True),
+                nn.ReLU(),#True),
                 nn.Dropout(),
                 nn.Linear(4096, num_classes),
             )
@@ -82,7 +82,7 @@ def make_layers(cfg, batch_norm=False):
             if batch_norm:
                 layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
             else:
-                layers += [conv2d, nn.ReLU(inplace=True)]
+                layers += [conv2d, nn.ReLU()]#inplace=True)]
             in_channels = v
     return nn.Sequential(*layers)
 

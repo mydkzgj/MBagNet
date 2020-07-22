@@ -8,7 +8,7 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class PGradBackCAM():
+class Guided_Conv_PCAM():
     def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
@@ -16,30 +16,19 @@ class PGradBackCAM():
         self.num_target_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
-        self.useGuidedBP = False#False  # GuideBackPropagation的变体
+        self.useGuidedBP = True  # GuideBackPropagation的变体
         self.relu_output = []
         self.relu_index = 0  #后续设定为len(relu_input)
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
 
         self.hookIndex = 0
+        self.setHook(model)
 
-
-        self.reservePos = False#True
+        self.reservePos = True
 
         self.draw_index = 0
 
         self.firstaddpgcam = 1
-
-        self.current_conv_index = 0
-        self.conv_num = 0
-        self.bn_weight_reserve_state = 0
-        self.conv_bn_weight_reserve = []
-
-        self.bn_weight_r = []
-        self.current_bn_index = 0
-        self.bn_num = 0
-
-        self.setHook(model)
 
     def setHook(self, model):
         print("Set Hook for Visualization:")
@@ -64,7 +53,7 @@ class PGradBackCAM():
                     if module_name == tl:
                         print("Visualization Hook on ", module_name)
                         module.register_forward_hook(self.reserve_features_hook_fn)
-                        module.register_backward_hook(self.reserve_gradient_hook_fn)   #不以backward求取gcam了，why，因为这种回传会在模型中保存梯度，然后再清零会出问题
+                        #module.register_backward_hook(self.reserve_gradient_hook_fn)   #不以backward求取gcam了，why，因为这种回传会在模型中保存梯度，然后再清零会出问题
                         break
         else:
             raise Exception("Without target layer can not generate Visualization")
@@ -76,27 +65,14 @@ class PGradBackCAM():
             print("Set GuidedBP Hook on Relu")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
-                    if "resnet" in model.base_name and ("relu1" in module_name or "relu2" in module_name):
-                        continue
                     self.num_relu_layer = self.num_relu_layer + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
 
-        """
         print(0)
         for module_name, module in model.named_modules():
             if isinstance(module, torch.nn.Conv2d) == True and "segmenter" not in module_name:
                 module.register_backward_hook(self.conv_backward_hook_fn)
-                self.conv_num = self.conv_num + 1
-
-
-        for module_name, module in model.named_modules():
-            if isinstance(module, torch.nn.BatchNorm2d) == True and "segmenter" not in module_name:
-                module.register_backward_hook(self.bn_backward_hook_fn)
-                module.register_forward_hook(self.bn_forward_hook_fn)
-                #self.bn_weight_reserve[module_name] =
-                self.bn_num = self.bn_num +1
-        #"""
 
     # Hook Function
     def set_requires_gradients_firstlayer(self, module, input, output):
@@ -113,7 +89,6 @@ class PGradBackCAM():
         if self.guidedBPstate == True:
             self.inter_gradient.append(grad_out[0])
 
-
     def reserve_features_hook_fn(self, module, input, output):
         # 为了避免多次forward，保存多个特征，所以通过计数完成置零操作
         if self.hookIndex % self.num_target_layer == 0:
@@ -126,43 +101,12 @@ class PGradBackCAM():
     def reserve_gradient_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
             self.inter_gradient.append(grad_in)
-        self.current_target_index = self.current_target_index -1
-        return (self.inter_output[self.current_target_index], )
 
 
     def conv_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.bn_weight_reserve_state == True:
-            self.current_conv_index = self.current_conv_index - 1
-            self.conv_bn_weight_reserve[self.current_conv_index] = grad_out[0][0, :, 0, 0]
-            print("bn_weight_reserve {}".format(self.current_conv_index))
-            return grad_in
-        #raise Exception(1)
-
-        self.current_conv_index = self.current_conv_index - 1
-        print("assss")
-        print(self.current_conv_index)
-        print(self.conv_bn_weight_reserve[self.current_conv_index].shape)
-        print(module.weight.shape)
-        new_weight = module.weight #* self.conv_bn_weight_reserve[self.current_conv_index].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-        new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight.relu()/4, stride=module.stride, output_padding=module.stride[0]//2)
+        new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], torch.relu(module.weight),stride=module.stride, )
         diff = new_grad_in.shape[2] - grad_in[0].shape[2]
-        diff_end = diff//2
-        diff_start = diff - diff_end
-
-        print(module.stride)
-        print(module.weight.shape)
-        print(new_grad_in.shape)
-        print(grad_in[0].shape)
-        print(grad_in[0])
-        print(new_grad_in)
-
-        new_grad_in = new_grad_in[:, :, diff_start:new_grad_in.shape[2] - diff_end, diff_start:new_grad_in.shape[3] - diff_end]
-
-        print(diff)
-        print((new_grad_in - grad_in[0]).abs().max())
-        print(torch.equal(new_grad_in, grad_in[0]))
-
-
+        new_grad_in = new_grad_in[:, :, diff//2:new_grad_in.shape[3]-diff//2, diff//2:new_grad_in.shape[3]-diff//2]
         return (new_grad_in, grad_in[1], grad_in[2])
 
 
@@ -179,9 +123,9 @@ class PGradBackCAM():
                 print(self.relu_index)
                 #pgcam = torch.sum(relu_output * torch.nn.functional.avg_pool2d(grad_out[0],1), dim=1, keepdim=True)
                 pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
-                #pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
+                pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
                 #pgcam, pgcam_max = self.gcamNormalization(pgcam)
-                result_grad = pgcam.expand_as(result_grad) #result_grad * pgcam  #pos_grad_out #
+                result_grad = result_grad *pos_grad_out #* pgcam.gt(0.5) #*pos_grad_out
                 if self.firstaddpgcam == 100:
                     self.firstaddpgcam = 0
                     print("11111")
@@ -192,41 +136,6 @@ class PGradBackCAM():
             return (result_grad, )
         else:
             pass
-
-    def bn_forward_hook_fn(self, module, input, output):
-        #a = (input[0] - module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1))/module.running_var.sqrt().unsqueeze(0).unsqueeze(-1).unsqueeze(-1) *module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) + module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        a = (input[0] - module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(
-            -1)) / module.running_var.sqrt().unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * module.weight.unsqueeze(
-            0).unsqueeze(-1).unsqueeze(-1) + module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-
-        #print(torch.equal(a, output))
-
-    def bn_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.bn_weight_reserve_state == 0:
-            w = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)#.expand_as(grad_in[0])
-            print("grad_out")
-            print(grad_out[0].abs().max(-1)[0].max(-1)[0])
-            print("grad_in")
-            print(grad_in[0].abs().max(-1)[0].max(-1)[0])
-            print("compute")
-
-            print("www")
-            print(module.weight.gt(0).sum()*1.0/ module.weight.shape[0])
-
-            a = grad_out[0] * w.relu() / module.running_var.sqrt().unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-            print(a.abs().max(-1)[0].max(-1)[0])
-
-            print(torch.equal(a, grad_in[0]))
-
-            print(((a - grad_in[0])/a.clamp(min=1E-12)).abs().max())
-
-            #raise Exception(1)
-            w = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(grad_in[0])
-            #w = w.expand_as(grad_in[0])
-            #raise Exception(1)
-            self.current_bn_index = self.current_bn_index - 1
-            self.bn_weight_r[self.current_bn_index] = module.weight
-            return (a, grad_in[1], grad_in[2])
 
     def relu_forward_hook_fn(self, module, input, output):
         if self.reluhookIndex == 0:
@@ -257,32 +166,10 @@ class PGradBackCAM():
         # 求取model.inter_output对应的gradient
         # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
 
-        self.bn_weight_reserve_state = 1 # 是否开启guidedBP
-        """
-        self.current_conv_index = self.conv_num
-
-        self.conv_bn_weight_reserve = [1 for i in range(self.conv_num)]
-
-        self.current_bn_index = self.bn_num
-
-        self.bn_weight_r = [1 for i in range(self.bn_num)]
-
-        inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
-                                              grad_outputs=gcam_one_hot_labels,
-                                              retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
-
-        # """
-        self.bn_weight_reserve_state = 0
-
-
-
         self.guidedBPstate = 1  # 是否开启guidedBP
         #"""
-
-        self.current_conv_index = self.conv_num
         self.relu_index = len(self.relu_output)
         self.firstaddpgcam = 1
-        self.current_target_index = len(self.inter_output)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
@@ -350,7 +237,7 @@ class PGradBackCAM():
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
         #gcam = torch.sum(torch.nn.functional.avg_pool2d(inter_gradient, 1) * inter_output, dim=1, keepdim=True)
-        gcam = torch.sum(inter_gradient * inter_output.relu(), dim=1, keepdim=True)
+        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18

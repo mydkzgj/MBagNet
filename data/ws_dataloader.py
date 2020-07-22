@@ -19,26 +19,29 @@ class WeakSupervisionDataloader():
 
     def __next__(self):
         if self.gra_dataloader is not None and self.seg_dataloader is not None:   #联合监督
-            imgG, label, = next(self.gra_dataloader_iter)
+            imgG, label, imgG_path = next(self.gra_dataloader_iter)
             if self.recycling == True:
                 try:
-                    imgS, mask, Slabel = next(self.seg_dataloader_iter)
+                    imgS, mask, Slabel, imgS_path = next(self.seg_dataloader_iter)
                 except StopIteration:  # 由于分割样本要少，所以需要循环读取
                     self.seg_dataloader_iter = iter(self.seg_dataloader)
-                    imgS, mask, Slabel = next(self.seg_dataloader_iter)
+                    imgS, mask, Slabel, imgS_path = next(self.seg_dataloader_iter)
             else:
-                imgS, mask, Slabel = next(self.seg_dataloader_iter)
+                imgS, mask, Slabel, imgS_path = next(self.seg_dataloader_iter)
+            imgPath = imgG_path + imgS_path
         elif self.gra_dataloader is not None:   #只分类数据集
-            imgG, label, = next(self.gra_dataloader_iter)
+            imgG, label, imgG_path = next(self.gra_dataloader_iter)
             imgS = None
             mask = None
             Slabel = None
+            imgS_path = None
         elif self.seg_dataloader is not None:    #只分割数据集
-            imgS, mask, Slabel = next(self.seg_dataloader_iter)
+            imgS, mask, Slabel, imgS_path = next(self.seg_dataloader_iter)
             imgG = None
             label = None
+            imgG_path = None
 
-        return imgG, label, imgS, mask, Slabel
+        return imgG, label, imgS, mask, Slabel, imgG_path, imgS_path
 
     def __len__(self):
         if self.gra_dataloader is not None:

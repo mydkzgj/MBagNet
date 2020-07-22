@@ -120,6 +120,6 @@ class SegmentationDataset(Dataset):
             raise Exception("SEG_NUM_CLASSES cannot match the channels of mask")
 
 
-        return img, mask, img_label  # 返回的是图片
+        return img, mask, img_label, image_path  # 返回的是图片
 
 

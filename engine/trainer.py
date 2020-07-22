@@ -156,7 +156,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         engine.state.losstype = op2loss[engine.state.optimizer_index]
 
         # 获取数据
-        grade_imgs, grade_labels, seg_imgs, seg_gt_masks, seg_labels = batch   #这个格式应该跟collate_fn的处理方式对应
+        grade_imgs, grade_labels, seg_imgs, seg_gt_masks, seg_labels, gimg_path, simg_path = batch   #这个格式应该跟collate_fn的处理方式对应
         #seg_gt_masks = torch.gt(seg_gt_masks, 0).float()
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0

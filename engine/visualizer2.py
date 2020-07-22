@@ -118,7 +118,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
     def _inference(engine, batch):
         model.eval()
-        grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels = batch
+        grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
         grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 and grade_imgs is not None else grade_imgs
         grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None  else grade_labels
         seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 and seg_imgs is not None else seg_imgs
@@ -128,23 +128,26 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
 
-        dataType = "grade"
+        dataType = "seg"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
-        savePath = r"D:\MIP\Experiment\1"
+        savePath = r"D:\graduateStudent\eyes datasets\cjy\visualization"#r"D:\MIP\Experiment\1"
 
         # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
         if dataType == "grade":
             imgs = grade_imgs
-            labels = torch.zeros_like(grade_labels) + 333#243
+            labels = torch.zeros_like(grade_labels) + 250#333#243
             masks = None
+            img_paths = gimg_path
         elif dataType == "seg":
             imgs = seg_imgs
             labels = seg_labels
             masks = seg_masks
+            img_paths = simg_path
         elif dataType == "joint":
             imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
             labels = torch.cat([grade_labels, seg_labels], dim=0)
             masks = seg_masks
+            img_paths = gimg_path + simg_path
 
         if heatmapType == "segmentation":
             with torch.no_grad():
@@ -158,19 +161,25 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             logits = model(imgs)
             scores = torch.softmax(logits, dim=1)
             p_labels = torch.argmax(logits, dim=1)  # predict_label
+
+            """
             global imgsName
             if imgsName == []:
                 imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
             else:
                 imgsName = [str(int(i)+imgs.shape[0]) for i in imgsName]
+            """
 
-            oblabelList = [labels]
+            imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
+
+            #oblabelList = [labels]
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
-            #oblabelList = [labels*0 + i for i in range(model.num_classes)]
+            oblabelList = [labels*0 + i for i in range(model.num_classes)]
 
+            # 将读取的数据名字记录下来
             for oblabels in oblabelList:
-                binary_threshold = 0.5
+                binary_threshold = 0.5#0.5
                 showFlag = 1
                 input_size = (imgs.shape[2], imgs.shape[3])
                 visual_num = imgs.shape[0]
