@@ -130,12 +130,12 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
         dataType = "seg"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
-        savePath = r"D:\graduateStudent\eyes datasets\cjy\visualization"#r"D:\MIP\Experiment\1"
+        savePath = r"D:\MIP\Experiment\1"  #r"D:\graduateStudent\eyes datasets\cjy\visualization"#
 
         # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
         if dataType == "grade":
             imgs = grade_imgs
-            labels = torch.zeros_like(grade_labels) + 250#333#243
+            labels = torch.zeros_like(grade_labels) + 1#333#243
             masks = None
             img_paths = gimg_path
         elif dataType == "seg":
@@ -162,20 +162,20 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             scores = torch.softmax(logits, dim=1)
             p_labels = torch.argmax(logits, dim=1)  # predict_label
 
-            """
+            #"""
             global imgsName
             if imgsName == []:
                 imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
             else:
                 imgsName = [str(int(i)+imgs.shape[0]) for i in imgsName]
-            """
-
-            imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
+            #"""
+            #imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             #oblabelList = [labels]
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
             oblabelList = [labels*0 + i for i in range(model.num_classes)]
+            #oblabelList = [labels*243, labels*250, labels*281, labels*333]
 
             # 将读取的数据名字记录下来
             for oblabels in oblabelList:

@@ -63,7 +63,7 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
             grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
             seg_num = seg_masks.shape[0] if seg_imgs is not None else 0
             # 将grade和seg样本concat起来
-            if grade_num > 0 and seg_num > 0:
+            if grade_num > 0 and seg_num >= 0:
                 imgs = grade_imgs
                 labels = grade_labels
             elif grade_num == 0 and seg_num > 0:
@@ -160,55 +160,56 @@ def do_inference(
 
     evaluator.run(test_loader)
 
+    if plotFlag == True:  # 绘制   CJY at 2020.8.3
+        # 1.Draw Confusion Matrix and Save it in numpy
+        #"""
+        # CJY at 2020.6.24
+        classes_label_list = ["No DR", "Mild", "Moderate", "Severe", "Proliferative", "Ungradable"]
+        if len(classes_list) == 6:
+            classes_list = classes_label_list
 
-    # 1.Draw Confusion Matrix and Save it in numpy
-    """
-    # CJY at 2020.6.24
-    classes_label_list = ["No DR", "Mild", "Moderate", "Severe", "Proliferative", "Ungradable"]
-    if len(classes_list) == 6:
-        classes_list = classes_label_list
+        confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=True)
+        metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
+        #"""
 
-    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=True)
-    metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
-    #"""
+        # 2.ROC
+        #"""
+        # (1).convert List to numpy
+        y_label = np.array(y_label)
+        y_label = convert_to_one_hot(y_label, num_classes)
+        y_pred = np.array(y_pred)
 
-    # 2.ROC
-    """
-    # (1).convert List to numpy
-    y_label = np.array(y_label)
-    y_label = convert_to_one_hot(y_label, num_classes)
-    y_pred = np.array(y_pred)
+        #注：此处可以提前将多类label转化为one-hot label，并以每一类的confidence和label sub-vector送入计算
+        #不一定要送入score（概率化后的值），只要confidengce与score等是正相关即可（单调递增）
 
-    #注：此处可以提前将多类label转化为one-hot label，并以每一类的confidence和label sub-vector送入计算
-    #不一定要送入score（概率化后的值），只要confidengce与score等是正相关即可（单调递增）
+        # (2).Compute ROC curve and ROC area for each class
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        pos_label = 0   #for two classes
+        if num_classes == 2:
+            fpr[pos_label], tpr[pos_label], _ = roc_curve(y_label[:, pos_label], y_pred[:, pos_label])   #当y_label并非0,1组合的向量时，即多分类标签，可以通过指定pos_label=
+            roc_auc[pos_label] = auc(fpr[pos_label], tpr[pos_label])
+        elif num_classes > 2:
+            for i in range(num_classes):
+                fpr[i], tpr[i], _ = roc_curve(y_label[:, i], y_pred[:, i])
+                roc_auc[i] = float("{:.3f}".format(auc(fpr[i], tpr[i])))
 
-    # (2).Compute ROC curve and ROC area for each class    
-    fpr = dict()
-    tpr = dict()
-    roc_auc = dict()
-    pos_label = 0   #for two classes
-    if num_classes == 2:
-        fpr[pos_label], tpr[pos_label], _ = roc_curve(y_label[:, pos_label], y_pred[:, pos_label])   #当y_label并非0,1组合的向量时，即多分类标签，可以通过指定pos_label=
-        roc_auc[pos_label] = auc(fpr[pos_label], tpr[pos_label])
-    elif num_classes > 2:
-        for i in range(num_classes):
-            fpr[i], tpr[i], _ = roc_curve(y_label[:, i], y_pred[:, i])
-            roc_auc[i] = float("{:.3f}".format(auc(fpr[i], tpr[i])))
+            # Compute micro-average ROC curve and ROC area
+            fpr["micro"], tpr["micro"], _ = roc_curve(y_label.ravel(), y_pred.ravel())
+            roc_auc["micro"] = float("{:.3f}".format(auc(fpr["micro"], tpr["micro"])))
 
-        # Compute micro-average ROC curve and ROC area
-        fpr["micro"], tpr["micro"], _ = roc_curve(y_label.ravel(), y_pred.ravel())
-        roc_auc["micro"] = float("{:.3f}".format(auc(fpr["micro"], tpr["micro"])))
+        logger.info("ROC_AUC: {}".format(roc_auc))
+        metrics["roc_auc"] = roc_auc
 
-    logger.info("ROC_AUC: {}".format(roc_auc))
-    metrics["roc_auc"] = roc_auc
+        # (3).Draw ROC and Save it in numpy   # 好像绘制，在服务器上会出错，先取消吧
+        if num_classes == 2:
+            roc_numpy = plotROC_OneClass(fpr[pos_label], tpr[pos_label], roc_auc[pos_label], plot_flag=plotFlag)
+        elif num_classes > 2:
+            roc_numpy = plotROC_MultiClass(fpr, tpr, roc_auc, num_classes, plot_flag=plotFlag)
+        metrics["roc_figure"] = roc_numpy
+        #"""
 
-    # (3).Draw ROC and Save it in numpy   # 好像绘制，在服务器上会出错，先取消吧
-    if num_classes == 2:
-        roc_numpy = plotROC_OneClass(fpr[pos_label], tpr[pos_label], roc_auc[pos_label], plot_flag=plotFlag)
-    elif num_classes > 2:
-        roc_numpy = plotROC_MultiClass(fpr, tpr, roc_auc, num_classes, plot_flag=plotFlag)
-    metrics["roc_figure"] = roc_numpy
-    #"""
     return metrics
 
 

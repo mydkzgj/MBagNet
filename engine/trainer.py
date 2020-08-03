@@ -734,7 +734,7 @@ def do_train(
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_validation_results(engine):
         if engine.state.epoch % eval_period == 0:
-            metrics = do_inference(cfg, model, val_loader, classes_list, loss_fn)
+            metrics = do_inference(cfg, model, val_loader, classes_list, loss_fn, plotFlag=False) #不进行绘制
 
             step = engine.state.iteration
             for preKey in metrics['precision'].keys():

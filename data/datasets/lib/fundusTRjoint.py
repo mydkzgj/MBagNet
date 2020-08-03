@@ -189,7 +189,7 @@ class FundusTR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
                 imagefullpath = os.path.join(image_path, imgfile)
                 labelfullpathList = []
                 for l in self.lesion:
-                    labelfullpath = os.path.join(label_path, l, imgfile.replace(".jpg", ".tif"))
+                    labelfullpath = os.path.join(label_path, l, imgfile)
                     if os.path.exists(labelfullpath) == True:
                         labelfullpathList.append(labelfullpath)
                     else:

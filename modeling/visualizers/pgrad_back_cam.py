@@ -16,7 +16,7 @@ class PGradBackCAM():
         self.num_target_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
-        self.useGuidedBP = False#False  # GuideBackPropagation的变体
+        self.useGuidedBP = True#True#False  # GuideBackPropagation的变体
         self.relu_output = []
         self.relu_index = 0  #后续设定为len(relu_input)
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
@@ -24,7 +24,7 @@ class PGradBackCAM():
         self.hookIndex = 0
 
 
-        self.reservePos = False#True
+        self.reservePos = True#True
 
         self.draw_index = 0
 
@@ -40,6 +40,8 @@ class PGradBackCAM():
         self.bn_num = 0
 
         self.setHook(model)
+
+        self.attention_map = 1
 
     def setHook(self, model):
         print("Set Hook for Visualization:")
@@ -64,7 +66,7 @@ class PGradBackCAM():
                     if module_name == tl:
                         print("Visualization Hook on ", module_name)
                         module.register_forward_hook(self.reserve_features_hook_fn)
-                        module.register_backward_hook(self.reserve_gradient_hook_fn)   #不以backward求取gcam了，why，因为这种回传会在模型中保存梯度，然后再清零会出问题
+                        #module.register_backward_hook(self.reserve_gradient_hook_fn)   #不以backward求取gcam了，why，因为这种回传会在模型中保存梯度，然后再清零会出问题
                         break
         else:
             raise Exception("Without target layer can not generate Visualization")
@@ -82,14 +84,14 @@ class PGradBackCAM():
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
 
-        """
+        #"""
         print(0)
         for module_name, module in model.named_modules():
             if isinstance(module, torch.nn.Conv2d) == True and "segmenter" not in module_name:
                 module.register_backward_hook(self.conv_backward_hook_fn)
                 self.conv_num = self.conv_num + 1
-
-
+        #"""
+        #"""
         for module_name, module in model.named_modules():
             if isinstance(module, torch.nn.BatchNorm2d) == True and "segmenter" not in module_name:
                 module.register_backward_hook(self.bn_backward_hook_fn)
@@ -127,7 +129,7 @@ class PGradBackCAM():
         if self.guidedBPstate == True:
             self.inter_gradient.append(grad_in)
         self.current_target_index = self.current_target_index -1
-        return (self.inter_output[self.current_target_index], )
+        #return (self.inter_output[self.current_target_index], )
 
 
     def conv_backward_hook_fn(self, module, grad_in, grad_out):
@@ -139,28 +141,15 @@ class PGradBackCAM():
         #raise Exception(1)
 
         self.current_conv_index = self.current_conv_index - 1
-        print("assss")
-        print(self.current_conv_index)
-        print(self.conv_bn_weight_reserve[self.current_conv_index].shape)
-        print(module.weight.shape)
+
         new_weight = module.weight #* self.conv_bn_weight_reserve[self.current_conv_index].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight.relu()/4, stride=module.stride, output_padding=module.stride[0]//2)
         diff = new_grad_in.shape[2] - grad_in[0].shape[2]
         diff_end = diff//2
         diff_start = diff - diff_end
 
-        print(module.stride)
-        print(module.weight.shape)
-        print(new_grad_in.shape)
-        print(grad_in[0].shape)
-        print(grad_in[0])
-        print(new_grad_in)
-
         new_grad_in = new_grad_in[:, :, diff_start:new_grad_in.shape[2] - diff_end, diff_start:new_grad_in.shape[3] - diff_end]
 
-        print(diff)
-        print((new_grad_in - grad_in[0]).abs().max())
-        print(torch.equal(new_grad_in, grad_in[0]))
 
 
         return (new_grad_in, grad_in[1], grad_in[2])
@@ -178,16 +167,27 @@ class PGradBackCAM():
 
                 print(self.relu_index)
                 #pgcam = torch.sum(relu_output * torch.nn.functional.avg_pool2d(grad_out[0],1), dim=1, keepdim=True)
-                pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
-                #pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
+                pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
+
+                #var = torch.var
+
+                pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
+
+                if self.attention_map is not 1:
+                    if self.attention_map.shape != pgcam.shape:
+                        self.attention_map = (torch.nn.functional.interpolate(self.attention_map, (pgcam.shape[2], pgcam.shape[3]), mode='bilinear') + pgcam.gt(0))/2
+                else:
+                    self.attention_map = self.attention_map * pgcam
+
                 #pgcam, pgcam_max = self.gcamNormalization(pgcam)
-                result_grad = pgcam.expand_as(result_grad) #result_grad * pgcam  #pos_grad_out #
-                if self.firstaddpgcam == 100:
+                #result_grad = pgcam.expand_as(result_grad) #result_grad * pgcam  #pos_grad_out #
+                if self.firstaddpgcam == 1:
                     self.firstaddpgcam = 0
                     print("11111")
-                    result_grad = result_grad * pgcam.gt(0)
+                    #result_grad = relu_output #* pgcam #result_grad*pgcam #* pgcam #* grad_out[0]#result_grad * pgcam #result_grad * pos_grad_out #relu_output#result_grad * pgcam.gt(0)
+                result_grad = result_grad #* pos_grad_out#result_grad #* pos_grad_out
             else:
-                result_grad = result_grad  #*pos_grad_out
+                result_grad = result_grad #* pos_grad_out #*pos_grad_out
 
             return (result_grad, )
         else:
@@ -224,15 +224,16 @@ class PGradBackCAM():
             w = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(grad_in[0])
             #w = w.expand_as(grad_in[0])
             #raise Exception(1)
-            self.current_bn_index = self.current_bn_index - 1
-            self.bn_weight_r[self.current_bn_index] = module.weight
+            #self.current_bn_index = self.current_bn_index - 1
+            #self.bn_weight_r[self.current_bn_index] = module.weight
             return (a, grad_in[1], grad_in[2])
+
 
     def relu_forward_hook_fn(self, module, input, output):
         if self.reluhookIndex == 0:
             #print("before reset relu:{}".format(len(self.relu_input)))
             self.relu_output.clear()
-        self.relu_output.append(output[0])
+        self.relu_output.append(output)
         self.reluhookIndex = self.reluhookIndex + 1
         #print("forward:{}".format(len(self.relu_input)))
         if self.reluhookIndex % self.num_relu_layer == 0:
@@ -275,17 +276,18 @@ class PGradBackCAM():
         self.bn_weight_reserve_state = 0
 
 
-
+        #self.bn_weight_reserve_state = 1
         self.guidedBPstate = 1  # 是否开启guidedBP
         #"""
 
         self.current_conv_index = self.conv_num
+        self.conv_bn_weight_reserve = [1 for i in range(self.conv_num)]
         self.relu_index = len(self.relu_output)
         self.firstaddpgcam = 1
-        self.current_target_index = len(self.inter_output)
+        self.current_target_index = len(self.inter_output)-1
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
-                                              retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
+                                              retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
         self.inter_gradient = list(inter_gradients)
         #"""
         self.guidedBPstate = 0
@@ -354,6 +356,9 @@ class PGradBackCAM():
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
+
+        #gcam = inter_gradient.sum(dim=1, keepdims=True)
+
         return gcam
 
     """
@@ -462,6 +467,16 @@ class PGradBackCAM():
                     draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
                 else:
                     draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+
+            # 绘制一下overall_gcam
+            layer_name = "overall"
+            label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
+            visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
+            if gtmasks is not None:
+                draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+            else:
+                draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+
         return 0
 
 

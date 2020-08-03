@@ -16,13 +16,13 @@ class PGradCAM():
         self.num_target_layer = len(self.target_layer)
         self.inter_output = []
         self.inter_gradient = []
-        self.useGuidedBP = True#useGuidedBP
+        self.useGuidedBP = useGuidedBP
         self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
 
         self.hookIndex = 0
         self.setHook(model)
 
-        self.reservePos = False
+        self.reservePos = False#True#False
 
         self.draw_index = 0
 
@@ -82,8 +82,8 @@ class PGradCAM():
 
     def guided_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
-            if grad_in[0].ndimension() < 4:  #CJY 非卷积层内的relu应该怎么处理
-                return grad_in
+            #if grad_in[0].ndimension() < 4:  #CJY 非卷积层内的relu应该怎么处理
+            #    return grad_in
             pos_grad_out = grad_out[0].gt(0)
             result_grad = pos_grad_out * grad_in[0]
             return (result_grad,)

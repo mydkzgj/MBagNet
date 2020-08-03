@@ -26,6 +26,7 @@ from .visualizers.guided_grad_cam import *
 from .visualizers.pgrad_back_cam import *
 from .visualizers.visual_backpropagation import *
 from .visualizers.cjy import *
+from .visualizers.guided_deconv_pgrad_cam import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -148,21 +149,27 @@ class Baseline(nn.Module):
         # 4.visualizer
         # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
         # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
-        # "guided-grad-cam","pgrad-back-cam"
-        self.visualizer_name = "grad-cam"#"none"#"pgrad-cam"
-        self.target_layer = ["base.features.relu5"]
+        # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
+        self.visualizer_name = "guided-deconv-pgrad-cam"  #"guided-deconv-pgrad-cam" #"none" #"pgrad-cam"
+        #self.target_layer = ["base.features.relu5"]
         #self.target_layer = ["base.features.1", "base.features.11", "base.features.20", "base.features.29", ""]
         #self.target_layer = ["base.features.relu0","base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4", "base.features.relu5", ""]
         #self.target_layer = ["base.features."+str(i) for i in [1,3,6,20,29]]   #1,3,6,8,11,13,15,18,20,22,25,27,29
 
-        """
+
+        #"""
         self.target_layer = []
         for module_name, module in self.named_modules():
-            if isinstance(module, torch.nn.ReLU) and "segmenter" not in module_name and "classifier" not in module_name:
-                #self.target_layer[0]=module_name
-                self.target_layer.append(module_name)
-        #"""
+            if (isinstance(module, torch.nn.ReLU) ) and "segmenter" not in module_name and "classifier" not in module_name:
+                if "densenet" in self.base_name and "denseblock" not in module_name:
+                    self.target_layer.append(module_name)
+                elif "resnet" in self.base_name and "relu1" not in module_name and "relu2" not in module_name:
+                    self.target_layer.append(module_name)
+                elif "vgg" in self.base_name:
+                    self.target_layer.append(module_name)
         #self.target_layer.append("")
+        #"""
+
 
         self.visualizer = None
         self.visualization = None
@@ -325,6 +332,8 @@ class Baseline(nn.Module):
             self.in_planes = 512
         elif self.base_name == "vgg19":
             self.base = vgg19(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+        elif self.base_name == "vgg16_bn":
+            self.base = vgg16_bn(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
 
         # 2.ResNet
         elif self.base_name == 'resnet18':
@@ -434,6 +443,8 @@ class Baseline(nn.Module):
             self.visualizer = PGradBackCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy":
             self.visualizer = CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "guided-deconv-pgrad-cam":
+            self.visualizer = GuidedDeConvPGCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")

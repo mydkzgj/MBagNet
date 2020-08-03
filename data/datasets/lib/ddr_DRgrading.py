@@ -223,11 +223,16 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
         self.seg_train_dir = osp.join(self.dataset_segmentation_dir, 'train')
         self.seg_val_dir = osp.join(self.dataset_segmentation_dir, 'valid')
         self.seg_test_dir = osp.join(self.dataset_segmentation_dir, 'test')
-        self.seg_train = self._process_segmentation_dir(self.seg_train_dir)
-        self.seg_val = self._process_segmentation_dir(self.seg_val_dir)
-        self.seg_test = self._process_segmentation_dir(self.seg_test_dir)
+        self.seg_train, seg_train_statistics, seg_train_c2l, seg_train_l2c = self._process_segmentation_dir(self.seg_train_dir)
+        self.seg_val, seg_val_statistics, seg_val_c2l, seg_val_l2c = self._process_segmentation_dir(self.seg_val_dir)
+        self.seg_test, seg_test_statistics, seg_test_c2l, seg_test_l2c = self._process_segmentation_dir(self.seg_test_dir)
 
-        self.num_categories = 4  #有4个等级的DR
+        #self.num_categories = 4  #有4个等级的DR
+
+        self.num_categories = len(seg_train_c2l)
+
+        self.category = list(seg_train_c2l.keys())
+        self.category.sort()
 
         self._check_before_run()
 
@@ -280,37 +285,31 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
             else:
                 raise Exception("Lack Category!", i)
 
-
-        """
-        img_paths = glob.glob(osp.join(dir_path, '*.jpg'))   #注意此处只加了JPG
-        pattern = re.compile(r'([-\d]+)_c(\d)')
-
-        pid_container = set()
-        for img_path in img_paths:
-            pid, _ = map(int, pattern.search(img_path).groups())
-            if pid == -1: continue  # junk images are just ignored
-            pid_container.add(pid)
-        pid2label = {pid: label for label, pid in enumerate(pid_container)}
-
-        dataset = []
-        for img_path in img_paths:
-            pid, camid = map(int, pattern.search(img_path).groups())
-            if pid == -1: continue  # junk images are just ignored
-            assert 0 <= pid <= 1501  # pid == 0 means background
-            assert 1 <= camid <= 6
-            camid -= 1  # index starts from 0
-            if relabel: pid = pid2label[pid]
-            dataset.append((img_path, pid, camid))
-        """
         return dataset, statistics, category2label, label2category
 
     #CJY
     def _process_segmentation_dir(self, dir_path, relabel=False):
         f = open(dir_path + '.txt')
+        categorySet = set()
         labelRecord = {}
+        category2label = {}
+        label2category = {}
+        categoryNum = {}
         for line in f:
             img, label = line.split(" ")
             labelRecord[img] = int(label)
+            categorySet.add(labelRecord[img])
+            category2label[str(labelRecord[img])] = labelRecord[img]
+            label2category[labelRecord[img]] = str(labelRecord[img])
+
+            if categoryNum.get(labelRecord[img]) == None:
+                categoryNum[labelRecord[img]] = 1
+            else:
+                categoryNum[labelRecord[img]] = categoryNum[labelRecord[img]] + 1
+
+        statistics = []
+        for c in categorySet:
+            statistics.append((c, categoryNum[c]))
 
         dataset = []
         image_path = os.path.join(dir_path, "image")
@@ -329,4 +328,5 @@ class DDR_DRgrading_WeakSupervision(BaseImageDataset):   #用于弱监督
                     raise Exception("Not find mask!")
             if os.path.exists(imagefullpath)==True:
                 dataset.append((imagefullpath, labelfullpathList, labelRecord[imgfile]))
-        return dataset
+
+        return dataset, statistics, category2label, label2category

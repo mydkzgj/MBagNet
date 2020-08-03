@@ -99,7 +99,7 @@ class SegmentationDataset(Dataset):
         #上面让mask读入的为原图尺寸标签
         mask = self.MaxPool(mask)
 
-        # 随机剪切（不过像素级标签剪切平移是不是没什么用）
+        # 随机剪切（不过像素级标签剪切平移是不是没什么用）  CJY 2020.8.3 目前处于关闭状态，也就是说没有数据扩增
         #"""
         if self.pad_num > 0:
             mask = self.MaskPad(mask)
