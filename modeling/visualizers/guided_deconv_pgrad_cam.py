@@ -36,7 +36,7 @@ class GuidedDeConvPGCAM():
 
         self.firstCAM = 1
 
-        self.reservePos = False#True  #True
+        self.reservePos = True#True  #True
 
         self.setHook(model)
 
@@ -159,10 +159,10 @@ class GuidedDeConvPGCAM():
                 pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
                 result_grad = result_grad * grad_out[0].gt(0) #* pgcam.gt(0)
 
-                #pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
-                #result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
+                pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
+                result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
 
-                if False:#self.firstCAM == 1:
+                if 0:#self.firstCAM == 1:
                     self.firstCAM = 0
                     norm_pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
                     #pgcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1) * relu_output, dim=1, keepdim=True)
@@ -409,7 +409,7 @@ class GuidedDeConvPGCAM():
         for j in range(imgs.shape[0]):
             #"""
             for i, gcam in enumerate(self.gcam_list):
-                if i != len(self.gcam_list)-1: continue
+                #if i != len(self.gcam_list)-1: continue
                 layer_name = self.target_layer[i]
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
