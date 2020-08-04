@@ -171,15 +171,15 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #"""
             #imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
-            #oblabelList = [labels]
+            oblabelList = [labels]
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
-            oblabelList = [labels*0 + i for i in range(model.num_classes)]
+            #oblabelList = [labels*0 + i for i in range(model.num_classes)]
             #oblabelList = [labels*243, labels*250, labels*281, labels*333]
 
             # 将读取的数据名字记录下来
             for oblabels in oblabelList:
-                binary_threshold = 0.5#0.5
+                binary_threshold = 0.25#0.5
                 showFlag = 1
                 input_size = (imgs.shape[2], imgs.shape[3])
                 visual_num = imgs.shape[0]
@@ -207,6 +207,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                         prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(),
                                                    labels[imgs.shape[0] - visual_num:imgs.shape[0]].item(),
                                                    layer_name=model.visualizer.target_layer[i], th=binary_threshold)
+
+                    rv = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
+                    segmentations = rv  # .gt(binary_threshold)
+                    prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(), "all",
+                                               layer_name="overall", th=binary_threshold)
+                    prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(),
+                                               labels[imgs.shape[0] - visual_num:imgs.shape[0]].item(),
+                                               layer_name="overall", th=binary_threshold)
 
             return {"logits": logits.detach(), "labels": labels, }
 

@@ -563,7 +563,7 @@ def do_train(
                     "precision": Precision(output_transform=output_transform)}
 
     checkpointer = ModelCheckpoint(output_dir, cfg.MODEL.BACKBONE_NAME, checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch)
-    checkpointer_save_graph = ModelCheckpoint(output_dir, cfg.MODEL.BACKBONE_NAME+"_graph", checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch, save_as_state_dict=False)
+    checkpointer_save_graph = ModelCheckpoint(output_dir, cfg.MODEL.BACKBONE_NAME, checkpoint_period, n_saved=300, require_empty=False, start_step=-1)#, save_as_state_dict=False)
     timer = Timer(average=True)
 
     #3.将模块与engine联系起来attach

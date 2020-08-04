@@ -36,7 +36,7 @@ MODEL:
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear"
  CLA_NUM_CLASSES: 2
- SEGMENTER_NAME: "scnet"                        #fc_mbagnet
+ SEGMENTER_NAME: "none"                        #fc_mbagnet
  SEG_NUM_CLASSES: 5
 
  # For MBagNet
@@ -151,7 +151,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "./work_space/tongren/densenet121_model_5.pth"
+ WEIGHT: "./work_space/densenet121_model_0.pth"#tongren/densenet121_model_5.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

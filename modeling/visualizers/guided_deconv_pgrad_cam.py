@@ -337,9 +337,9 @@ class GuidedDeConvPGCAM():
             else:
                 overall_gcam = torch.nn.functional.interpolate(overall_gcam, (gcam.shape[2], gcam.shape[3]), mode='bilinear')
                 if self.reservePos == True:
-                    overall_gcam = (overall_gcam + gcam)#/2
+                    overall_gcam = (overall_gcam + gcam)/2
                 else:
-                    overall_gcam = (overall_gcam + (gcam-0.5))#/2
+                    overall_gcam = (overall_gcam + (gcam-0.5))/2
         if overall_gcam is not 0:
             overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
         else:
