@@ -38,6 +38,8 @@ class GuidedDeConvPGCAM():
 
         self.reservePos = True#True  #True
 
+        self.normFlag = True
+
         self.setHook(model)
 
     def setHook(self, model):
@@ -157,7 +159,7 @@ class GuidedDeConvPGCAM():
 
             if grad_out[0].ndimension() == 4:
                 pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
-                result_grad = result_grad * grad_out[0].gt(0) #* pgcam.gt(0)
+                result_grad = result_grad * grad_out[0].gt(0) * pgcam.gt(0)
 
                 pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
                 result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
@@ -180,7 +182,6 @@ class GuidedDeConvPGCAM():
         weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         output = (input[0] - mean) / var.sqrt() * weight + bias
-
 
     def bn_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBNstate == 0:
@@ -337,9 +338,9 @@ class GuidedDeConvPGCAM():
             else:
                 overall_gcam = torch.nn.functional.interpolate(overall_gcam, (gcam.shape[2], gcam.shape[3]), mode='bilinear')
                 if self.reservePos == True:
-                    overall_gcam = (overall_gcam + gcam)/2
+                    overall_gcam = (overall_gcam + gcam)#/2
                 else:
-                    overall_gcam = (overall_gcam + (gcam-0.5))/2
+                    overall_gcam = (overall_gcam + (gcam-0.5))#/2
         if overall_gcam is not 0:
             overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
         else:
@@ -378,17 +379,18 @@ class GuidedDeConvPGCAM():
             # gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
 
             # 4.Save in List
-            self.gcam_list.append(norm_gcam)  # 将不同模块的gcam保存到gcam_list中
+            self.gcam_list.append(gcam)  # 将不同模块的gcam保存到gcam_list中
             self.gcam_max_list.append(gcam_max.detach().mean().item() / 2) # CJY for pos_masked
+
 
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
-        if self.overall_gcam is not None:
-            if self.reservePos == True:
-                self.overall_gcam, _ = self.gcamNormalization(self.overall_gcam)
-            else:
-                self.overall_gcam, _ = self.gcamNormalization(self.overall_gcam - 0.5)
 
+        # Normalization
+        if self.normFlag == True:
+            for index in range(len(self.gcam_list)):
+                self.gcam_list[index], _ = self.gcamNormalization(self.gcam_list[index])
+            self.overall_gcam, _ = self.gcamNormalization(self.overall_gcam)
 
         # Clear Reservation
         #self.inter_output.clear()

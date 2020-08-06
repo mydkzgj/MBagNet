@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('ddr_DRgrading')
+  NAMES: ('none')
   SEG_NAMES: ("ddr_DRgrading_WeakSupervision")
   ROOT_DIR: ('./data')
 

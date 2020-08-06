@@ -150,7 +150,7 @@ class Baseline(nn.Module):
         # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
         # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
-        self.visualizer_name = "none"#"guided-deconv-pgrad-cam"#"guided-deconv-pgrad-cam"  #"guided-deconv-pgrad-cam" #"none" #"pgrad-cam"
+        self.visualizer_name = "guided-deconv-pgrad-cam"#"guided-deconv-pgrad-cam"  #"guided-deconv-pgrad-cam" #"none" #"pgrad-cam"
         #self.target_layer = ["base.features.relu5"]
         #self.target_layer = ["base.features.1", "base.features.11", "base.features.20", "base.features.29", ""]
         #self.target_layer = ["base.features.relu0","base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4", "base.features.relu5", ""]

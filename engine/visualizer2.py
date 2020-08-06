@@ -30,6 +30,8 @@ import utils.featrueVisualization as fv
 import random
 import copy
 
+import cv2 as cv
+
 """
 # pytorch 转换 one-hot 方式 scatter
 def activated_output_transform(output):
@@ -47,7 +49,8 @@ segmentationMetric = {}  # 用于保存TP,FP,TN,FN
 def convert_to_one_hot(y, C):
     return np.eye(C)[y.reshape(-1)]
 
-def prepareForComputeSegMetric(seg_map, seg_mask, label_name, layer_name, th=0.5):   # 适用于多标签
+# 计算逐像素的tp，tn等
+def prepareForComputeSegMetric(seg_map, seg_mask, label, layer_name, th=0.5):   # 适用于多标签
     if seg_map.shape[1] == 3:  #如果输入是3通道的visualization （如Guided Backpropagation），转为单通道
         seg_map = torch.mean((seg_map-0.5).abs()*2, dim=1, keepdim=True)
         seg_map = seg_map/seg_map.max()
@@ -62,22 +65,145 @@ def prepareForComputeSegMetric(seg_map, seg_mask, label_name, layer_name, th=0.5
     tn = ((~seg_pmask) & (~seg_mask)).sum(-1).sum(-1)
     fn = ((~seg_pmask) & seg_mask).sum(-1).sum(-1)
 
-    global segmentationMetric
-    if segmentationMetric.get(layer_name) == None:
-        segmentationMetric[layer_name] = {}
+    for i in range(seg_mask.shape[0]):
+        label_name = label[i].item()
+        global segmentationMetric
+        if segmentationMetric.get(layer_name) == None:
+            segmentationMetric[layer_name] = {}
 
-    if segmentationMetric[layer_name].get(th) == None:
-        segmentationMetric[layer_name][th] = {}
+        if segmentationMetric[layer_name].get(th) == None:
+            segmentationMetric[layer_name][th] = {}
 
-    if segmentationMetric[layer_name][th].get(label_name) == None:
-        segmentationMetric[layer_name][th][label_name] = {"TP":0, "FP":0, "TN":0, "FN":0}
+        if segmentationMetric[layer_name][th].get(label_name) == None:
+            segmentationMetric[layer_name][th][label_name] = {"TP": 0, "FP": 0, "TN": 0, "FN": 0}
 
-    segmentationMetric[layer_name][th][label_name]["TP"] = segmentationMetric[layer_name][th][label_name]["TP"] + tp
-    segmentationMetric[layer_name][th][label_name]["FP"] = segmentationMetric[layer_name][th][label_name]["FP"] + fp
-    segmentationMetric[layer_name][th][label_name]["TN"] = segmentationMetric[layer_name][th][label_name]["TN"] + tn
-    segmentationMetric[layer_name][th][label_name]["FN"] = segmentationMetric[layer_name][th][label_name]["FN"] + fn
+        segmentationMetric[layer_name][th][label_name]["TP"] = segmentationMetric[layer_name][th][label_name]["TP"] + tp[i]
+        segmentationMetric[layer_name][th][label_name]["FP"] = segmentationMetric[layer_name][th][label_name]["FP"] + fp[i]
+        segmentationMetric[layer_name][th][label_name]["TN"] = segmentationMetric[layer_name][th][label_name]["TN"] + tn[i]
+        segmentationMetric[layer_name][th][label_name]["FN"] = segmentationMetric[layer_name][th][label_name]["FN"] + fn[i]
 
     return tp, fp, tn, fn
+
+
+def fillHoles(seedImg, Mask):
+    # 输入是numpy格式
+    seedImg = seedImg * Mask
+    #cv.imshow("1", seedImg[:, :, -1]*255)
+
+    kernel = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
+    while 1:
+        dilated = cv.dilate(seedImg, kernel)  # 膨胀图像
+        outputImg = dilated & Mask
+        if (seedImg == outputImg).all():
+            break
+        else:
+            seedImg = outputImg
+
+    #cv.imshow("2", outputImg[:, :, -1]*255)
+    #cv.imshow("3", Mask[:, :, -1] * 255)
+    #cv.imshow("4", Mask[:, :, -1]*(1-outputImg[:, :, -1]) * 255)
+    #cv.waitKey(0)
+    return outputImg
+
+# 计算逐病灶的tp，tn等（击中）
+def prepareForComputeSegMetric2(seg_map, seg_mask, label, layer_name, th=0.5):   # 适用于多标签
+    if seg_map.shape[1] == 3:  #如果输入是3通道的visualization （如Guided Backpropagation），转为单通道
+        seg_map = torch.mean((seg_map-0.5).abs()*2, dim=1, keepdim=True)
+        seg_map = seg_map/seg_map.max()
+
+    seg_pmask = torch.gt(seg_map, th)
+    if seg_pmask.shape[1] == 1:
+        seg_pmask = seg_pmask.expand_as(seg_mask)
+    seg_mask = seg_mask.bool()
+
+    # 计算object-level 和 pixel-level metrics
+    hit = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+    miss = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+    wrong = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+    prediction = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+    groundtruth = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+
+    pixel_tp = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+    pixel_fp = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+    pixel_tn = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+    pixel_fn = np.zeros((seg_mask.shape[0], seg_mask.shape[1]), dtype=np.int64)
+
+    for i in range(seg_mask.shape[0]):  #numpy (w, h, channel)
+        # 1.计算object-level的参数   hit + wrong =？ predict   hit + miss = groundthruth
+        # 注：hit + wrong 不一定等于predict，但后面还是以hit+wrong做分母
+        pt_mask = seg_pmask[i].permute(1, 2, 0).numpy().astype(np.uint8)
+        gt_mask = seg_mask[i].permute(1, 2, 0).numpy().astype(np.uint8)
+        hit_mask = fillHoles(pt_mask, gt_mask)     #保留的是二者相交的gt那部分
+        miss_mask = gt_mask - hit_mask
+        right_mask = fillHoles(gt_mask, pt_mask)   #保留的是二者相交的pt那部分
+        wrong_mask = pt_mask - right_mask
+
+        """
+        cv.imshow("1", pt_mask[:, :, -1] * 255)
+        cv.imshow("2", gt_mask[:, :, -1] * 255)
+        cv.imshow("3", hit_mask[:, :, -1] * 255)
+        cv.imshow("4", miss_mask[:, :, -1] * 255)
+        cv.imshow("5", right_mask[:, :, -1] * 255)
+        cv.imshow("6", wrong_mask[:, :, -1] * 255)
+        cv.waitKey(0)
+        #"""
+
+
+        for j in range(seg_mask.shape[1]):
+            #pt_retval, pt_labels, pt_stats, pt_centroids = cv.connectedComponentsWithStats(pt_mask[:, :, j], connectivity=8, ltype=cv.CV_32S)
+            #prediction[i][j] = pt_retval - 1
+            #gt_retval, gt_labels, gt_stats, gt_centroids = cv.connectedComponentsWithStats(gt_mask[:, :, j], connectivity=8, ltype=cv.CV_32S)
+            #groundtruth[i][j] = gt_retval - 1
+            hit_retval, hit_labels, hit_stats, hit_centroids = cv.connectedComponentsWithStats(hit_mask[:, :, j], connectivity=8, ltype=cv.CV_32S)
+            hit[i][j] = hit_retval-1
+            miss_retval, miss_labels, miss_stats, miss_centroids = cv.connectedComponentsWithStats(miss_mask[:, :, j], connectivity=8, ltype=cv.CV_32S)
+            miss[i][j] = miss_retval - 1
+            wrong_retval, wrong_labels, wrong_stats, wrong_centroids = cv.connectedComponentsWithStats(wrong_mask[:, :, j], connectivity=8, ltype=cv.CV_32S)
+            wrong[i][j] = wrong_retval - 1
+
+        # 2.计算pixel-level的参数   考虑相交的 right_mask(pt) 和 hit_mask(gt)
+        pixel_tp[i] = (right_mask * hit_mask).sum(axis=(0,1))
+        pixel_fp[i] = (right_mask * (1-hit_mask)).sum(axis=(0,1))
+        pixel_tn[i] = ((1-right_mask) * (1-hit_mask)).sum(axis=(0,1))
+        pixel_fn[i] = ((1-right_mask) & hit_mask).sum(axis=(0,1))
+
+    # 按图片计算metric
+    hit = torch.Tensor(hit)
+    miss = torch.Tensor(miss)
+    wrong = torch.Tensor(wrong)
+
+    object_precision = hit/(hit+wrong).clamp(min=1E-12)
+    object_recall = hit/(hit+miss).clamp(min=1E-12)
+
+    pixel_tp = torch.Tensor(pixel_tp)
+    pixel_fp = torch.Tensor(pixel_fp)
+    pixel_tn = torch.Tensor(pixel_tn)
+    pixel_fn = torch.Tensor(pixel_fn)
+
+    # 记录在全局变量中
+    for i in range(seg_mask.shape[0]):
+        label_name = label[i].item()
+
+        global segmentationMetric
+        if segmentationMetric.get(layer_name) == None:
+            segmentationMetric[layer_name] = {}
+
+        if segmentationMetric[layer_name].get(th) == None:
+            segmentationMetric[layer_name][th] = {}
+
+        if segmentationMetric[layer_name][th].get(label_name) == None:
+            segmentationMetric[layer_name][th][label_name] = {"HIT":0, "MISS":0, "WRONG":0, "TP": 0, "FP": 0, "TN": 0, "FN": 0}
+
+        segmentationMetric[layer_name][th][label_name]["HIT"] = segmentationMetric[layer_name][th][label_name]["HIT"] + hit[i]
+        segmentationMetric[layer_name][th][label_name]["MISS"] = segmentationMetric[layer_name][th][label_name]["MISS"] + miss[i]
+        segmentationMetric[layer_name][th][label_name]["WRONG"] = segmentationMetric[layer_name][th][label_name]["WRONG"] + wrong[i]
+        segmentationMetric[layer_name][th][label_name]["TP"] = segmentationMetric[layer_name][th][label_name]["TP"] + pixel_tp[i]
+        segmentationMetric[layer_name][th][label_name]["FP"] = segmentationMetric[layer_name][th][label_name]["FP"] + pixel_fp[i]
+        segmentationMetric[layer_name][th][label_name]["TN"] = segmentationMetric[layer_name][th][label_name]["TN"] + pixel_tn[i]
+        segmentationMetric[layer_name][th][label_name]["FN"] = segmentationMetric[layer_name][th][label_name]["FN"] + pixel_fn[i]
+
+    return 0
+
 
 """
 # 用于统计分割样本集中 病变等级与病灶之间的相关性
@@ -202,18 +328,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                     for i, v in enumerate(gcam_list):
                         rv = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
                         segmentations = rv  # .gt(binary_threshold)
-                        prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(), "all",
-                                                   layer_name=model.visualizer.target_layer[i], th=binary_threshold)
-                        prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(),
-                                                   labels[imgs.shape[0] - visual_num:imgs.shape[0]].item(),
+                        prepareForComputeSegMetric2(segmentations.cpu(), gtmasks.cpu(),
+                                                   labels[imgs.shape[0] - visual_num:imgs.shape[0]],
                                                    layer_name=model.visualizer.target_layer[i], th=binary_threshold)
 
                     rv = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
                     segmentations = rv  # .gt(binary_threshold)
-                    prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(), "all",
-                                               layer_name="overall", th=binary_threshold)
-                    prepareForComputeSegMetric(segmentations.cpu(), gtmasks.cpu(),
-                                               labels[imgs.shape[0] - visual_num:imgs.shape[0]].item(),
+                    prepareForComputeSegMetric2(segmentations.cpu(), gtmasks.cpu(),
+                                               labels[imgs.shape[0] - visual_num:imgs.shape[0]],
                                                layer_name="overall", th=binary_threshold)
 
             return {"logits": logits.detach(), "labels": labels, }
@@ -322,49 +444,71 @@ def do_visualization(
         DF = pd.DataFrame(
             columns = ["Visulization Method", "Observation Module", "Threshold", "Metric", "Dataset", "MA", "EX", "SE", "HE", "Mean", "Binary", "Complementary"])  #11
 
+        seg_class = 4  # others
+
         global segmentationMetric
         for layer_key in segmentationMetric.keys():
             for th_key in segmentationMetric[layer_key].keys():
                 for label_key in segmentationMetric[layer_key][th_key].keys():
+                    HIT = segmentationMetric[layer_key][th_key][label_key]["HIT"]
+                    MISS = segmentationMetric[layer_key][th_key][label_key]["MISS"]
+                    WRONG = segmentationMetric[layer_key][th_key][label_key]["WRONG"]
+
+                    Object_Precision = HIT / (HIT + WRONG + 1E-12)
+                    Object_Binary_Pre = "{:.3f}".format(Object_Precision[-1].item())
+                    Object_Others_Pre = "{:.3f}".format(Object_Precision[-2].item())
+                    Object_Precision = Object_Precision[0:seg_class]
+                    Object_Pre = ["{:.3f}".format(Object_Precision[i].item()) for i in range(seg_class)]
+                    Object_Pre_mean = "{:.3f}".format(torch.mean(Object_Precision).item())
+
+                    Object_Recall = HIT / (HIT + MISS + 1E-12)
+                    Object_Binary_Rec = "{:.3f}".format(Object_Recall[-1].item())
+                    Object_Others_Rec = "{:.3f}".format(Object_Recall[-2].item())
+                    Object_Recall = Object_Recall[0:seg_class]
+                    Object_Rec = ["{:.3f}".format(Object_Recall[i].item()) for i in range(seg_class)]
+                    Object_Rec_mean = "{:.3f}".format(torch.mean(Object_Recall).item())
+
+
                     TP = segmentationMetric[layer_key][th_key][label_key]["TP"]
                     FP = segmentationMetric[layer_key][th_key][label_key]["FP"]
                     TN = segmentationMetric[layer_key][th_key][label_key]["TN"]
                     FN = segmentationMetric[layer_key][th_key][label_key]["FN"]
-                    seg_class = 4 #others
+
+
                     # CJY at 2020.3.1  add seg IOU 等metrics
                     Accuracy = (TP + TN) / (TP + FP + TN + FN + 1E-12)
-                    Binary_Acc = "{:.3f}".format(Accuracy[:, -1].mean().item())
-                    Others_Acc = "{:.3f}".format(Accuracy[:, -2].mean().item())
-                    Accuracy = Accuracy[:, 0:seg_class]
-                    Acc = ["{:.3f}".format(Accuracy[0][i].item()) for i in range(seg_class)]
-                    Acc_mean = torch.mean(Accuracy).item()
+                    Binary_Acc = "{:.3f}".format(Accuracy[-1].item())
+                    Others_Acc = "{:.3f}".format(Accuracy[-2].item())
+                    Accuracy = Accuracy[0:seg_class]
+                    Acc = ["{:.3f}".format(Accuracy[i].item()) for i in range(seg_class)]
+                    Acc_mean = "{:.3f}".format(torch.mean(Accuracy).item())
 
                     Precision = TP / (TP + FP + 1E-12)
-                    Binary_Pre = "{:.3f}".format(Precision[:, -1].mean().item())
-                    Others_Pre = "{:.3f}".format(Precision[:, -2].mean().item())
-                    Precision = Precision[:, 0:seg_class]
-                    Pre = ["{:.3f}".format(Precision[0][i].item()) for i in range(seg_class)]
-                    Pre_mean = torch.mean(Precision).item()
+                    Binary_Pre = "{:.3f}".format(Precision[-1].item())
+                    Others_Pre = "{:.3f}".format(Precision[-2].item())
+                    Precision = Precision[0:seg_class]
+                    Pre = ["{:.3f}".format(Precision[i].item()) for i in range(seg_class)]
+                    Pre_mean = "{:.3f}".format(torch.mean(Precision).item())
 
                     Recall = TP / (TP + FN + 1E-12)
-                    Binary_Rec = "{:.3f}".format(Recall[:, -1].mean().item())
-                    Others_Rec = "{:.3f}".format(Recall[:, -2].mean().item())
-                    Recall = Recall[:, 0:seg_class]
-                    Rec = ["{:.3f}".format(Recall[0][i].item()) for i in range(seg_class)]
-                    Rec_mean = torch.mean(Recall).item()
+                    Binary_Rec = "{:.3f}".format(Recall[-1].item())
+                    Others_Rec = "{:.3f}".format(Recall[-2].item())
+                    Recall = Recall[0:seg_class]
+                    Rec = ["{:.3f}".format(Recall[i].item()) for i in range(seg_class)]
+                    Rec_mean = "{:.3f}".format(torch.mean(Recall).item())
 
                     IOU = TP / (TP + FP + FN + 1E-12)
-                    Binary_IOU = "{:.3f}".format(IOU[:, -1].mean().item())
-                    Others_IOU = "{:.3f}".format(IOU[:, -2].mean().item())
-                    IOU = IOU[:, 0:seg_class]
-                    IU = ["{:.3f}".format(IOU[0][i].item()) for i in range(seg_class)]
-                    IU_mean = torch.mean(IOU).item()
+                    Binary_IOU = "{:.3f}".format(IOU[-1].item())
+                    Others_IOU = "{:.3f}".format(IOU[-2].item())
+                    IOU = IOU[0:seg_class]
+                    IU = ["{:.3f}".format(IOU[i].item()) for i in range(seg_class)]
+                    IU_mean = "{:.3f}".format(torch.mean(IOU).item())
 
                     logger.info("Segmentation Metrics-layer-{}-th-{}-label-{}".format(layer_key, th_key, label_key))
-                    #logger.info("TP       : {}".format(TP.cpu().numpy().tolist()))
-                    #logger.info("FP       : {}".format(FP.cpu().numpy().tolist()))
-                    #logger.info("TN       : {}".format(TN.cpu().numpy().tolist()))
-                    #logger.info("FN       : {}".format(FN.cpu().numpy().tolist()))
+                    logger.info(
+                        "O_Pre    : {}, mean: {}, binary: {}, complementary: {}".format(Object_Pre, Object_Pre_mean, Object_Binary_Pre, Object_Others_Pre))
+                    logger.info(
+                        "O_Rec    : {}, mean: {}, binary: {}, complementary: {}".format(Object_Rec, Object_Rec_mean, Object_Binary_Rec, Object_Others_Rec))
                     logger.info(
                         "Accuracy : {}, mean: {}, binary: {}, complementary: {}".format(Acc, Acc_mean, Binary_Acc, Others_Acc))
                     logger.info(
@@ -375,6 +519,11 @@ def do_visualization(
                         "IOU      : {}, mean: {}, binary: {}, complementary: {}".format(IU, IU_mean, Binary_IOU, Others_IOU))
 
                     #["visulization_method", "observation_module", "threshold", "metric", "dataset", "MA", "EX", "SE", "HE", "Others", "Mean", "Binary"])
+                    DF_Object_Pre = pd.DataFrame([[model.visualizer_name, layer_key, th_key, "Object_Precision", label_key, Object_Pre[0], Object_Pre[1], Object_Pre[2], Object_Pre[3], Object_Pre_mean, Object_Binary_Pre, Object_Others_Pre]],
+                                          columns=["Visulization Method", "Observation Module", "Threshold", "Metric", "Dataset", "MA", "EX", "SE", "HE", "Mean", "Binary", "Complementary"])
+                    DF_Object_Rec = pd.DataFrame([[model.visualizer_name, layer_key, th_key, "Object_Recall", label_key, Object_Rec[0], Object_Rec[1], Object_Rec[2], Object_Rec[3], Object_Rec_mean, Object_Binary_Rec, Object_Others_Rec]],
+                                          columns=["Visulization Method", "Observation Module", "Threshold", "Metric", "Dataset", "MA", "EX", "SE", "HE", "Mean", "Binary", "Complementary"])
+
                     DF_Acc = pd.DataFrame([[model.visualizer_name, layer_key, th_key, "Accuracy", label_key, Acc[0], Acc[1], Acc[2], Acc[3], Acc_mean, Binary_Acc, Others_Acc]],
                                           columns = ["Visulization Method", "Observation Module", "Threshold", "Metric", "Dataset", "MA", "EX", "SE", "HE", "Mean", "Binary", "Complementary"])
                     DF_Pre = pd.DataFrame([[model.visualizer_name, layer_key, th_key, "Precision", label_key, Pre[0], Pre[1], Pre[2], Pre[3], Pre_mean, Binary_Pre, Others_Pre]],
@@ -384,7 +533,7 @@ def do_visualization(
                     DF_IOU = pd.DataFrame([[model.visualizer_name, layer_key, th_key, "IOU", label_key, IU[0], IU[1], IU[2], IU[3], IU_mean, Binary_IOU, Others_IOU]],
                                           columns = ["Visulization Method", "Observation Module", "Threshold", "Metric", "Dataset", "MA", "EX", "SE", "HE", "Mean", "Binary", "Complementary"])
 
-                    DF = pd.concat([DF, DF_Acc, DF_Pre, DF_Rec, DF_IOU], ignore_index=True)
+                    DF = pd.concat([DF, DF_Object_Pre, DF_Object_Rec, DF_Acc, DF_Pre, DF_Rec, DF_IOU], ignore_index=True)
 
 
 
