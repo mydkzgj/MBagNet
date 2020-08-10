@@ -107,6 +107,18 @@ def do_inference(
                     "recall": Recall(output_transform=lambda x: (x["logits"], x["labels"])),
                     "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], x["labels"])),
                     }
+    if model.classifier_output_type == "multi-label":
+        #此处用了转置的话，如果batch_size为1，会出现报错（因为num_class>1 if multi-label）所以串联为为2倍。  Failed
+        #此处average都选择True， 否则将会将所有sample串联记录下来。 但是在trainer中由于用了RunningAverage，所以不用average=False
+        metrics_eval = {"overall_accuracy": Accuracy(output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
+                        #"precision": Precision(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
+                        #"recall": Recall(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
+                        "precision": Precision(average=True, output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
+                        "recall": Recall(average=True, output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
+                        "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["labels"], dim=1)[1])),
+                        }
+
+
     evaluator = create_supervised_evaluator(model, metrics=metrics_eval, loss_fn=loss_fn, device=device)
 
     y_pred = []
@@ -123,23 +135,29 @@ def do_inference(
 
     @evaluator.on(Events.EPOCH_COMPLETED)
     def log_inference_results(engine):
-        precision = engine.state.metrics['precision'].numpy().tolist()
         precision_dict = {}
-        avg_precision = 0
-        for index, ap in enumerate(precision):
-            avg_precision = avg_precision + ap
-            precision_dict[index] = float("{:.3f}".format(ap))
-        avg_precision = avg_precision / len(precision)
-        precision_dict["avg_precision"] = float("{:.3f}".format(avg_precision))
+        if isinstance(engine.state.metrics['precision'], torch.Tensor):
+            precision = engine.state.metrics['precision'].numpy().tolist()
+            avg_precision = 0
+            for index, ap in enumerate(precision):
+                avg_precision = avg_precision + ap
+                precision_dict[index] = float("{:.3f}".format(ap))
+            avg_precision = avg_precision / len(precision)
+            precision_dict["avg_precision"] = float("{:.3f}".format(avg_precision))
+        else:
+            precision_dict["avg_precision"] = float("{:.3f}".format(engine.state.metrics['precision']))
 
-        recall = engine.state.metrics['recall'].numpy().tolist()
         recall_dict = {}
-        avg_recall = 0
-        for index, ar in enumerate(recall):
-            avg_recall = avg_recall + ar
-            recall_dict[index] = float("{:.3f}".format(ar))
-        avg_recall = avg_recall / len(recall)
-        recall_dict["avg_recall"] = float("{:.3f}".format(avg_recall))
+        if isinstance(engine.state.metrics['recall'], torch.Tensor):
+            recall = engine.state.metrics['recall'].numpy().tolist()
+            avg_recall = 0
+            for index, ar in enumerate(recall):
+                avg_recall = avg_recall + ar
+                recall_dict[index] = float("{:.3f}".format(ar))
+            avg_recall = avg_recall / len(recall)
+            recall_dict["avg_recall"] = float("{:.3f}".format(avg_recall))
+        else:
+            recall_dict["avg_recall"] = float("{:.3f}".format(engine.state.metrics['recall']))
 
         confusion_matrix = engine.state.metrics['confusion_matrix'].numpy()
 

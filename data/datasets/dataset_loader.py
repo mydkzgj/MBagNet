@@ -58,14 +58,18 @@ class ImageDataset(Dataset):
 class SegmentationDataset(Dataset):
 
     # 创建LiverDataset类的实例时，就是在调用init初始化
-    def __init__(self, dataset, transform=None, target_transform=None, cfg=None):  # root表示图片路径
+    def __init__(self, dataset, transform=None, target_transform=None, cfg=None, is_train=False):  # root表示图片路径
         self.dataset = dataset
         self.transform = transform
         self.target_transform = target_transform
+        self.is_train = is_train
 
         self.ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
         self.padding = cfg.DATA.TRANSFORM.PADDING   #不引入padding和crop
-        self.pad_num = 0 #self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
+        if self.is_train == True:
+            self.pad_num = self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
+        else:
+            self.pad_num = 0 #self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
         self.resizeH = cfg.DATA.TRANSFORM.SIZE[0]
         self.resizeW = cfg.DATA.TRANSFORM.SIZE[1]
         self.mask_resizeH = self.resizeH // self.ratio

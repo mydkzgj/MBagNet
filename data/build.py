@@ -191,7 +191,7 @@ def make_seg_data_loader(cfg, for_train):
     # train set
     # 是否要进行label-smoothing
     # train_set = ImageDataset(dataset.train, train_transforms)
-    train_set = SegmentationDataset(dataset.seg_train, train_transforms, train_mask_transforms, cfg)
+    train_set = SegmentationDataset(dataset.seg_train, train_transforms, train_mask_transforms, cfg, is_train=for_train)
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.MASK_PER_BATCH, num_workers=num_workers, #shuffle=True,
         # CJY  为了保证类别均衡
@@ -201,7 +201,7 @@ def make_seg_data_loader(cfg, for_train):
 
     # val set
     # val_set = ImageDataset(dataset.val, val_transforms)
-    val_set = SegmentationDataset(dataset.seg_val, val_transforms, val_mask_transforms, cfg)
+    val_set = SegmentationDataset(dataset.seg_val, val_transforms, val_mask_transforms, cfg, is_train=False)
     val_loader = DataLoader(
         val_set, batch_size=cfg.VAL.DATALOADER.MASK_PER_BATCH, shuffle=False, num_workers=num_workers,
         collate_fn=collate_fn_seg
@@ -209,7 +209,7 @@ def make_seg_data_loader(cfg, for_train):
 
     # test_set
     # test_set = ImageDataset(dataset.test, test_transforms)
-    test_set = SegmentationDataset(dataset.seg_test, test_transforms, test_mask_transforms, cfg)
+    test_set = SegmentationDataset(dataset.seg_test, test_transforms, test_mask_transforms, cfg, is_train=False)
     test_loader = DataLoader(
         test_set, batch_size=cfg.TEST.DATALOADER.MASK_PER_BATCH, shuffle=False, num_workers=num_workers,
         collate_fn=collate_fn_seg

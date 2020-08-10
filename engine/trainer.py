@@ -495,9 +495,10 @@ def do_train(
                      }
     # CJY at 2020.8.10 多标签有改动
     if model.classifier_output_type == "multi-label":
+        # 在trainer中由于用了RunningAverage，所以用average=True, 原本会把batch输出，class-average。此处将其转置即可得到batch-average
         metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
                          "avg_precision": RunningAverage(Precision(average=False, output_transform=lambda x: (x["scores"].sigmoid().round().transpose(1,0), x["labels"].transpose(1,0)), is_multilabel=True)),
-                         "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"].sigmoid().round().transpose(1,0), x["labels"].transpose(1,0)), is_multilabel=True)), # 由于训练集样本均衡后远离原始样本集，故只采用平均metric
+                         "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"].sigmoid().round(), x["labels"]), is_multilabel=True)), # 由于训练集样本均衡后远离原始样本集，故只采用平均metric
                          }
 
     lossKeys = cfg.LOSS.TYPE.split(" ")
@@ -594,6 +595,8 @@ def do_train(
         logger.info("Model:{}".format(model.count_param()))
         inputshape = (3, cfg.DATA.TRANSFORM.SIZE[0], cfg.DATA.TRANSFORM.SIZE[1])
         logger.info("Model:{}".format(model.count_param2(input_shape=inputshape)))
+
+        #metrics = do_inference(cfg, model, val_loader, classes_list, loss_fn, plotFlag=False)  # 不进行绘制
 
 
     @trainer.on(Events.EPOCH_COMPLETED) #_STARTED)   #注意，在pytorch1.2里面 scheduler.steo()应该放到 optimizer.step()之后

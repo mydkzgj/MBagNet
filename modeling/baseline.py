@@ -159,7 +159,6 @@ class Baseline(nn.Module):
         #self.target_layer = ["base.features.relu0","base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4", "base.features.relu5", ""]
         #self.target_layer = ["base.features."+str(i) for i in [1,3,6,20,29]]   #1,3,6,8,11,13,15,18,20,22,25,27,29
 
-
         """
         self.target_layer = []
         for module_name, module in self.named_modules():
