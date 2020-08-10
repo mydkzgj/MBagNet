@@ -26,8 +26,8 @@ _C.DATA = CN()
 # -----------------------------------------------------------------------------
 _C.DATA.DATASETS = CN()
 # List of the dataset names for training, as present in paths_catalog.py
-_C.DATA.DATASETS.NAMES = ('ddr_DRgrading')
-_C.DATA.DATASETS.SEG_NAMES = ("ddr_DRgrading_WeakSupervision")
+_C.DATA.DATASETS.NAMES = ('ddr_dr_grading')
+_C.DATA.DATASETS.SEG_NAMES = ("ddr_lesion_segmentation_regroup")
 # Root directory where datasets should be used (and downloaded if not found)
 _C.DATA.DATASETS.ROOT_DIR = ('./data')
 # -----------------------------------------------------------------------------
@@ -79,6 +79,8 @@ _C.MODEL.BACKBONE_NAME = 'densenet121'
 _C.MODEL.BASE_CLASSIFIER_COMBINE_TYPE = "f-c"
 # Name of classifier      "linear","hierarchy_linear","none"
 _C.MODEL.CLASSIFIER_NAME = "linear"
+# output type of classifier   "single-label"-softmax or sigmoid   "multi-label"-only sigmoid
+_C.MODEL.CLASSIFIER_OUTPUT_TYPE = "single-label"  #"multi-label"
 # classification classes
 _C.MODEL.CLA_NUM_CLASSES = 1000
 # Name of Segmenter

@@ -183,9 +183,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 and imgs is not None else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 and labels is not None else labels
         # 将label转为one - hot
-        one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-        one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 and one_hot_labels is not None else one_hot_labels
-
+        if len(labels.shape) == 1:   #如果本身是标量标签，那么可以通过下式处理为one-hot标签
+            one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
+            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 and one_hot_labels is not None else one_hot_labels
+        else: #否则不变
+            one_hot_labels = labels
 
         # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:
@@ -222,14 +224,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             seg_gtmasks = None
 
         # Branch 2 Grad-CAM
-        if model.gcamState == True:
-            if model.visualizer != None:
-                #savePath = r"D:\MIP\Experiment\1"
-                gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, visual_num=gcamBatchDistribution[1])
-                model.visualizer.DrawVisualization(imgs[imgs.shape[0]-gcamBatchDistribution[1]:imgs.shape[0]], seg_gt_masks, savePath)
-                #gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
-                model.visualization = overall_gcam
-
+        if model.gcamState == True and model.visualizer != None:
+            input_size = (imgs.shape[2], imgs.shape[3])
+            gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, input_size, visual_num=gcamBatchDistribution[1])
+            # model.visualizer.DrawVisualization(imgs[imgs.shape[0]-gcamBatchDistribution[1]:imgs.shape[0]], seg_gt_masks, savePath=r"D:\MIP\Experiment\1", imgsName=["1"])
+            # gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
+            model.visualization = overall_gcam
 
             if model.gcamSupervisedType == "seg_gtmask":
                 gcam_gtmasks = seg_gt_masks
@@ -317,7 +317,11 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                                                 gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels,
                                                 origin_logit=om_logits, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits,
                                                 show=forShow)    #损失词典
-        weight = {"cross_entropy_loss":1, "seg_mask_loss":1, "gcam_mask_loss":1, "pos_masked_img_loss":1, "neg_masked_img_loss":1, "for_show_loss":0}
+        weight = {"cross_entropy_loss":1, "multilabel_binary_cross_entropy_loss":1,
+                  "seg_mask_loss":1,
+                  "gcam_mask_loss":1,
+                  "pos_masked_img_loss":1, "neg_masked_img_loss":1,
+                   "for_show_loss":0}
         var_exists = 'gcam_max_list' in locals() or 'gcam_max_list' in globals()
         if var_exists == True:
             gl_weight = gcam_max_list
@@ -484,13 +488,17 @@ def do_train(
     except Exception as e:
         print("Failed to save model graph: {}".format(e))
 
-
-
     # 设置训练相关的metrics
     metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
                      "avg_precision": RunningAverage(Precision(output_transform=lambda x: (x["scores"], x["labels"]))),
                      "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"], x["labels"]))),  #由于训练集样本均衡后远离原始样本集，故只采用平均metric
                      }
+    # CJY at 2020.8.10 多标签有改动
+    if model.classifier_output_type == "multi-label":
+        metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
+                         "avg_precision": RunningAverage(Precision(average=False, output_transform=lambda x: (x["scores"].sigmoid().round().transpose(1,0), x["labels"].transpose(1,0)), is_multilabel=True)),
+                         "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"].sigmoid().round().transpose(1,0), x["labels"].transpose(1,0)), is_multilabel=True)), # 由于训练集样本均衡后远离原始样本集，故只采用平均metric
+                         }
 
     lossKeys = cfg.LOSS.TYPE.split(" ")
     # 设置loss相关的metrics
@@ -525,9 +533,9 @@ def do_train(
         elif lossName == "margin_loss":
             metrics_train["AVG-" + "margin_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["margin_loss"])
-        elif lossName == "cross_entropy_multilabel_loss":
-            metrics_train["AVG-" + "cross_entropy_multilabel_loss"] = RunningAverage(
-                output_transform=lambda x: x["losses"]["cross_entropy_multilabel_loss"])
+        elif lossName == "multilabel_binary_cross_entropy_loss":
+            metrics_train["AVG-" + "multilabel_binary_cross_entropy_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["multilabel_binary_cross_entropy_loss"])
         elif lossName == "seg_mask_loss":
             metrics_train["AVG-" + "seg_mask_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["seg_mask_loss"])
@@ -568,14 +576,9 @@ def do_train(
 
     #3.将模块与engine联系起来attach
     #CJY at 2019.9.23
-    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'model': model,
-                                                                     'optimizer': optimizers[0]})
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'model': model, 'optimizer': optimizers[0]})
 
-    #trainer.add_event_handler(Events.STARTED, checkpointer, {'model': model,
-    #                                                                 'optimizer': optimizers[0]})
-    trainer.add_event_handler(Events.STARTED, checkpointer_save_graph, {'model': model,
-                                                                     'optimizer': optimizers[0]})
-    #torch.save(model, output_dir + "/" + cfg.MODEL.BACKBONE_NAME+"_graph.pkl")
+    #trainer.add_event_handler(Events.STARTED, checkpointer_save_graph, {'model': model, 'optimizer': optimizers[0]})
 
     timer.attach(trainer, start=Events.EPOCH_STARTED, resume=Events.ITERATION_STARTED,
                  pause=Events.ITERATION_COMPLETED, step=Events.ITERATION_COMPLETED)

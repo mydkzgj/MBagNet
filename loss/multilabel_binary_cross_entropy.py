@@ -3,7 +3,7 @@
 import torch
 from torch import nn
 
-class CrossEntropyMultiLabel(nn.Module):
+class MultilabelBinaryCrossEntropy(nn.Module):
     """Cross entropy loss with label smoothing regularizer.
 
     Reference:
@@ -15,11 +15,8 @@ class CrossEntropyMultiLabel(nn.Module):
         epsilon (float): weight.
     """
     def __init__(self):
-        super(CrossEntropyMultiLabel, self).__init__()
-        #self.num_classes = num_classes
-        #self.logsoftmax = nn.LogSoftmax(dim=1)
+        super(MultilabelBinaryCrossEntropy, self).__init__()
         self.BCEL = torch.nn.BCEWithLogitsLoss()
-
 
     def forward(self, inputs, targets):
         """
@@ -35,6 +32,7 @@ class CrossEntropyMultiLabel(nn.Module):
 
         #loss = (- targets * log_probs).mean(0).sum()
 
+        targets = targets.float()
         loss = self.BCEL(inputs, targets)
 
         return loss

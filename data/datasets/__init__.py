@@ -11,7 +11,7 @@ from data.datasets.lib.dukemtmcreid import DukeMTMCreID
 from data.datasets.lib.market1501 import Market1501
 from data.datasets.lib.msmt17 import MSMT17
 #from data.datasets.lib.fundusTR import FundusTR
-from data.datasets.lib.ddr_DRgrading import DDR_DRgrading, DDR_DRgrading_WeakSupervision
+from data.datasets.lib.ddr import DDR_DR_GRADING, DDR_LESION_SEGMENTATION, DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION
 from data.datasets.lib.fundusTRjoint import FundusTR_DRgrading, FundusTR_DRgrading_WeakSupervision
 from data.datasets.lib.examples import Examples
 
@@ -21,8 +21,9 @@ __factory = {
     'dukemtmc': DukeMTMCreID,
     'msmt17': MSMT17,
     #'fundusTR': FundusTR,   # 最初  弃
-    'ddr_DRgrading': DDR_DRgrading,
-    'ddr_DRgrading_WeakSupervision':  DDR_DRgrading_WeakSupervision,
+    'ddr_dr_grading': DDR_DR_GRADING,
+    'ddr_lesion_segmentation_regroup':  DDR_LESION_SEGMENTATION,
+    'ddr_lesion_segmentation_multilabel_weaksupervision':  DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION,
     'examples':  Examples,
     'fundusTR': FundusTR_DRgrading,
     'fundusTRjoint': FundusTR_DRgrading_WeakSupervision,

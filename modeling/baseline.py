@@ -27,6 +27,7 @@ from .visualizers.pgrad_back_cam import *
 from .visualizers.visual_backpropagation import *
 from .visualizers.cjy import *
 from .visualizers.guided_deconv_pgrad_cam import *
+from .visualizers.marginal_winning_probability import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -53,8 +54,8 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 class Baseline(nn.Module):
-    def __init__(self, base_name,
-                 classifier_name="linear", num_classes=6, base_classifier_Type="f-c",
+    def __init__(self, base_name, base_classifier_Type="f-c",
+                 classifier_name="linear", num_classes=6, classifier_output_type="single-label",
                  segmenter_name="none", seg_num_classes=0,
                  visualizer_name="none", visual_target_layers="none",
                  preAct=True, fusionType="concat",
@@ -94,6 +95,8 @@ class Baseline(nn.Module):
             self.base_num_classes = self.num_classes
             self.base_with_classifier = True
             self.classifier_name = "none"
+
+        self.classifier_output_type = classifier_output_type
 
         # 下面为3个支路设置参数
         # bracnh used samples including seg, gracam, reload
@@ -150,14 +153,14 @@ class Baseline(nn.Module):
         # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
         # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
-        self.visualizer_name = "guided-deconv-pgrad-cam"#"guided-deconv-pgrad-cam"  #"guided-deconv-pgrad-cam" #"none" #"pgrad-cam"
+        self.visualizer_name = "none"#"guided-deconv-pgrad-cam"#"guided-deconv-pgrad-cam"  #"guided-deconv-pgrad-cam" #"none" #"pgrad-cam"
         #self.target_layer = ["base.features.relu5"]
         #self.target_layer = ["base.features.1", "base.features.11", "base.features.20", "base.features.29", ""]
         #self.target_layer = ["base.features.relu0","base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4", "base.features.relu5", ""]
         #self.target_layer = ["base.features."+str(i) for i in [1,3,6,20,29]]   #1,3,6,8,11,13,15,18,20,22,25,27,29
 
 
-        #"""
+        """
         self.target_layer = []
         for module_name, module in self.named_modules():
             if (isinstance(module, torch.nn.ReLU) ) and "segmenter" not in module_name and "classifier" not in module_name:
@@ -445,6 +448,8 @@ class Baseline(nn.Module):
             self.visualizer = CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "guided-deconv-pgrad-cam":
             self.visualizer = GuidedDeConvPGCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "mwp":
+            self.visualizer = MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")

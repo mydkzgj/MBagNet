@@ -16,7 +16,7 @@ from torch.nn import BCEWithLogitsLoss
 from torch.nn import KLDivLoss
 from .margin_loss import MarginLoss
 from .cross_entropy_label_smooth import CrossEntropyLabelSmooth
-from .cross_entropy_multilabel import CrossEntropyMultiLabel
+from .multilabel_binary_cross_entropy import MultilabelBinaryCrossEntropy
 from .mask_loss import SegMaskLoss, GradCamMaskLoss
 from .masked_img_loss import PosMaskedImgLoss, NegMaskedImgLoss
 from .forshow_loss import ForShowLoss
@@ -68,9 +68,9 @@ def make_D_loss(cfg, num_classes):
         elif lossName == "margin_loss":
             margin_loss = MarginLoss()
             lossClasses["margin_loss"] = margin_loss
-        elif lossName == "cross_entropy_multilabel_loss":
-            cross_entropy_multilabel_loss = CrossEntropyMultiLabel()
-            lossClasses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss
+        elif lossName == "multilabel_binary_cross_entropy_loss":
+            multilabel_binary_cross_entropy_loss = MultilabelBinaryCrossEntropy()
+            lossClasses["multilabel_binary_cross_entropy_loss"] = multilabel_binary_cross_entropy_loss
         elif lossName == "seg_mask_loss":
             seg_mask_loss = SegMaskLoss(cfg.MODEL.SEG_NUM_CLASSES)
             lossClasses["seg_mask_loss"] = seg_mask_loss
@@ -122,8 +122,8 @@ def make_D_loss(cfg, num_classes):
                 losses["class_predict_loss"] = class_predict_loss(logit, label)
             elif lossName == "margin_loss":
                 losses["margin_loss"] = margin_loss(logit, similarity_label)
-            elif lossName == "cross_entropy_multilabel_loss":
-                losses["cross_entropy_multilabel_loss"] = cross_entropy_multilabel_loss(logit, multilabel)
+            elif lossName == "multilabel_binary_cross_entropy_loss":
+                losses["multilabel_binary_cross_entropy_loss"] = multilabel_binary_cross_entropy_loss(logit, multilabel)
             elif lossName == "seg_mask_loss":
                 losses["seg_mask_loss"] = seg_mask_loss(seg_mask, seg_gtmask, seg_label)
             elif lossName == "gcam_mask_loss":

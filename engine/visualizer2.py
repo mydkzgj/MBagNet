@@ -91,11 +91,17 @@ def fillHoles(seedImg, Mask):
     #cv.imshow("1", seedImg[:, :, -1]*255)
 
     kernel = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
+    i = 0
     while 1:
         dilated = cv.dilate(seedImg, kernel)  # 膨胀图像
         outputImg = dilated & Mask
-        if (seedImg == outputImg).all():
-            break
+        i = i + 1
+        if i % 30 == 0:
+            #print(i)
+            if (seedImg == outputImg).all():
+                break
+            else:
+                seedImg = outputImg
         else:
             seedImg = outputImg
 
@@ -133,6 +139,7 @@ def prepareForComputeSegMetric2(seg_map, seg_mask, label, layer_name, th=0.5):  
         # 注：hit + wrong 不一定等于predict，但后面还是以hit+wrong做分母
         pt_mask = seg_pmask[i].permute(1, 2, 0).numpy().astype(np.uint8)
         gt_mask = seg_mask[i].permute(1, 2, 0).numpy().astype(np.uint8)
+
         hit_mask = fillHoles(pt_mask, gt_mask)     #保留的是二者相交的gt那部分
         miss_mask = gt_mask - hit_mask
         right_mask = fillHoles(gt_mask, pt_mask)   #保留的是二者相交的pt那部分
@@ -147,7 +154,6 @@ def prepareForComputeSegMetric2(seg_map, seg_mask, label, layer_name, th=0.5):  
         cv.imshow("6", wrong_mask[:, :, -1] * 255)
         cv.waitKey(0)
         #"""
-
 
         for j in range(seg_mask.shape[1]):
             #pt_retval, pt_labels, pt_stats, pt_centroids = cv.connectedComponentsWithStats(pt_mask[:, :, j], connectivity=8, ltype=cv.CV_32S)
@@ -254,7 +260,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
 
-        dataType = "seg"
+        dataType = "grade"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
         savePath = r"D:\MIP\Experiment\1"  #r"D:\graduateStudent\eyes datasets\cjy\visualization"#
 
@@ -301,7 +307,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
             #oblabelList = [labels*0 + i for i in range(model.num_classes)]
-            #oblabelList = [labels*243, labels*250, labels*281, labels*333]
+            oblabelList = [labels*243, labels*250, labels*281, labels*333]
 
             # 将读取的数据名字记录下来
             for oblabels in oblabelList:
@@ -505,6 +511,14 @@ def do_visualization(
                     IU_mean = "{:.3f}".format(torch.mean(IOU).item())
 
                     logger.info("Segmentation Metrics-layer-{}-th-{}-label-{}".format(layer_key, th_key, label_key))
+                    logger.info("HIT   : {}".format(HIT.numpy()))
+                    logger.info("MISS  : {}".format(MISS.numpy()))
+                    logger.info("WRONG : {}".format(WRONG.numpy()))
+                    logger.info("TP    : {}".format(TP.numpy()))
+                    logger.info("FP    : {}".format(FP.numpy()))
+                    logger.info("TN    : {}".format(TP.numpy()))
+                    logger.info("FN    : {}".format(FP.numpy()))
+
                     logger.info(
                         "O_Pre    : {}, mean: {}, binary: {}, complementary: {}".format(Object_Pre, Object_Pre_mean, Object_Binary_Pre, Object_Others_Pre))
                     logger.info(
