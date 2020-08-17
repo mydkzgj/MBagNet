@@ -5,6 +5,8 @@
 """
 import logging
 
+import os
+
 import torch
 import torch.nn as nn
 import torchvision.transforms as tran
@@ -21,11 +23,15 @@ from sklearn.metrics import roc_curve, auc
 from utils.plot_ROC import plotROC_OneClass, plotROC_MultiClass
 from utils.draw_ConfusionMatrix import drawConfusionMatrix
 import numpy as np
+import pandas as pd
 
 import utils.featrueVisualization as fv
 
 import random
 import copy
+
+import cv2 as cv
+from metric.multi_pointing_game import *
 
 """
 # pytorch 转换 one-hot 方式 scatter
@@ -38,24 +44,29 @@ def activated_output_transform(output):
     return y_pred, labels_one_hot
 """
 
-
-TP = 0
-FP = 0
-TN = 0
-FN = 0
+imgsName = []
 
 def convert_to_one_hot(y, C):
     return np.eye(C)[y.reshape(-1)]
 
-def computeIOU(seg_map, seg_mask, th=0.5):
-    seg_pmask = torch.gt(torch.sigmoid(seg_map), th)
-    seg_mask = seg_mask.bool()
+"""
+# 用于统计分割样本集中 病变等级与病灶之间的相关性
+LS = {}
+def lesionsStatistics(mask, label):
+    avgmask = torch.nn.functional.adaptive_max_pool2d(mask, 1)
+    avgmask = avgmask.squeeze(-1).squeeze(-1).squeeze(0)
+    index = (avgmask[0]*8 + avgmask[1]*4 + avgmask[2]*2 + avgmask[3]).item()
+    global LS
+    if LS.get(label) == None:
+        LS[label] = {}
 
-    tp = (seg_pmask & seg_mask).sum(-1).sum(-1)
-    fp = (seg_pmask & (~seg_mask)).sum(-1).sum(-1)
-    tn = ((~seg_pmask) & (~seg_mask)).sum(-1).sum(-1)
-    fn = ((~seg_pmask) & seg_mask).sum(-1).sum(-1)
-    return tp, fp, tn, fn
+    if LS[label].get(index) == None:
+        LS[label][index] = 0
+
+    LS[label][index] = LS[label][index] + 1
+"""
+
+
 
 
 def create_supervised_visualizer(model, metrics, loss_fn, device=None):
@@ -77,123 +88,106 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
     def _inference(engine, batch):
         model.eval()
-        with torch.no_grad():
-            imgs, labels, seg_imgs, seg_masks, seg_labels = batch
-            model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
-            model.transimitBatchDistribution(1)  #所有样本均要生成可视化seg
-            model.heatmapType = "computeSegMetric"#"GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
+        grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
+        grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 and grade_imgs is not None else grade_imgs
+        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None  else grade_labels
+        seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 and seg_imgs is not None else seg_imgs
+        seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 and seg_masks is not None else seg_masks
+        seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
-            if model.heatmapType == "grade":
-                imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-                labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
+        model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
+        model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
+
+        dataType = "seg"
+        heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
+        savePath = r"D:\MIP\Experiment\1"  #r"D:\graduateStudent\eyes datasets\cjy\visualization"#
+
+        # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
+        if dataType == "grade":
+            imgs = grade_imgs
+            labels = torch.zeros_like(grade_labels) + 1#333#243
+            masks = None
+            img_paths = gimg_path
+        elif dataType == "seg":
+            imgs = seg_imgs
+            labels = seg_labels
+            masks = seg_masks
+            img_paths = simg_path
+        elif dataType == "joint":
+            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
+            labels = torch.cat([grade_labels, seg_labels], dim=0)
+            masks = seg_masks
+            img_paths = gimg_path + simg_path
+
+        labels_copy = labels.clone()
+
+        if heatmapType == "segmentation":
+            with torch.no_grad():
                 logits = model(imgs)
+                scores = torch.softmax(logits, dim=1)
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
-                if model.segmentationType == "denseFC":
-                    model.base.showDenseFCMask(model.base.seg_attention, imgs, labels, p_labels,)
-                elif model.segmentationType == "bagFeature":
-                    model.base.showRFlogitMap(model.base.rf_logits_reserve, imgs, labels, p_labels, )
                 return {"logits": logits, "labels": labels}
 
-            elif model.heatmapType == "segmenters":
-                seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-                seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-                logits = model(seg_imgs)
-                p_labels = torch.argmax(logits, dim=1)  # predict_label
-                if model.segmentationType == "denseFC":
-                    model.base.showDenseFCMask(model.base.seg_attention, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
-                elif model.segmentationType == "bagFeature":
-                    model.base.showRFlogitMap(model.base.rf_logits_reserve, seg_imgs, seg_labels, p_labels, masklabels=seg_masks)
-                return {"logits": logits, "labels": seg_labels}
+        elif heatmapType == "visualization":
+            # 由于需要用到梯度进行可视化计算，所以就不加入with torch.no_grad()了
+            logits = model(imgs)
 
-            elif model.heatmapType == "computeSegMetric":
-                seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-                seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-                logits = model(seg_imgs)
-                global TP, FP, TN, FN
-                tps, fps, tns, fns = computeIOU(model.base.seg_attention.cpu(), seg_masks.cpu(), th=0.5)
-                TP = TP + tps
-                FP = FP + fps
-                TN = TN + tns
-                FN = FN + fns
-                return {"logits": logits, "labels": seg_labels}
-
-        if model.heatmapType == "GradCAM":
-            model.transimitBatchDistribution(0)  # 所有样本均要生成可视化seg
-            #seg_imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
-            #seg_labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-            seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 else seg_imgs
-            seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 else seg_labels
-            seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 else seg_masks
-
-            #logits2 = model(seg_imgs)
-
-            """
-            soft_mask = seg_masks.clone()
-            soft_mask = model.lesionFusion(soft_mask, seg_labels[seg_labels.shape[0] - soft_mask.shape[0]:seg_labels.shape[0]])
-            max_kernel_size = 10#40#20#random.randint(30, 240)
-            soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=max_kernel_size * 2 + 1, stride=1, padding=max_kernel_size)
-            avg_kernel_size = 20#40  #平滑用
-            soft_mask = torch.nn.functional.max_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #max增加aks
-            soft_mask = torch.nn.functional.avg_pool2d(soft_mask, kernel_size=avg_kernel_size * 2 + 1, stride=1, padding=avg_kernel_size)  #avg变化
-            rimgs = seg_imgs
-            rimg_mean = rimgs.mean(-1, keepdim=True).mean(-2, keepdim=True)
-            mean = torch.Tensor([[0.485, 0.456, 0.406]]).unsqueeze(-1).unsqueeze(-1).cuda()
-            std = torch.Tensor([[0.229, 0.224, 0.225]]).unsqueeze(-1).unsqueeze(-1).cuda()
-            rimg_fill = (torch.rand_like(rimgs)-mean)/std
-            pos_masked_img = soft_mask * rimgs #+ (1 - soft_mask) * rimg_fill
-            neg_masked_img = (1 - soft_mask) * rimgs# + soft_mask * rimg_mean
-            seg_imgs = torch.cat([pos_masked_img, seg_imgs],dim=0)#pos_masked_img
-            seg_masks = soft_mask
-            #"""
-
-            with torch.no_grad():
-                logits = model(seg_imgs)
-                print(logits)
-                logits = logits[0:1]
-                scores = torch.softmax(logits, dim=-1)
+            if model.classifier_output_type == "multi-label":
+                labels_copy = labels_copy.max(dim=1)[1]
+                labels = labels[:, 0] * 1000 + labels[:, 1] * 100 + labels[:, 2] * 10 + labels[:, 3] * 1
+                p_labels = torch.sigmoid(logits).gt(0.5)
+                p_labels = p_labels[:, 0] * 1000 + p_labels[:, 1] * 100 + p_labels[:, 2] * 10 + p_labels[:, 3] * 1
+            else:
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
 
+            # 显示图片的数字还是原始名字
             """
-            # PG-CAM ()
-            target_layers = ["denseblock3", "denseblock4"]#["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:#seg_labels[0] != p_labels[0]:
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0],
-                               label_num=6, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise", show_pos=False, show_overall=False, only_show_false_grade=False)
+            global imgsName
+            if imgsName == []:
+                imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
+            else:
+                imgsName = [str(int(i)+imgs.shape[0]) for i in imgsName]
             #"""
-            #"""
-            # Guided PG-CAM
-            target_layers = ["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:#seg_labels[0] != p_labels[0]:
-                #copy.deepcopy(model)
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers, mask=seg_masks[0],
-                               label_num=1, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True, show_overall=True, only_show_false_grade=False)
-            #"""
+            imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
-            # For Val only show False Grade
-            """
-            # PG-CAM ()
-            target_layers = ["denseblock3",
-                             "denseblock4"]  # ["", "denseblock1", "denseblock2", "denseblock3", "denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:  # seg_labels[0] != p_labels[0]:
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers,
-                               mask=seg_masks[0],
-                               label_num=6, guided_back=False, weight_fetch_type="Grad-CAM-pixelwise", show_pos=False,
-                               show_overall=False, only_show_false_grade=True)
-            # """
-            """
-            # Guided PG-CAM
-            target_layers = ["denseblock1", "denseblock2", "denseblock3",
-                             "denseblock4"]  # ["denseblock4"]#["denseblock1", "denseblock2", "denseblock3", "denseblock4"]#"denseblock4" # "transition2.pool")#"denseblock3.denselayer8.relu2")#"conv0")
-            if 1:  # seg_labels[0] != p_labels[0]:
-                # copy.deepcopy(model)
-                fv.showGradCAM(model, seg_imgs, seg_labels, p_labels, scores, target_layers=target_layers,
-                               mask=seg_masks[0],
-                               label_num=1, guided_back=True, weight_fetch_type="Grad-CAM-pixelwise", show_pos=True,
-                               show_overall=True, only_show_false_grade=True)
-            # """
+            # 观测类别
+            #oblabelList = [labels]
+            #oblabelList = [p_labels]
+            #oblabelList = [labels, p_labels]
+            oblabelList = [labels*0 + i for i in range(model.num_classes)]
+            #oblabelList = [labels*243, labels*250, labels*281, labels*333]
 
+            # 可视化
+            for oblabels in oblabelList:
+                binary_threshold = 0.25#0.5
+                showFlag = 1
+                input_size = (imgs.shape[2], imgs.shape[3])
+                visual_num = imgs.shape[0]
+                gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, oblabels, input_size, visual_num=visual_num)
 
-            return {"logits": logits, "labels": seg_labels}
+                # 用于visualizaztion的数据
+                vimgs = imgs[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vlabels = labels[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vplabels = p_labels[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vmasks = masks[masks.shape[0] - visual_num:masks.shape[0]] if masks is not None else None
+
+                if showFlag == 1:
+                    # 绘制可视化结果
+                    model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, imgsName)
+
+                if dataType == "seg":
+                    if hasattr(engine.state, "MPG")!=True:
+                        engine.state.MPG = MultiPointingGame(visual_class_list=range(4), seg_class_list=range(4))
+
+                    binary_gtmasks = torch.max(vmasks, dim=1, keepdim=True)[0]
+                    gtmasks = torch.cat([vmasks, 1 - binary_gtmasks, binary_gtmasks], dim=1)
+                    for i, v in enumerate(gcam_list):
+                        rv = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
+                        segmentations = rv  # .gt(binary_threshold)
+                        engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(),
+                                                model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
+
+            return {"logits": logits.detach(), "labels": labels_copy, }
 
     engine = Engine(_inference)
 
@@ -229,6 +223,11 @@ def do_visualization(
     y_label = []
     metrics = dict()
 
+    @evaluator.on(Events.ITERATION_COMPLETED)
+    def log_eval_step(engine):
+        print("Iteration[{} / {}]".format(engine.state.iteration, len(test_loader)))
+
+
     @evaluator.on(Events.ITERATION_COMPLETED, y_pred, y_label)
     def combineTensor(engine, y_pred, y_label):
         scores = engine.state.output["logits"].cpu().numpy().tolist()
@@ -259,11 +258,12 @@ def do_visualization(
         avg_recall = avg_recall / len(recall)
         recall_dict["avg_recall"] = float("{:.3f}".format(avg_recall))
 
+        overall_accuracy = engine.state.metrics['overall_accuracy']
+
         confusion_matrix = engine.state.metrics['confusion_matrix'].numpy()
 
         kappa = compute_kappa(confusion_matrix)
 
-        overall_accuracy = engine.state.metrics['overall_accuracy']
         logger.info("Test Results")
         logger.info("Precision: {}".format(precision_dict))
         logger.info("Recall: {}".format(recall_dict))
@@ -271,57 +271,30 @@ def do_visualization(
         logger.info("ConfusionMatrix: x-groundTruth  y-predict \n {}".format(confusion_matrix))
         logger.info("Kappa: {}".format(kappa))
 
-
         metrics["precision"] = precision_dict
         metrics["recall"] = recall_dict
         metrics["overall_accuracy"] = overall_accuracy
         metrics["confusion_matrix"] = confusion_matrix
 
-        if model.heatmapType == "computeSegMetric":
-            global TP, FP, TN, FN
-            # CJY at 2020.3.1  add seg IOU 等metrics
-            Accuracy = (TP + TN) / (TP + FP + TN + FN + 1E-12)
-            Acc = [Accuracy[0][i].item() for i in range(4)]
-            Acc_mean = (Acc[0] + Acc[1] + Acc[2] + Acc[3]) / 4
-
-            Precision = TP / (TP + FP + 1E-12)
-            Pre = [Precision[0][i].item() for i in range(4)]
-            Pre_mean = (Pre[0] + Pre[1] + Pre[2] + Pre[3]) / 4
-
-            Recall = TP / (TP + FN + 1E-12)
-            Rec = [Recall[0][i].item() for i in range(4)]
-            Rec_mean = (Rec[0] + Rec[1] + Rec[2] + Rec[3]) / 4
-
-            IOU = TP / (TP + FP + FN + 1E-12)
-            IU = [IOU[0][i].item() for i in range(4)]
-            IU_mean = (IU[0] + IU[1] + IU[2] + IU[3]) / 4
-
-            logger.info("Segmentation Metrics")
-            logger.info(
-                "Accuracy : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Acc[0], Acc[1], Acc[2], Acc[3], Acc_mean))
-            logger.info(
-                "Precision: {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Pre[0], Pre[1], Pre[2], Pre[3], Pre_mean))
-            logger.info(
-                "Recall   : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(Rec[0], Rec[1], Rec[2], Rec[3], Rec_mean))
-            logger.info(
-                "IOU      : {:.3f} {:.3f} {:.3f} {:.3f}, mean: {:.3f}".format(IU[0], IU[1], IU[2], IU[3], IU_mean))
-
+        # CJY at 2020.8.16 Multi-Pointing Game Save XLS
+        if hasattr(engine.state, "MPG")==True:
+            engine.state.MPG.saveXLS(savePath=".")
 
     evaluator.run(test_loader)
 
     # 1.Draw Confusion Matrix and Save it in numpy
-    #"""
+    """
     # CJY at 2020.6.24
     classes_label_list = ["No DR", "Mild", "Moderate", "Severe", "Proliferative", "Ungradable"]
     if len(classes_list) == 6:
         classes_list = classes_label_list
 
-    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=True)
+    confusion_matrix_numpy = drawConfusionMatrix(metrics["confusion_matrix"], classes=np.array(classes_list), title='Confusion matrix', drawFlag=False)  #此处就不画混淆矩阵了
     metrics["confusion_matrix_numpy"] = confusion_matrix_numpy
     #"""
 
     # 2.ROC
-    #"""
+    """
     # (1).convert List to numpy
     y_label = np.array(y_label)
     y_label = convert_to_one_hot(y_label, num_classes)
@@ -373,4 +346,4 @@ def compute_kappa(matrix):
     po = sum_po / n
     pe = sum_pe / (n * n)
     # print(po, pe)
-    return (po - pe) / (1 - pe)
+    return (po - pe) / max((1 - pe), 1E-12)

@@ -295,3 +295,93 @@ class DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION(BaseImageDataset):  # 
                 dataset.append((imagefullpath, labelfullpathList, labelRecord[imgfile]))
 
         return dataset, statistics, category2label, label2category
+
+
+class DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION_COLORMASK(BaseImageDataset):  # 用于弱监督，即返回病灶是否出现的多标签
+    """
+    DDR_DRgrading
+    Reference:
+    Zheng et al. Scalable Person Re-identification: A Benchmark. ICCV 2015.
+    URL: http://www.liangzheng.org/Project/project_reid.html
+
+    Dataset statistics:
+    # identities: 1501 (+1 for background)
+    # images: 12936 (train) + 3368 (query) + 15913 (gallery)
+    """
+    dataset_dir = "DATABASE/ddr_pre/lesion_segmentation"  # 'ddr_DRgrading'
+
+    def __init__(self, root='/home/cjy/data', verbose=True, **kwargs):
+        super(DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION_COLORMASK, self).__init__()
+        # self.dataset_grading_dir = osp.join(root, self.dataset_dir, "grading")
+        self.dataset_segmentation_dir = osp.join(root, self.dataset_dir)
+
+        # CJY 加入segmentation信息
+        self.lesion = ["MA", "EX", "SE", "HE"]  # ["EX", "HE", "MA", "SE"]  #self.lesion = ["FUSION"]
+        self.seg_train_dir = osp.join(self.dataset_segmentation_dir, 'train')
+        self.seg_val_dir = osp.join(self.dataset_segmentation_dir, 'valid')
+        self.seg_test_dir = osp.join(self.dataset_segmentation_dir, 'test')
+        self.seg_train, seg_train_statistics, seg_train_c2l, seg_train_l2c = self._process_segmentation_dir(
+            self.seg_train_dir)
+        self.seg_val, seg_val_statistics, seg_val_c2l, seg_val_l2c = self._process_segmentation_dir(self.seg_val_dir)
+        self.seg_test, seg_test_statistics, seg_test_c2l, seg_test_l2c = self._process_segmentation_dir(
+            self.seg_test_dir)
+
+        # self.num_categories = 4  #有4个等级的DR
+
+        self.num_categories = len(seg_train_c2l)
+
+        self.category = list(seg_train_c2l.keys())
+        self.category.sort()
+
+        self._check_before_run()
+
+    def _check_before_run(self):
+        """Check if all files are available before going deeper"""
+        if not osp.exists(self.dataset_segmentation_dir):
+            raise RuntimeError("'{}' is not available".format(self.dataset_segmentation_dir))
+        if not osp.exists(self.seg_train_dir):
+            raise RuntimeError("'{}' is not available".format(self.seg_train_dir))
+        if not osp.exists(self.seg_val_dir):
+            raise RuntimeError("'{}' is not available".format(self.seg_val_dir))
+        if not osp.exists(self.seg_test_dir):
+            raise RuntimeError("'{}' is not available".format(self.seg_test_dir))
+
+    # CJY
+    def _process_segmentation_dir(self, dir_path, relabel=False):
+        f = open(dir_path + '_lesion_multilabel_colormask.txt')  #lesion_multilabel_colormask.txt
+        labelRecord = {}
+        category2label = {}
+        label2category = {}
+        categoryNum = {}
+
+        category2label = {"MA":0, "EX":1, "SE":2, "HE":3}
+        label2category = {0:"MA", 1:"EX", 2:"SE", 3:"HE"}
+
+        for line in f:
+            line = line.strip("\n")
+            sub = line.split(" ")
+            img = sub[0]
+            label = [int(sub[i]) for i in range(1,5)]
+            labelRecord[img] = label
+
+        statistics = []
+
+        dataset = []
+        image_path = os.path.join(dir_path, "color_mask_with_single_label")  #color_mask_with_single_label  color_mask
+        label_path = os.path.join(dir_path, "label")
+        for imgfile in os.listdir(image_path):
+            pre, ext = os.path.splitext(imgfile)
+            if ext != ".JPG" and ext != ".jpg":
+                continue
+            imagefullpath = os.path.join(image_path, imgfile)
+            labelfullpathList = []
+            for l in self.lesion:
+                labelfullpath = os.path.join(label_path, l, imgfile.replace(".jpg", ".tif").replace("-MA","").replace("-EX","").replace("-SE","").replace("-HE","").replace("-NONE",""))
+                if os.path.exists(labelfullpath) == True:
+                    labelfullpathList.append(labelfullpath)
+                else:
+                    raise Exception("Not find mask!")
+            if os.path.exists(imagefullpath) == True:
+                dataset.append((imagefullpath, labelfullpathList, labelRecord[imgfile]))
+
+        return dataset, statistics, category2label, label2category

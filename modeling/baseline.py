@@ -153,23 +153,20 @@ class Baseline(nn.Module):
         # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
         # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
-        self.visualizer_name = "none"#"guided-deconv-pgrad-cam"#"guided-deconv-pgrad-cam"  #"guided-deconv-pgrad-cam" #"none" #"pgrad-cam"
-        #self.target_layer = ["base.features.relu5"]
-        #self.target_layer = ["base.features.1", "base.features.11", "base.features.20", "base.features.29", ""]
-        #self.target_layer = ["base.features.relu0","base.features.denseblock1", "base.features.denseblock2", "base.features.denseblock3", "base.features.denseblock4", "base.features.relu5", ""]
-        #self.target_layer = ["base.features."+str(i) for i in [1,3,6,20,29]]   #1,3,6,8,11,13,15,18,20,22,25,27,29
-
-        """
-        self.target_layer = []
-        for module_name, module in self.named_modules():
-            if (isinstance(module, torch.nn.ReLU) ) and "segmenter" not in module_name and "classifier" not in module_name:
-                if "densenet" in self.base_name and "denseblock" not in module_name:
-                    self.target_layer.append(module_name)
-                elif "resnet" in self.base_name and "relu1" not in module_name and "relu2" not in module_name:
-                    self.target_layer.append(module_name)
-                elif "vgg" in self.base_name:
-                    self.target_layer.append(module_name)
-        #self.target_layer.append("")
+        #self.visualizer_name = "none"#"guided-backpropagation"
+        #"""
+        if self.visualizer_name != "none" and self.target_layer == []:
+            self.target_layer = []
+            for module_name, module in self.named_modules():
+                if (isinstance(module,
+                               torch.nn.ReLU)) and "segmenter" not in module_name and "classifier" not in module_name:
+                    if "densenet" in self.base_name and "denseblock" not in module_name:
+                        self.target_layer.append(module_name)
+                    elif "resnet" in self.base_name and "relu1" not in module_name and "relu2" not in module_name:
+                        self.target_layer.append(module_name)
+                    elif "vgg" in self.base_name:
+                        self.target_layer.append(module_name)
+            # self.target_layer.append("")
         #"""
 
 
@@ -452,9 +449,6 @@ class Baseline(nn.Module):
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")
-
-
-
 
 
     def set_hooks(self):

@@ -22,11 +22,10 @@ from config import cfg
 from data import make_data_loader, make_seg_data_loader, WeakSupervisionDataloader
 from engine.trainer import do_train
 from modeling import build_model
-#from layers import make_loss
 from loss import make_G_loss
 from loss import make_D_loss
 
-from solver import make_optimizer, WarmupMultiStepLR, make_optimizers, make_optimizers_for_loss
+from solver import WarmupMultiStepLR, make_optimizers
 
 
 from utils.logger import setup_logger
@@ -45,7 +44,7 @@ def train(cfg):
     #train_loader, val_loader, num_query, num_classes = make_data_loader(cfg)
     #CJY at 2019.9.26  利用重新编写的函数处理同仁数据
     train_grad_loader, val_grad_loader, test_grad_loader, cla_classes_list = make_data_loader(cfg, for_train=True)
-    train_seg_loader, val_seg_loader, test_seg_loader, seg_classes_list = make_seg_data_loader(cfg, for_train=True)
+    train_seg_loader, val_seg_loader, test_seg_loader, seg_classes_list = make_seg_data_loader(cfg, for_train=True) #True
     train_loader = WeakSupervisionDataloader(train_grad_loader, train_seg_loader)
     val_loader = WeakSupervisionDataloader(val_grad_loader, val_seg_loader)
     test_loader = WeakSupervisionDataloader(test_grad_loader, test_seg_loader)
@@ -72,7 +71,6 @@ def train(cfg):
     print('Train with the loss type is', cfg.LOSS.TYPE)
 
     # build optimizer
-    #optimizer = make_optimizer(cfg, model)
     optimizers = make_optimizers(cfg, model)  #loss里也可能有参数
 
     print('Train with the optimizer type is', cfg.SOLVER.OPTIMIZER.NAME)

@@ -102,14 +102,17 @@ def do_inference(
     logging._warn_preinit_stderr = 0
     logger.info("Enter inferencing")
 
+    """
     metrics_eval = {"overall_accuracy": Accuracy(output_transform=lambda x: (x["logits"], x["labels"])),
                     "precision": Precision(output_transform=lambda x: (x["logits"], x["labels"])),
                     "recall": Recall(output_transform=lambda x: (x["logits"], x["labels"])),
                     "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], x["labels"])),
                     }
+    """
     if model.classifier_output_type == "multi-label":
         #此处用了转置的话，如果batch_size为1，会出现报错（因为num_class>1 if multi-label）所以串联为为2倍。  Failed
         #此处average都选择True， 否则将会将所有sample串联记录下来。 但是在trainer中由于用了RunningAverage，所以不用average=False
+        #"""
         metrics_eval = {"overall_accuracy": Accuracy(output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
                         #"precision": Precision(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
                         #"recall": Recall(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
@@ -117,7 +120,27 @@ def do_inference(
                         "recall": Recall(average=True, output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
                         "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["labels"], dim=1)[1])),
                         }
+        #"""
 
+        """
+        # From Github Ignite. Answer for my first issue!!!! 
+        # Setup label-wise metrics
+        # -> let's assume that evaluator returns output as (y_pred, y)
+        # -> y_pred.shape: (B, C) and y.shape: (B, C)
+        def get_single_label_output_fn(c):
+            def wrapper(output):
+                y_pred = output["logits"]
+                y = output["labels"]
+                return y_pred[:, c].sigmoid().round(), y[:, c]
+
+            return wrapper
+
+        metrics_eval = {}
+        for i in range(4):
+            for name, cls in zip(["Accuracy", "Precision", "Recall"], [Accuracy, Precision, Recall]):
+                metrics_eval["{}/{}".format(name, i)] = cls(output_transform=get_single_label_output_fn(i))
+                #metrics_eval["{}/{}".format(name, i)] = cls(output_transform=lambda x: (x["logits"][:,i].sigmoid().round(), x["labels"][:,i]))
+        #"""
 
     evaluator = create_supervised_evaluator(model, metrics=metrics_eval, loss_fn=loss_fn, device=device)
 

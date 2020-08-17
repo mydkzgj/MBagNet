@@ -6,5 +6,5 @@
 
 from .build import make_optimizer
 from .lr_scheduler import WarmupMultiStepLR
-from .optimizer import make_optimizers, make_optimizers_for_loss
+from .optimizer import make_optimizers
 

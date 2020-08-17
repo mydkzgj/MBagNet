@@ -36,7 +36,7 @@ class GuidedDeConvPGCAM():
 
         self.firstCAM = 1
 
-        self.reservePos = True#True  #True
+        self.reservePos = True  #True
 
         self.normFlag = True
 

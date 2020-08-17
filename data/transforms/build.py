@@ -40,7 +40,7 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
     ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
     mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
 
-    if is_train:
+    if is_train:  #差别就在于for train img加入了Padding
         if type == "img":
             transform = T.Compose([
                 T.Resize(cfg.DATA.TRANSFORM.SIZE),
@@ -54,7 +54,7 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
         elif type == "mask":
             transform = T.Compose([
                 # T.Resize(mask_size), #interpolation=Image.ANTIALIAS),#,Image.NEAREST),   #对于掩膜标签 应该不改变标签值，使用最邻近插值
-                T.Pad(cfg.DATA.TRANSFORM.PADDING),
+                # T.Pad(cfg.DATA.TRANSFORM.PADDING),
                 T.ToTensor(),
             ])
     else:
@@ -68,7 +68,7 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
                 normalize_transform,
                 # RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
             ])
-        elif type == "mask":
+        elif type == "mask":   #mask不做resize和padding，外面做
             transform = T.Compose([
                 # T.Resize(mask_size), #interpolation=Image.ANTIALIAS),#,Image.NEAREST),   #对于掩膜标签 应该不改变标签值，使用最邻近插值
                 # T.Pad(cfg.DATA.TRANSFORM.PADDING),

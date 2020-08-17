@@ -33,8 +33,9 @@ class GuidedGradCAM():
             resized_cam = torch.nn.functional.interpolate(cam, input_size, mode='bilinear')
             #gbp = (gbp - 0.5).abs().sum(dim=1, keepdims=True)
             #ggcam = resized_cam * gbp/gbp.max()
-            ggcam = resized_cam * (gbp-0.5) + 0.5
-            self.gcam_list.append(ggcam)
+            ggcam = resized_cam * torch.max((gbp-0.5), dim=1, keepdim=True)[0] #+ 0.5
+            norm_ggcam, ggcam_max = self.gcam.gcamNormalization(ggcam)
+            self.gcam_list.append(norm_ggcam)
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam
 

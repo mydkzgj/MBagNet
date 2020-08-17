@@ -76,7 +76,7 @@ def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, i
     if index_prefix != "":
         index_prefix = index_prefix + "_"
     cv.imwrite(os.path.join(savePath, "{}image_{}.jpg".format(index_prefix, label_prefix)), img_numpy)
-    cv.imwrite(os.path.join(savePath, "{}visualization_gray_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy)
+    #cv.imwrite(os.path.join(savePath, "{}visualization_gray_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy)
     #cv.imwrite(os.path.join(savePath, "{}visualization_binary_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), visual_numpy_binary)
     cv.imwrite(os.path.join(savePath, "{}visualization_color_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy_color)
     #cv.imwrite(os.path.join(savePath, "{}visualization_on_image_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)),img_with_visual)

@@ -69,7 +69,7 @@ class SegmentationDataset(Dataset):
         if self.is_train == True:
             self.pad_num = self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
         else:
-            self.pad_num = 0 #self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
+            self.pad_num = 0
         self.resizeH = cfg.DATA.TRANSFORM.SIZE[0]
         self.resizeW = cfg.DATA.TRANSFORM.SIZE[1]
         self.mask_resizeH = self.resizeH // self.ratio
@@ -80,6 +80,12 @@ class SegmentationDataset(Dataset):
         # 用于生成mask的维度
         self.seg_num_classes = cfg.MODEL.SEG_NUM_CLASSES
 
+        # CJY at 2020.8.12
+        self.generateColormask = 1
+        if self.generateColormask == True:
+            import torchvision.transforms as T
+            normalize_transform = T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD)
+            self.norm_transform = T.Compose([normalize_transform])
 
     def __len__(self):
         return len(self.dataset)
@@ -101,7 +107,7 @@ class SegmentationDataset(Dataset):
 
 
         #上面让mask读入的为原图尺寸标签
-        mask = self.MaxPool(mask)
+        mask = self.MaxPool(mask)  #mask的resize选择maxpool
 
         # 随机剪切（不过像素级标签剪切平移是不是没什么用）  CJY 2020.8.3 目前处于关闭状态，也就是说没有数据扩增
         #"""
@@ -124,6 +130,48 @@ class SegmentationDataset(Dataset):
             raise Exception("SEG_NUM_CLASSES cannot match the channels of mask")
 
 
+        # CJY at 2020.8.12 在dataloader中生成colormask
+
+        if self.generateColormask == True:
+            import os
+            _, imgName = os.path.split(image_path)
+            lesionTypeList = ["MA", "EX", "SE", "HE"]
+            ColorMap = {
+                "MA": torch.Tensor([0,255,0]).unsqueeze(1).unsqueeze(1)/255.0,
+                "EX": torch.Tensor([255,255,0]).unsqueeze(1).unsqueeze(1)/255.0,
+                "SE": torch.Tensor([255,165,0]).unsqueeze(1).unsqueeze(1)/255.0,
+                "HE": torch.Tensor([255,0,0]).unsqueeze(1).unsqueeze(1)/255.0,
+            }
+
+            drawOrder = ["HE", "SE", "EX", "MA"]
+            canvas = torch.zeros_like(img)
+            if "HE" in imgName or "SE" in imgName or "EX" in imgName or "MA" in imgName:
+                for lesionType in drawOrder:
+                    index = lesionTypeList.index(lesionType)
+                    if lesionType in imgName:
+                        sum = mask[index:index + 1].sum()
+                        if sum == 0:
+                            img_label[index] = 0
+                            print(imgName)
+                            print(img_label)
+                            # raise Exception("Single Sum should > 0")  #当病灶在边缘时可能会出现没有crop到他的问题
+                        canvas = canvas * (1 - mask[index:index + 1]) + mask[index:index + 1] * ColorMap[lesionTypeList[index]]
+            else:
+                for lesionType in drawOrder:
+                    index = lesionTypeList.index(lesionType)
+                    sum = mask[index:index + 1].sum()
+                    if sum == 0 and img_label[index] == 1:
+                        img_label[index] = 0
+                        print(imgName)
+                        print(img_label)
+                        # raise Exception("Single Sum should > 0")  #当病灶在边缘时可能会出现没有crop到他的问题
+                    if img_label[index] == 1:
+                        canvas = canvas * (1 - mask[index:index + 1]) + mask[index:index + 1] * ColorMap[lesionTypeList[index]]
+
+            img = self.norm_transform(canvas)
+
         return img, mask, img_label, image_path  # 返回的是图片
+
+
 
 
