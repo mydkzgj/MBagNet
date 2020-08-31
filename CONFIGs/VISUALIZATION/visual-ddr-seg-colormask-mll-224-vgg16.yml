@@ -33,14 +33,14 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "vgg16"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear" 
- CLASSIFIER_OUTPUT_TYPE: "multi-label"                                #"single-label"
+ CLASSIFIER_OUTPUT_TYPE: "multi-label"                         #"single-label", "multi-label"       
  CLA_NUM_CLASSES: 4
  SEGMENTER_NAME: "none"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
- VISUALIZER_NAME: "guided-deconv-pgrad-cam"
+ VISUALIZER_NAME: "xgrad-cam"#"guided-deconv-pgrad-cam"
  VISUAL_TARGET_LAYERS: "none"
 
  # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
@@ -159,7 +159,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/MIP/Experiment/saved_model/lesion_multilabel/colormask-224/densenet121_model_21.pth"
+ WEIGHT: "D:/MIP/Experiment/saved_model/lesion_multilabel/colormask-224/vgg/vgg16_model_25.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

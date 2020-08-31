@@ -46,7 +46,7 @@ def color_name(id):
     return switcher.get(id, 'NONE')
 
 
-def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, index_prefix, label_prefix, visual_prefix):
+def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, index_prefix, label_prefix, visual_prefix, draw_flag_dict):
     """
     single img
     """
@@ -64,29 +64,41 @@ def draw_visualization(img, visualization, gtmask, binary_threshold, savePath, i
         #th, visual_numpy = cv.threshold(np.mean(np.abs(visual_numpy_color-127.0), axis=2).astype(np.uint8), 0, 255, cv.THRESH_BINARY)
     th, visual_numpy_binary = cv.threshold(visual_numpy, int(binary_threshold*255), 255, cv.THRESH_BINARY)
 
-    # 3.将visualization和img叠加
+    # 3.将visualization和img or segmentation叠加
     img_ratio = 0.8
     visual_ratio = 1 - img_ratio
-    img_with_visual = cv.addWeighted(img_numpy, img_ratio, visual_numpy_color, visual_ratio, 0)
+    img_with_visual_color = cv.addWeighted(img_numpy, img_ratio, visual_numpy_color, visual_ratio, 0)
+    gtmask_with_visual_color = cv.addWeighted(gtmask_numpy, img_ratio, visual_numpy_color, visual_ratio, 0)
 
     visual_numpy_binary = cv.cvtColor(visual_numpy_binary, cv.COLOR_GRAY2BGR)
-    gtmask_with_visual = cv.addWeighted(gtmask_numpy, 0.5, visual_numpy_binary, 0.5, 0)
+    img_with_visual_binary = cv.addWeighted(img_numpy, 0.5, visual_numpy_binary, 0.5, 0)
+    gtmask_with_visual_binary = cv.addWeighted(gtmask_numpy, 0.5, visual_numpy_binary, 0.5, 0)
 
     # 4.Save
     if index_prefix != "":
         index_prefix = index_prefix + "_"
-    cv.imwrite(os.path.join(savePath, "{}image_{}.jpg".format(index_prefix, label_prefix)), img_numpy)
-    #cv.imwrite(os.path.join(savePath, "{}visualization_gray_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy)
-    #cv.imwrite(os.path.join(savePath, "{}visualization_binary_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), visual_numpy_binary)
-    cv.imwrite(os.path.join(savePath, "{}visualization_color_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy_color)
-    #cv.imwrite(os.path.join(savePath, "{}visualization_on_image_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)),img_with_visual)
-    cv.imwrite(os.path.join(savePath, "{}visualization_binary_on_gtmask_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), gtmask_with_visual)
-    cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth_{}.jpg".format(index_prefix, label_prefix)), gtmask_numpy)
+    if draw_flag_dict["originnal_image"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}image_{}.jpg".format(index_prefix, label_prefix)), img_numpy)
+    if draw_flag_dict["gray_visualization"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}visualization_gray_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy)
+    if draw_flag_dict["binary_visualization"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}visualization_binary_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), visual_numpy_binary)
+    if draw_flag_dict["color_visualization"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}visualization_color_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)), visual_numpy_color)
+    if draw_flag_dict["binary_visualization_on_image"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}visualization_B_on_image_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)),img_with_visual_binary)
+    if draw_flag_dict["color_visualization_on_image"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}visualization_C_on_image_{}_{}.jpg".format(index_prefix, visual_prefix, label_prefix)),img_with_visual_color)
+    if draw_flag_dict["binary_visualization_on_segmentation"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}visualization_B_on_segmentation_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), gtmask_with_visual_binary)
+    if draw_flag_dict["color_visualization_on_segmentation"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}visualization_C_on_segmentation_{}_{}_th{}.jpg".format(index_prefix, visual_prefix, label_prefix, str(binary_threshold))), gtmask_with_visual_color)
+    if draw_flag_dict["segmentation_ground_truth"] == 1:
+        cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth_{}.jpg".format(index_prefix, label_prefix)), gtmask_numpy)
     if gtmask_numpy.shape[2] == 3:
         gt_gray = cv.cvtColor(gtmask_numpy, cv.COLOR_RGB2GRAY)
         th, gt_binary = cv.threshold(gt_gray, 0, 255, cv.THRESH_BINARY)
         #cv.imwrite(os.path.join(savePath, "{}segmentation_ground_truth_binary_{}.jpg".format(index_prefix, label_prefix)), gt_binary)
-
 
 
 def convertTensorToNumpy(img, visualization, gtmask):

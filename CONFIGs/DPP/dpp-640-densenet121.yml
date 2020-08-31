@@ -6,8 +6,8 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('examples')#('ddr_DRgrading')
-  SEG_NAMES: ("none")
+  NAMES: ('fundusTR')
+  SEG_NAMES: ('fundusTRjoint')
   ROOT_DIR: ('./data')
 
  DATALOADER:
@@ -18,7 +18,7 @@ DATA:
   IMS_PER_BATCH: 24
 
  TRANSFORM:
-  SIZE: [224, 224]       #[736, 736]#[640,640]#[512, 512]#[448, 448]#[224, 224]
+  SIZE: [640, 640]       #[736, 736]#[640,640]#[512, 512]#[448, 448]#[224, 224]
   MASK_SIZE_RATIO: 1
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
@@ -32,14 +32,12 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "resnet50"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear"
- CLA_NUM_CLASSES: 1000
+ CLA_NUM_CLASSES: 2
  SEGMENTER_NAME: "fc_mbagnet"                        #fc_mbagnet
- SEG_NUM_CLASSES: 4
- VISUALIZER_NAME: "none"
- VISUAL_TARGET_LAYERS: "none"
+ SEG_NUM_CLASSES: 5
 
  # For MBagNet
  PRE_ACTIVATION: 1
@@ -118,14 +116,14 @@ TRAIN:
 
  # Train Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 1
+  CATEGORIES_PER_BATCH: 2
   INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1
   ACCUMULATION_STEP: 1
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/resnet50-19c8e357.pth'
+  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
@@ -153,7 +151,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: './pretrained/resnet50-19c8e357.pth'
+ WEIGHT: "./work_space/densenet121_model_20.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

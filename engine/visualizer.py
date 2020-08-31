@@ -44,8 +44,6 @@ def activated_output_transform(output):
     return y_pred, labels_one_hot
 """
 
-imgsName = []
-
 def convert_to_one_hot(y, C):
     return np.eye(C)[y.reshape(-1)]
 
@@ -95,9 +93,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 and seg_masks is not None else seg_masks
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
-        model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
-        model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
-
         dataType = "seg"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
         savePath = r"D:\MIP\Experiment\1"  #r"D:\graduateStudent\eyes datasets\cjy\visualization"#
@@ -121,6 +116,9 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
         labels_copy = labels.clone()
 
+        model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
+        model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
+
         if heatmapType == "segmentation":
             with torch.no_grad():
                 logits = model(imgs)
@@ -141,14 +139,17 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
 
             # 显示图片的数字还是原始名字
-            """
-            global imgsName
-            if imgsName == []:
-                imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
-            else:
-                imgsName = [str(int(i)+imgs.shape[0]) for i in imgsName]
+            if hasattr(engine.state, "imgsName") != True:
+                engine.state.imgsName =[]
             #"""
-            imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
+            if engine.state.imgsName == []:
+                engine.state.imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
+            else:
+                engine.state.imgsName = [str(int(i)+imgs.shape[0]) for i in engine.state.imgsName]
+            if int(engine.state.imgsName[0]) > 10:
+                exit(0)
+            #"""
+            #imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             # 观测类别
             #oblabelList = [labels]
@@ -173,7 +174,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
                 if showFlag == 1:
                     # 绘制可视化结果
-                    model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, imgsName)
+                    model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgsName)
 
                 if dataType == "seg":
                     if hasattr(engine.state, "MPG")!=True:

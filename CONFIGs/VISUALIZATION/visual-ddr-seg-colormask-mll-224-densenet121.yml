@@ -6,8 +6,9 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('examples')#('ddr_DRgrading')
-  SEG_NAMES: ("none")
+  NAMES: ('none') #('ddr_dr_grading')
+  SEG_NAMES: ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask') 
+  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
   ROOT_DIR: ('./data')
 
  DATALOADER:
@@ -34,12 +35,17 @@ MODEL:
  #DEVICE_ID: '0'
  BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
- CLASSIFIER_NAME: "linear"
- CLA_NUM_CLASSES: 1000
- SEGMENTER_NAME: "fc_mbagnet"                        #fc_mbagnet
+ CLASSIFIER_NAME: "linear" 
+ CLASSIFIER_OUTPUT_TYPE: "multi-label"                         #"single-label", "multi-label"       
+ CLA_NUM_CLASSES: 4
+ SEGMENTER_NAME: "none"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
- VISUALIZER_NAME: "none"
+ VISUALIZER_NAME: "guided-deconv-pgrad-cam"
  VISUAL_TARGET_LAYERS: "none"
+
+ # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
+ # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
+ # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
 
  # For MBagNet
  PRE_ACTIVATION: 1
@@ -118,7 +124,7 @@ TRAIN:
 
  # Train Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 1
+  CATEGORIES_PER_BATCH: 2
   INSTANCES_PER_CATEGORY_IN_BATCH: 1
   MASK_PER_BATCH: 1
   ACCUMULATION_STEP: 1
@@ -153,7 +159,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "./pretrained/densenet121-a639ec97.pth"
+ WEIGHT: "D:/MIP/Experiment/saved_model/lesion_multilabel/colormask-224/densenet/densenet121_model_21.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

@@ -36,7 +36,7 @@ class GuidedDeConvPGCAM():
 
         self.firstCAM = 1
 
-        self.reservePos = True  #True
+        self.reservePos = False  #True
 
         self.normFlag = True
 
@@ -158,17 +158,26 @@ class GuidedDeConvPGCAM():
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
             if grad_out[0].ndimension() == 4:
-                pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
-                result_grad = result_grad * grad_out[0].gt(0) * pgcam.gt(0)
+                pgcam = self.GenerateCAM(relu_output, result_grad)
+                result_grad = result_grad * pgcam.gt(0)
+                """
+                if self.firstCAM == 1:
+                    self.firstCAM = 0
+                    pgcam = torch.sum(relu_output * torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1), dim=1, keepdim=True).relu()
+                else:
+                    pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
+                result_grad = result_grad * grad_out[0].gt(0)# * pgcam.gt(0)
+                #result_grad = torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1).expand_as(grad_in[0])
 
-                pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
-                result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
+                #pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
+                #result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
 
                 if 0:#self.firstCAM == 1:
                     self.firstCAM = 0
                     norm_pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
                     #pgcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1) * relu_output, dim=1, keepdim=True)
                     result_grad = result_grad * norm_pgcam.gt(0.5)
+                """
 
             else:
                 result_grad = result_grad
@@ -283,9 +292,19 @@ class GuidedDeConvPGCAM():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
+        """
+        avg_gradient = torch.nn.functional.adaptive_max_pool2d(inter_gradient, 1).squeeze(-1).squeeze(-1).squeeze(0)
+        m = torch.sort(avg_gradient)
+        i = m[0][-1]
+        v = m[1][-1]
+        gcam = inter_output[:, v:v+1]#torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+        """
+
+        gcam = torch.sum(inter_output * torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1), dim=1, keepdim=True)
         #gcam = torch.sum(inter_output, dim=1, keepdim=True)
         #gcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1) * inter_output, dim=1, keepdim=True)
-        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+        #gcam = inter_output[:, 435:436,]
+        #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
@@ -408,6 +427,18 @@ class GuidedDeConvPGCAM():
         :param savePath: 存储路径
         :return:
         """
+        draw_flag_dict = {
+            "originnal_image": 1,
+            "gray_visualization": 0,
+            "binary_visualization": 0,
+            "color_visualization": 1,
+            "binary_visualization_on_image": 1,
+            "color_visualization_on_image": 0,
+            "binary_visualization_on_segmentation": 0,
+            "color_visualization_on_segmentation": 0,
+            "segmentation_ground_truth": 1,
+        }
+
         for j in range(imgs.shape[0]):
             #"""
             for i, gcam in enumerate(self.gcam_list):
@@ -416,20 +447,20 @@ class GuidedDeConvPGCAM():
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
-                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict )
                 else:
-                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict )
             #"""
 
             # 绘制一下overall_gcam
-            if self.overall_gcam is not None:
+            if 0:#self.overall_gcam is not None:
                 layer_name = "overall"
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
-                    draw_visualization(imgs[j], self.overall_gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], self.overall_gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict )
                 else:
-                    draw_visualization(imgs[j], self.overall_gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], self.overall_gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
 
         return 0
 

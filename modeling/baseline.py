@@ -28,6 +28,7 @@ from .visualizers.visual_backpropagation import *
 from .visualizers.cjy import *
 from .visualizers.guided_deconv_pgrad_cam import *
 from .visualizers.marginal_winning_probability import *
+from .visualizers.xgrad_cam import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -150,24 +151,26 @@ class Baseline(nn.Module):
         self.choose_segmenter()
 
         # 4.visualizer
-        # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
+        # "grad-cam", "grad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
         # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
+        # "mwp", "c-mwp"
+        # "xgrad-cam", "xgrad-cam-GBP"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
-        #self.visualizer_name = "none"#"guided-backpropagation"
+        self.visualizer_name = "guided-deconv-pgrad-cam"#"guided-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
             for module_name, module in self.named_modules():
-                if (isinstance(module,
-                               torch.nn.ReLU)) and "segmenter" not in module_name and "classifier" not in module_name:
+                if ((isinstance(module, torch.nn.ReLU)) or (isinstance(module, torch.nn.MaxPool2d))) and "segmenter" not in module_name and "classifier" not in module_name:
                     if "densenet" in self.base_name and "denseblock" not in module_name:
                         self.target_layer.append(module_name)
                     elif "resnet" in self.base_name and "relu1" not in module_name and "relu2" not in module_name:
                         self.target_layer.append(module_name)
                     elif "vgg" in self.base_name:
                         self.target_layer.append(module_name)
-            # self.target_layer.append("")
+            #self.target_layer.append("")
         #"""
+        self.target_layer = [self.target_layer[-2], self.target_layer[-1]]
 
 
         self.visualizer = None
@@ -445,7 +448,13 @@ class Baseline(nn.Module):
         elif self.visualizer_name == "guided-deconv-pgrad-cam":
             self.visualizer = GuidedDeConvPGCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "mwp":
-            self.visualizer = MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+            self.visualizer = MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=False)
+        elif self.visualizer_name == "c-mwp":
+            self.visualizer = MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=True)
+        if self.visualizer_name == "xgrad-cam":
+            self.visualizer = XGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
+        elif self.visualizer_name == "xgrad-cam-GBP":
+            self.visualizer = XGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")

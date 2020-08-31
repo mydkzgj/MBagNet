@@ -1,0 +1,2 @@
+SingleGradeLabel —— SGL
+MultiLesionLabel —— MLL

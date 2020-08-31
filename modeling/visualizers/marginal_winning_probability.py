@@ -24,7 +24,7 @@ class MWP():
         self.inter_gradient = []
         self.targetHookIndex = 0
 
-        self.contrastive = True#contrastive
+        self.contrastive = contrastive
         self.contrastive_first_state = 0  #使用时开启
 
         self.useGuidedBP = False#False  #True  #False  # GuideBackPropagation的变体
@@ -502,6 +502,18 @@ class MWP():
         :param savePath: 存储路径
         :return:
         """
+        draw_flag_dict = {
+            "originnal_image": 1,
+            "gray_visualization": 0,
+            "binary_visualization": 0,
+            "color_visualization": 1,
+            "binary_visualization_on_image": 1,
+            "color_visualization_on_image": 0,
+            "binary_visualization_on_segmentation": 0,
+            "color_visualization_on_segmentation": 0,
+            "segmentation_ground_truth": 1,
+        }
+
         for j in range(imgs.shape[0]):
             #"""
             for i, gcam in enumerate(self.gcam_list):
@@ -510,9 +522,9 @@ class MWP():
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
-                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
                 else:
-                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
             #"""
 
             # 绘制一下overall_gcam
@@ -521,9 +533,9 @@ class MWP():
                 label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
-                    draw_visualization(imgs[j], self.overall_gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], self.overall_gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
                 else:
-                    draw_visualization(imgs[j], self.overall_gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix)
+                    draw_visualization(imgs[j], self.overall_gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
 
         return 0
 

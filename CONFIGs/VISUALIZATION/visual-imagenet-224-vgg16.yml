@@ -32,9 +32,10 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "vgg16_bn"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "vgg16"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear"
+ CLASSIFIER_OUTPUT_TYPE: "single-label"                         #"single-label", "multi-label"       
  CLA_NUM_CLASSES: 1000
  SEGMENTER_NAME: "fc_mbagnet"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
@@ -153,7 +154,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "./pretrained/vgg16_bn-6c64b313.pth"
+ WEIGHT: "./pretrained/vgg16-397923af.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

@@ -4,11 +4,13 @@ Created on 2020.7.4
 @author: Jiayang Chen - github.com/mydkzgj
 """
 
+# Axiom-based Grad-CAM 2020
+
 import torch
 from .draw_tool import draw_visualization
 
 
-class GradCAM():
+class XGradCAM():
     def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
         self.model = model
         self.num_classes = num_classes
@@ -170,7 +172,9 @@ class GradCAM():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
-        avg_gradient = torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1)
+        norm_activation = inter_output/inter_output.sum(dim=-1, keepdim=True).sum(dim=-2, keepdim=True).clamp(min=1E-12)
+        avg_gradient = torch.nn.functional.adaptive_avg_pool2d(norm_activation * inter_gradient, 1)
+        #avg_gradient = torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1)
         gcam = torch.sum(avg_gradient * inter_output, dim=1, keepdim=True)
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:

@@ -106,8 +106,6 @@ def train(cfg):
             schedulers.append(op_schedulers)
 
 
-
-
     do_train(
         cfg,
         model,
