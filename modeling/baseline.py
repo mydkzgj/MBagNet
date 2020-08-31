@@ -170,7 +170,7 @@ class Baseline(nn.Module):
                         self.target_layer.append(module_name)
             #self.target_layer.append("")
         #"""
-        self.target_layer = [self.target_layer[-2], self.target_layer[-1]]
+        #self.target_layer = [self.target_layer[-2], self.target_layer[-1]]
 
 
         self.visualizer = None
