@@ -177,8 +177,6 @@ class PGradCAM():
         gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
-
-        print(v.item(), i.item(), gcam.max().item())
         return gcam
 
     """
