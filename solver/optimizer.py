@@ -7,6 +7,10 @@
 import torch
 from collections import defaultdict
 
+
+
+
+
 # 创建多个optimizer，用来交替训练模型的各个子部分
 def make_optimizers(cfg, model):
     params_dict2 = {}
@@ -27,6 +31,13 @@ def make_optimizers(cfg, model):
         if "bias" in key:
             lr = cfg.SOLVER.SCHEDULER.BASE_LR * cfg.SOLVER.SCHEDULER.BIAS_LR_FACTOR
             weight_decay = cfg.SOLVER.OPTIMIZER.WEIGHT_DECAY_BIAS
+
+            # bias-free CJY
+            bias_free = True
+            if bias_free == True:
+                torch.nn.init.constant_(value, 0.0)
+                continue
+
         for gkey in groupKeys:
             if gkey in key or gkey == "others":
                 params_dict[gkey].append({"params": [value], "lr": lr, "weight_decay": weight_decay})

@@ -269,7 +269,6 @@ class GuidedDeConvPGCAM():
             result_grad = grad_out[0] * new_weight / module.running_var.sqrt().unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
             return (result_grad, grad_in[1], grad_in[2])
 
-
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
         self.observation_class = labels.cpu().numpy().tolist()
