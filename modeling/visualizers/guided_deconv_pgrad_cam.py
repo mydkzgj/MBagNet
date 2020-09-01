@@ -26,6 +26,13 @@ class GuidedDeConvPGCAM():
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
+        self.useGuidedPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_pool_layers = 0
+        self.pool_output = []
+        self.pool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_pool_index_list = []
+
         self.useGuidedCONV = False  #True  # True#False  # GuideBackPropagation的变体
         self.guidedCONVstate = 0
         self.num_conv_layers = 0
@@ -90,6 +97,23 @@ class GuidedDeConvPGCAM():
                     self.num_relu_layers = self.num_relu_layers + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
+
+        if self.useGuidedPOOL == True:
+            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
+                    if "densenet" in self.model.base_name and "denseblock" not in module_name:
+                        self.stem_relu_index_list.append(self.num_pool_layers)
+                        print("Stem POOL:{}".format(module_name))
+                    elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
+                        self.stem_relu_index_list.append(self.num_pool_layers)
+                        print("Stem POOL:{}".format(module_name))
+                    elif "vgg" in self.model.base_name:
+                        self.stem_relu_index_list.append(self.num_pool_layers)
+                        print("Stem POOL:{}".format(module_name))
+                    self.num_pool_layers = self.num_pool_layers + 1
+                    module.register_forward_hook(self.pool_forward_hook_fn)
+                    module.register_backward_hook(self.pool_backward_hook_fn)
 
         if self.useGuidedCONV == True:
             print("Set GuidedBP Hook on CONV")
@@ -159,13 +183,60 @@ class GuidedDeConvPGCAM():
 
             if grad_out[0].ndimension() == 4:
                 pgcam = self.GenerateCAM(relu_output, result_grad)
-                result_grad = result_grad * pgcam.gt(0)
+                result_grad = result_grad * grad_out[0].gt(0)#pgcam.gt(0)
                 """
                 if self.firstCAM == 1:
                     self.firstCAM = 0
                     pgcam = torch.sum(relu_output * torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1), dim=1, keepdim=True).relu()
                 else:
                     pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
+                result_grad = result_grad * grad_out[0].gt(0)# * pgcam.gt(0)
+                #result_grad = torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1).expand_as(grad_in[0])
+
+                #pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
+                #result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
+
+                if 0:#self.firstCAM == 1:
+                    self.firstCAM = 0
+                    norm_pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
+                    #pgcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1) * relu_output, dim=1, keepdim=True)
+                    result_grad = result_grad * norm_pgcam.gt(0.5)
+                """
+
+            else:
+                result_grad = result_grad
+            return (result_grad, )
+        else:
+            pass
+
+
+    def pool_forward_hook_fn(self, module, input, output):
+        if self.pool_current_index == 0:
+            self.pool_output.clear()
+        self.pool_output.append(output)
+        self.pool_current_index = self.pool_current_index + 1
+        if self.pool_current_index % self.num_pool_layers == 0:
+            self.pool_current_index = 0
+
+    def pool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedPOOLstate == True:
+            result_grad = grad_in[0]
+
+            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
+            pool_output = self.pool_output[self.pool_output_obtain_index]
+
+            if grad_out[0].ndimension() == 4:
+                if self.firstCAM == 1:
+                    self.firstCAM = 0
+                    pgcam = self.GenerateCAM(pool_output, grad_out[0])
+                    pgcam = torch.nn.functional.interpolate(pgcam, (grad_in[0].shape[2], grad_in[0].shape[3]), mode='nearest')  #
+                    result_grad = result_grad * pgcam.gt(0)
+                """
+                if self.firstCAM == 1:
+                    self.firstCAM = 0
+                    pgcam = torch.sum(pool_output * torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1), dim=1, keepdim=True).relu()
+                else:
+                    pgcam = torch.sum(pool_output * grad_out[0], dim=1, keepdim=True).relu()
                 result_grad = result_grad * grad_out[0].gt(0)# * pgcam.gt(0)
                 #result_grad = torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1).expand_as(grad_in[0])
 
@@ -219,11 +290,13 @@ class GuidedDeConvPGCAM():
 
         #self.bn_weight_reserve_state = 1
         self.guidedBPstate = 1  # 是否开启guidedBP
+        self.guidedPOOLstate = 1
         self.guidedCONVstate = 1
         self.guidedBNstate = 1
 
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
+        self.pool_output_obtain_index = len(self.pool_output)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
@@ -231,6 +304,7 @@ class GuidedDeConvPGCAM():
 
         self.guidedBNstate = 0
         self.guidedCONVstate = 0
+        self.guidedPOOLstate = 0
         self.guidedBPstate = 0
 
 
