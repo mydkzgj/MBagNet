@@ -12,7 +12,7 @@ from collections import defaultdict
 
 
 # 创建多个optimizer，用来交替训练模型的各个子部分
-def make_optimizers(cfg, model):
+def make_optimizers(cfg, model, bias_free = False):
     params_dict2 = {}
     for name, parameters in model.named_parameters():
         # print(name, ':', parameters.size())
@@ -33,7 +33,6 @@ def make_optimizers(cfg, model):
             weight_decay = cfg.SOLVER.OPTIMIZER.WEIGHT_DECAY_BIAS
 
             # bias-free CJY
-            bias_free = True
             if bias_free == True:
                 torch.nn.init.constant_(value, 0.0)
                 continue
