@@ -103,7 +103,7 @@ class SegmentationDataset(Dataset):
                 T.Pad(m_pad),  # 暂时先去掉padding，因为有可能让mask中的病灶全部被剪切去
                 T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
                 T.ToTensor(),
-                RandomErasing(probability=re_prob, sl=0.2, sh=0.5, mean=[0])
+                RandomErasing(probability=re_prob, sl=0.1, sh=0.4, mean=[0])
             ])
 
     def __len__(self):
@@ -192,8 +192,8 @@ class SegmentationDataset(Dataset):
                 sum = mask[index:index + 1].sum()
                 if sum == 0 and img_label[index] == 1:
                     img_label[index] = 0
-                    print(imgName)
-                    print(img_label)
+                    #print(imgName)
+                    #print(img_label)
                     # raise Exception("Single Sum should > 0")  #当病灶在边缘时可能会出现没有crop到他的问题
                 if img_label[index] == 1:
                     canvas = canvas * (1 - mask_no_overlap[index:index + 1]) + mask_no_overlap[index:index + 1] * ColorMap[lesionTypeList[index]]
