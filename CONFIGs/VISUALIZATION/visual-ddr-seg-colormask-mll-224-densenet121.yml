@@ -119,8 +119,8 @@ TRAIN:
 
  # Train Transform
  TRANSFORM:
-  PROB: 0.0
-  RE_PROB: 0.0
+  PROB: 0.5
+  RE_PROB: 0.5
 
  # Train Dataloader
  DATALOADER:

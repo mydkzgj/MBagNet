@@ -159,7 +159,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/MIP/Experiment/saved_model/lesion_multilabel/colormask-224/vgg/vgg16_model_25.pth"
+ WEIGHT: "F:/ddr-seg-colormask-mll/vgg-bias-free/vgg16_model_25.pth"#"D:/MIP/Experiment/saved_model/lesion_multilabel/colormask-224/vgg/vgg16_model_25.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

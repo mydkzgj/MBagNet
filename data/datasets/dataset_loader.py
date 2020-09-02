@@ -87,6 +87,25 @@ class SegmentationDataset(Dataset):
             normalize_transform = T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD)
             self.norm_transform = T.Compose([normalize_transform])
 
+            from ..transforms.transforms import RandomErasing
+            if self.is_train == True:
+                m_pad = cfg.DATA.TRANSFORM.PADDING * 4
+                prob = cfg.TRAIN.TRANSFORM.PROB
+                re_prob = cfg.TRAIN.TRANSFORM.RE_PROB
+            else:
+                m_pad = 0
+                prob = 0
+                re_prob = 0
+            self.single_mask_transform = T.Compose([
+                # T.Resize(cfg.DATA.TRANSFORM.SIZE),
+                T.ToPILImage(),
+                T.RandomHorizontalFlip(p=prob),
+                T.Pad(m_pad),  # 暂时先去掉padding，因为有可能让mask中的病灶全部被剪切去
+                T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
+                T.ToTensor(),
+                RandomErasing(probability=re_prob, sl=0.2, sh=0.5, mean=[0])
+            ])
+
     def __len__(self):
         return len(self.dataset)
 
@@ -131,8 +150,13 @@ class SegmentationDataset(Dataset):
 
 
         # CJY at 2020.8.12 在dataloader中生成colormask
-
         if self.generateColormask == True:
+            # CJY at 2020.9.2
+            # 将每一维得mask进行单独扩增
+            mask_copy = mask.clone()
+            for i in range(mask.shape[0]):
+                mask[i:i+1] = self.single_mask_transform(mask[i:i+1])
+
             import os
             _, imgName = os.path.split(image_path)
             lesionTypeList = ["MA", "EX", "SE", "HE"]
@@ -145,30 +169,37 @@ class SegmentationDataset(Dataset):
 
             drawOrder = ["HE", "SE", "EX", "MA"]
             canvas = torch.zeros_like(img)
+
+            # CJY at 2020.9.2  将mask按照draw order进行重叠位置得筛除（保留后来的，使得没有重叠位置）
+            mask_no_overlap = mask.clone()
             if "HE" in imgName or "SE" in imgName or "EX" in imgName or "MA" in imgName:
                 for lesionType in drawOrder:
                     index = lesionTypeList.index(lesionType)
                     if lesionType in imgName:
-                        sum = mask[index:index + 1].sum()
-                        if sum == 0:
-                            img_label[index] = 0
-                            print(imgName)
-                            print(img_label)
-                            # raise Exception("Single Sum should > 0")  #当病灶在边缘时可能会出现没有crop到他的问题
-                        canvas = canvas * (1 - mask[index:index + 1]) + mask[index:index + 1] * ColorMap[lesionTypeList[index]]
+                        mask_no_overlap = mask_no_overlap * (1 - mask[index:index + 1])
+                        mask_no_overlap[index:index + 1] = mask[index:index + 1]
+                    else:
+                        mask_no_overlap[index:index + 1] = mask_no_overlap[index:index + 1] * 0
             else:
                 for lesionType in drawOrder:
                     index = lesionTypeList.index(lesionType)
-                    sum = mask[index:index + 1].sum()
-                    if sum == 0 and img_label[index] == 1:
-                        img_label[index] = 0
-                        print(imgName)
-                        print(img_label)
-                        # raise Exception("Single Sum should > 0")  #当病灶在边缘时可能会出现没有crop到他的问题
-                    if img_label[index] == 1:
-                        canvas = canvas * (1 - mask[index:index + 1]) + mask[index:index + 1] * ColorMap[lesionTypeList[index]]
+                    mask_no_overlap = mask_no_overlap * (1 - mask[index:index + 1])
+                    mask_no_overlap[index:index + 1] = mask[index:index + 1]
+
+            # 依照mask_no_overlap进行绘制
+            for lesionType in drawOrder:
+                index = lesionTypeList.index(lesionType)
+                sum = mask[index:index + 1].sum()
+                if sum == 0 and img_label[index] == 1:
+                    img_label[index] = 0
+                    print(imgName)
+                    print(img_label)
+                    # raise Exception("Single Sum should > 0")  #当病灶在边缘时可能会出现没有crop到他的问题
+                if img_label[index] == 1:
+                    canvas = canvas * (1 - mask_no_overlap[index:index + 1]) + mask_no_overlap[index:index + 1] * ColorMap[lesionTypeList[index]]
 
             img = self.norm_transform(canvas)
+            mask = mask_copy
 
         return img, mask, img_label, image_path  # 返回的是图片
 
