@@ -22,7 +22,7 @@ class PGradCAM():
         self.hookIndex = 0
         self.setHook(model)
 
-        self.reservePos = False
+        self.reservePos = True#False
 
         self.draw_index = 0
 
@@ -278,7 +278,7 @@ class PGradCAM():
             "gray_visualization": 0,
             "binary_visualization": 0,
             "color_visualization": 1,
-            "binary_visualization_on_image": 1,
+            "binary_visualization_on_image": 0,
             "color_visualization_on_image": 0,
             "binary_visualization_on_segmentation": 0,
             "color_visualization_on_segmentation": 0,

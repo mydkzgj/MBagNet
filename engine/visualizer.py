@@ -146,7 +146,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 engine.state.imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
             else:
                 engine.state.imgsName = [str(int(i)+imgs.shape[0]) for i in engine.state.imgsName]
-            if int(engine.state.imgsName[0]) > 100:
+            if int(engine.state.imgsName[0]) > 40:
                 exit(0)
             #"""
             #imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
@@ -160,7 +160,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
             # 可视化
             for oblabels in oblabelList:
-                binary_threshold = 0.25#0.5
+                binary_threshold = 0#0.25#0.5
                 if model.visualizer.reservePos != True:
                     binary_threshold = binary_threshold*0.5 + 0.5
                 showFlag = 1
