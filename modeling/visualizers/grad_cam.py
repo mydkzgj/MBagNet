@@ -22,7 +22,7 @@ class GradCAM():
         self.hookIndex = 0
         self.setHook(model)
 
-        self.reservePos = True
+        self.reservePos = False#True
 
         self.draw_index = 0
 

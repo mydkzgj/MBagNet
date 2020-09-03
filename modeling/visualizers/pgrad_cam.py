@@ -22,7 +22,7 @@ class PGradCAM():
         self.hookIndex = 0
         self.setHook(model)
 
-        self.reservePos = True#False
+        self.reservePos = False#False
 
         self.draw_index = 0
 

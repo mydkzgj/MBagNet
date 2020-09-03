@@ -92,7 +92,8 @@ class SegmentationDataset(Dataset):
                 m_pad = cfg.DATA.TRANSFORM.PADDING * 4
                 prob = cfg.TRAIN.TRANSFORM.PROB
                 re_prob = cfg.TRAIN.TRANSFORM.RE_PROB
-                self.shuffle_th = 0.5
+                self.shuffle_th = 0#0.5
+                self.pick_channel_th = -1
             else:
                 m_pad = 0
                 prob = 0
@@ -188,6 +189,24 @@ class SegmentationDataset(Dataset):
                     index = lesionTypeList.index(lesionType)
                     mask_no_overlap = mask_no_overlap * (1 - mask[index:index + 1])
                     mask_no_overlap[index:index + 1] = mask[index:index + 1]
+
+            # 只挑选其中一个有值通道
+            if random.random() > self.pick_channel_th:
+                non_zero_channel_index = []
+                for index, lesionType in enumerate(lesionTypeList):
+                    sum = mask_no_overlap[index:index + 1].sum()
+                    if sum != 0:
+                        non_zero_channel_index.append(index)
+
+                if non_zero_channel_index is not []:
+                    random.shuffle(non_zero_channel_index)  #引入随机的弊病在于会和num_worker冲突，不能同时设置多个
+                    #i = random.randint(0, len(non_zero_channel_index) - 1)
+                    pick_channel = non_zero_channel_index[0]
+
+                    for index, lesionType in enumerate(lesionTypeList):
+                        if index != pick_channel:
+                            mask_no_overlap[index:index + 1] = mask_no_overlap[index:index + 1] * 0
+
 
             # 将通道随机打乱
             if random.random() > self.shuffle_th:
