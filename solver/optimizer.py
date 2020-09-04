@@ -34,7 +34,7 @@ def make_optimizers(cfg, model, bias_free = False):
 
             # bias-free CJY
             if bias_free == True:
-                if "classifier.6." not in key:
+                if 1:#"classifier.6." not in key:
                     torch.nn.init.constant_(value, 0.0)
                     continue
 

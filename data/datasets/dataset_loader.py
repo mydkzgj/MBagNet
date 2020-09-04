@@ -192,6 +192,7 @@ class SegmentationDataset(Dataset):
                     mask_no_overlap[index:index + 1] = mask[index:index + 1]
 
             # 只挑选其中一个有值通道
+            """
             if random.random() > self.pick_channel_th:
                 non_zero_channel_index = []
                 for index, lesionType in enumerate(lesionTypeList):
@@ -207,6 +208,7 @@ class SegmentationDataset(Dataset):
                     for index, lesionType in enumerate(lesionTypeList):
                         if index != pick_channel:
                             mask_no_overlap[index:index + 1] = mask_no_overlap[index:index + 1] * 0
+            #"""
 
 
             # 将通道随机打乱
