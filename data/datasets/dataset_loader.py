@@ -229,7 +229,7 @@ class SegmentationDataset(Dataset):
                 if img_label[index] == 1:
                     canvas = canvas * (1 - mask_no_overlap[index:index + 1]) + mask_no_overlap[index:index + 1] * ColorMap[lesionTypeList[index]]
 
-                sum_mask = torch.sum(mask_no_overlap, dim=0, keepdim=True).ne(0)
+                sum_mask = torch.sum(mask_no_overlap, dim=0, keepdim=True).ne(0).float()
 
             img = self.norm_transform(canvas) * sum_mask
             mask = mask_copy
