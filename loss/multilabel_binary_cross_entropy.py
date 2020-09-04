@@ -34,6 +34,6 @@ class MultilabelBinaryCrossEntropy(nn.Module):
         #loss = (- targets * log_probs).mean(0).sum()
 
         targets = targets.float()
-        #loss = self.BCEL(inputs, targets)
-        loss = self.BCE(torch.relu(torch.tanh(inputs)), targets)
+        loss = self.BCEL(inputs, targets)
+        #loss = self.BCE(torch.relu(torch.tanh(inputs)), targets)
         return loss
