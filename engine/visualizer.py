@@ -146,7 +146,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 engine.state.imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
             else:
                 engine.state.imgsName = [str(int(i)+imgs.shape[0]) for i in engine.state.imgsName]
-            if int(engine.state.imgsName[0]) >= 10:
+            if int(engine.state.imgsName[0]) >= 30:
                 exit(0)
             #"""
             #imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
