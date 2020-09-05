@@ -20,7 +20,7 @@ from .multilabel_binary_cross_entropy import MultilabelBinaryCrossEntropy
 from .mask_loss import SegMaskLoss, GradCamMaskLoss
 from .masked_img_loss import PosMaskedImgLoss, NegMaskedImgLoss
 from .forshow_loss import ForShowLoss
-
+from .mse_loss import MSELoss
 
 
 
@@ -83,6 +83,9 @@ def make_D_loss(cfg, num_classes):
         elif lossName == "neg_masked_img_loss":
             neg_masked_img_loss = NegMaskedImgLoss()
             lossClasses["neg_masked_img_loss"] = neg_masked_img_loss
+        elif lossName == "mse_loss":
+            mse_loss = MSELoss()
+            lossClasses["mse_loss"] = mse_loss
         elif lossName == "for_show_loss":
             for_show_loss = ForShowLoss()
             lossClasses["for_show_loss"] = for_show_loss
@@ -132,6 +135,8 @@ def make_D_loss(cfg, num_classes):
                 losses["pos_masked_img_loss"] = pos_masked_img_loss(pos_masked_logit, neg_masked_logit, origin_logit, label)
             elif lossName == "neg_masked_img_loss":
                 losses["neg_masked_img_loss"] = neg_masked_img_loss(pos_masked_logit, neg_masked_logit, origin_logit, label)
+            elif lossName == "mse_loss":
+                losses["mse_loss"] = mse_loss(logit, label)
             elif lossName == "for_show_loss":
                 losses["for_show_loss"] = for_show_loss(show=show)
             else:

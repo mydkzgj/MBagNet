@@ -76,7 +76,13 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
             model.transimitBatchDistribution(0)  #不生成seg
             logits = model(imgs)
 
-            return {"logits": logits, "labels": labels}
+            if model.classifier_output_type == "single-label":
+                scores = torch.softmax(logits, dim=1)
+            else:
+                # scores = torch.sigmoid(logits).round()
+                scores = logits.gt(0.5).int()  # 回归
+
+            return {"logits": logits, "scores":scores, "labels": labels}
 
 
 
@@ -102,22 +108,22 @@ def do_inference(
     logging._warn_preinit_stderr = 0
     logger.info("Enter inferencing")
 
-    """
+
     metrics_eval = {"overall_accuracy": Accuracy(output_transform=lambda x: (x["logits"], x["labels"])),
                     "precision": Precision(output_transform=lambda x: (x["logits"], x["labels"])),
                     "recall": Recall(output_transform=lambda x: (x["logits"], x["labels"])),
                     "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], x["labels"])),
                     }
-    """
+
     if model.classifier_output_type == "multi-label":
         #此处用了转置的话，如果batch_size为1，会出现报错（因为num_class>1 if multi-label）所以串联为为2倍。  Failed
         #此处average都选择True， 否则将会将所有sample串联记录下来。 但是在trainer中由于用了RunningAverage，所以不用average=False
         #"""
-        metrics_eval = {"overall_accuracy": Accuracy(output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
+        metrics_eval = {"overall_accuracy": Accuracy(output_transform=lambda x: (x["scores"], x["labels"]), is_multilabel=True),
                         #"precision": Precision(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
                         #"recall": Recall(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
-                        "precision": Precision(average=True, output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
-                        "recall": Recall(average=True, output_transform=lambda x: (x["logits"].sigmoid().round(), x["labels"]), is_multilabel=True),
+                        "precision": Precision(average=True, output_transform=lambda x: (x["scores"], x["labels"]), is_multilabel=True),
+                        "recall": Recall(average=True, output_transform=lambda x: (x["scores"], x["labels"]), is_multilabel=True),
                         "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["labels"], dim=1)[1])),
                         }
         #"""

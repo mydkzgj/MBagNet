@@ -221,10 +221,11 @@ class SegmentationDataset(Dataset):
             for index, lesionType in enumerate(lesionTypeList):
                 #index = lesionTypeList.index(lesionType)
                 sum = mask_no_overlap[index:index + 1].sum()
-                if sum == 0 and img_label[index] == 1:
-                    img_label[index] = 0   # 当病灶在边缘时可能会出现没有crop到他的问题
-                elif sum != 0 and img_label[index] == 0:
-                    img_label[index] = 1
+                #if sum == 0 and img_label[index] == 1:
+                #    img_label[index] = 0   # 当病灶在边缘时可能会出现没有crop到他的问题
+                #elif sum != 0 and img_label[index] == 0:
+                #    img_label[index] = 1
+                img_label[index] = sum   #用于回归
 
                 if img_label[index] == 1:
                     canvas = canvas * (1 - mask_no_overlap[index:index + 1]) + mask_no_overlap[index:index + 1] * ColorMap[lesionTypeList[index]]

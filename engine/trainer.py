@@ -183,11 +183,13 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 and imgs is not None else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 and labels is not None else labels
         # 将label转为one - hot
-        if len(labels.shape) == 1:   #如果本身是标量标签，那么可以通过下式处理为one-hot标签
+        if len(labels.shape) == 1:      # 如果本身是标量标签，那么可以通过下式处理为one-hot标签
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
             one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 and one_hot_labels is not None else one_hot_labels
         else: #否则不变
-            one_hot_labels = labels
+            #one_hot_labels = labels
+            # CJY label为回归连续数值
+            one_hot_labels = torch.gt(labels, 0).int()
 
         # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:
@@ -211,6 +213,12 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         #print(labels)
         logits = model(imgs)                #为了减少显存，还是要区分grade和seg
         #grade_logits = logits[0:grade_num]
+
+        if model.classifier_output_type == "single-label":
+            scores = torch.softmax(logits, dim=1)
+        else:
+            #scores = torch.sigmoid(logits).round()
+            scores = logits.gt(0.5).int()   #回归
 
         # Branch 1 Segmentation
         if model.segState == True:
@@ -317,7 +325,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                                                 gcam_mask=gcam_masks, gcam_gtmask=gcam_gtmasks, gcam_label=gcam_labels,
                                                 origin_logit=om_logits, pos_masked_logit=pm_logits, neg_masked_logit=nm_logits,
                                                 show=forShow)    #损失词典
-        weight = {"cross_entropy_loss":1, "multilabel_binary_cross_entropy_loss":1,
+        weight = {"cross_entropy_loss":1, "multilabel_binary_cross_entropy_loss":1, "mse_loss":1,
                   "seg_mask_loss":1,
                   "gcam_mask_loss":1,
                   "pos_masked_img_loss":1, "neg_masked_img_loss":1,
@@ -382,7 +390,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             else:
                 losses[lossKey] = losses[lossKey].detach() if isinstance(losses[lossKey], torch.Tensor) else losses[lossKey] # CJY
         #"""
-        return {"scores": logits, "labels": labels, "losses": losses, "total_loss": loss.item()}
+        return {"logits": logits, "scores":scores, "labels": labels, "multi-labels":one_hot_labels, "losses": losses, "total_loss": loss.item()}
     engine = Engine(_update)
 
     for name, metric in metrics.items():
@@ -490,15 +498,15 @@ def do_train(
 
     # 设置训练相关的metrics
     metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
-                     "avg_precision": RunningAverage(Precision(output_transform=lambda x: (x["scores"], x["labels"]))),
-                     "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"], x["labels"]))),  #由于训练集样本均衡后远离原始样本集，故只采用平均metric
+                     "avg_precision": RunningAverage(Precision(output_transform=lambda x: (x["logits"], x["labels"]))),
+                     "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["logits"], x["labels"]))),  #由于训练集样本均衡后远离原始样本集，故只采用平均metric
                      }
     # CJY at 2020.8.10 多标签有改动
     if model.classifier_output_type == "multi-label":
         # 在trainer中由于用了RunningAverage，所以用average=True, 原本会把batch输出，class-average。此处将其转置即可得到batch-average
         metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
-                         "avg_precision": RunningAverage(Precision(average=False, output_transform=lambda x: (x["scores"].sigmoid().round().transpose(1,0), x["labels"].transpose(1,0)), is_multilabel=True)),
-                         "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"].sigmoid().round(), x["labels"]), is_multilabel=True)), # 由于训练集样本均衡后远离原始样本集，故只采用平均metric
+                         "avg_precision": RunningAverage(Precision(average=False, output_transform=lambda x: (x["scores"].transpose(1,0), x["multi-labels"].transpose(1,0)), is_multilabel=True)),
+                         "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True)), # 由于训练集样本均衡后远离原始样本集，故只采用平均metric
                          }
 
     lossKeys = cfg.LOSS.TYPE.split(" ")
@@ -551,6 +559,9 @@ def do_train(
         elif lossName == "neg_masked_img_loss":
             metrics_train["AVG-" + "neg_masked_img_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["neg_masked_img_loss"])
+        elif lossName == "mse_loss":
+            metrics_train["AVG-" + "mse_loss"] = RunningAverage(
+                output_transform=lambda x: x["losses"]["mse_loss"])
         elif lossName == "for_show_loss":
             metrics_train["AVG-" + "for_show_loss"] = RunningAverage(
                 output_transform=lambda x: x["losses"]["for_show_loss"])
@@ -564,7 +575,7 @@ def do_train(
     #CJY  at 2019.9.26
     def output_transform(output):
         # `output` variable is returned by above `process_function`
-        y_pred = output['scores']
+        y_pred = output['logits']
         y = output['labels']
         return y_pred, y  # output format is according to `Accuracy` docs
 
