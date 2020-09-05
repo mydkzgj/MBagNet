@@ -231,7 +231,7 @@ class SegmentationDataset(Dataset):
                 #    img_label[index] = 1
                 img_label[index] = (sum - self.lesion_area_mean)/self.lesion_area_std_dev   #用于回归
 
-                if img_label[index] == 1:
+                if sum != 0:
                     canvas = canvas * (1 - mask_no_overlap[index:index + 1]) + mask_no_overlap[index:index + 1] * ColorMap[lesionTypeList[index]]
 
                 sum_mask = torch.sum(mask_no_overlap, dim=0, keepdim=True).ne(0).float()
