@@ -79,7 +79,8 @@ global model2
 model2 = None
 
 
-global statistic
+global stat
+stat = []
 
 def transfer_weights(model_from, model_to):
     wf = copy.deepcopy(model_from.state_dict())

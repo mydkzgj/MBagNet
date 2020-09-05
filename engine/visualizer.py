@@ -33,6 +33,8 @@ import copy
 import cv2 as cv
 from metric.multi_pointing_game import *
 
+
+
 """
 # pytorch 转换 one-hot 方式 scatter
 def activated_output_transform(output):
