@@ -88,8 +88,13 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
             if model.classifier_output_type == "single-label":
                 scores = torch.softmax(logits, dim=1)
             else:
+                # CJY at 2020.9.5
                 # scores = torch.sigmoid(logits).round()
-                scores = logits.gt(0.5).int()  # 回归
+                lesion_area_mean = 120
+                lesion_area_std_dev = 400
+                zero_line = (0 - lesion_area_mean) / lesion_area_std_dev
+                labels = (labels - lesion_area_mean) / lesion_area_std_dev  # label 标准化
+                scores = logits.gt(zero_line).int()  # 回归
 
             return {"logits": logits, "scores":scores, "labels": labels, "multi-labels":one_hot_labels}
 
