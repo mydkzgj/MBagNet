@@ -13,6 +13,7 @@ from ignite.metrics import Accuracy
 from ignite.metrics import Precision
 from ignite.metrics import Recall
 from ignite.metrics import ConfusionMatrix
+from ignite.metrics import MeanSquaredError
 
 from ignite.contrib.metrics import ROC_AUC
 
@@ -93,7 +94,8 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
                 scores = torch.sigmoid(logits).round()
                 regression_logits = model.regression_linear(logits)
 
-            return {"logits": logits, "scores":scores, "labels": labels, "multi-labels":one_hot_labels}
+            return {"logits": logits, "scores":scores, "labels": labels, "multi-labels":one_hot_labels,
+                    "regression-logits": regression_logits, "regression-labels": regression_labels}
 
 
 
@@ -135,6 +137,7 @@ def do_inference(
                         #"recall": Recall(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
                         "precision": Precision(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
                         "recall": Recall(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
+                        "mse": MeanSquaredError(output_transform=lambda x: (x["regression-logits"], x["regression-labels"]), is_multilabel=True),
                         "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["labels"], dim=1)[1])),
                         }
         #"""
