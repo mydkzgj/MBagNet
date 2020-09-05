@@ -72,29 +72,26 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
 
             imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
             labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-            # 将label转为one - hot
-            if len(labels.shape) == 1:  # 如果本身是标量标签，那么可以通过下式处理为one-hot标签
+            # 创建multi-labels以及regression_labels
+            if len(labels.shape) == 1:  # 如果本身是标量标签
                 one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
                 one_hot_labels = one_hot_labels.to(
                     device) if torch.cuda.device_count() >= 1 and one_hot_labels is not None else one_hot_labels
-            else:  # 否则不变
-                # one_hot_labels = labels
-                # CJY label为回归连续数值
+                regression_labels = 0
+            else:  # 如果本身是向量标签
                 one_hot_labels = torch.gt(labels, 0).int()
+                regression_labels = (labels - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
 
             model.transimitBatchDistribution(0)  #不生成seg
             logits = model(imgs)
 
             if model.classifier_output_type == "single-label":
                 scores = torch.softmax(logits, dim=1)
+                regression_logits = 0
             else:
                 # CJY at 2020.9.5
-                # scores = torch.sigmoid(logits).round()
-                lesion_area_mean = 120
-                lesion_area_std_dev = 400
-                zero_line = (0 - lesion_area_mean) / lesion_area_std_dev
-                labels = (labels - lesion_area_mean) / lesion_area_std_dev  # label 标准化
-                scores = logits.gt(zero_line).int()  # 回归
+                scores = torch.sigmoid(logits).round()
+                regression_logits = model.regression_linear(logits)
 
             return {"logits": logits, "scores":scores, "labels": labels, "multi-labels":one_hot_labels}
 
