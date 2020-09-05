@@ -63,7 +63,7 @@ MODEL:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 LOSS:
- TYPE: 'multilabel_binary_cross_entropy_loss mse_loss'#'cross_entropy_loss seg_mask_loss gcam_mask_loss pos_masked_img_loss neg_masked_img_loss'
+ TYPE: 'mse_loss'#'cross_entropy_loss seg_mask_loss gcam_mask_loss pos_masked_img_loss neg_masked_img_loss multilabel_binary_cross_entropy_loss '
  MARGIN_RANK: 1.3 ### R: ALPHA - MARGIN_RANK
  ALPHA: 2.0
  TVAL: 1.0

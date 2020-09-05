@@ -111,9 +111,7 @@ class SegmentationDataset(Dataset):
                 RandomErasing(probability=re_prob, sl=0.2, sh=0.5, mean=[0])
             ])
 
-            # CJY at 2020.9.5
-            self.lesion_area_mean = 120
-            self.lesion_area_std_dev = 400
+
 
     def __len__(self):
         return len(self.dataset)
@@ -229,7 +227,7 @@ class SegmentationDataset(Dataset):
                 #    img_label[index] = 0   # 当病灶在边缘时可能会出现没有crop到他的问题
                 #elif sum != 0 and img_label[index] == 0:
                 #    img_label[index] = 1
-                img_label[index] = (sum - self.lesion_area_mean)/self.lesion_area_std_dev   #用于回归
+                img_label[index] = sum  #用于回归
 
                 if sum != 0:
                     canvas = canvas * (1 - mask_no_overlap[index:index + 1]) + mask_no_overlap[index:index + 1] * ColorMap[lesionTypeList[index]]
