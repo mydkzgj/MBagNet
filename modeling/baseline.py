@@ -177,9 +177,13 @@ class Baseline(nn.Module):
         self.visualization = None
         self.choose_visualizer()
 
-        # 4.所有的hook操作（按理来说应该放在各自的baseline里）
+        # 5.所有的hook操作（按理来说应该放在各自的baseline里）
         #self.set_hooks()
 
+        # CJY at 2020.9.5 regression module
+        self.regression_linear = torch.nn.Linear(4, 4)
+        self.lesion_area_mean = 120
+        self.lesion_area_std_dev = 400
 
     def forward(self, x):
         if self.visualizer != None:
