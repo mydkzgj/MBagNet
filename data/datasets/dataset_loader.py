@@ -112,8 +112,8 @@ class SegmentationDataset(Dataset):
             ])
 
             # CJY at 2020.9.5
-            self.lesion_area_mean = torch.Tensor([124, 121, 123, 118])
-            self.lesion_area_std_dev = torch.Tensor([414, 407, 407, 381])
+            self.lesion_area_mean = 120
+            self.lesion_area_std_dev = 400
 
     def __len__(self):
         return len(self.dataset)

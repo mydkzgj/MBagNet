@@ -25,8 +25,8 @@ class MSELoss(nn.Module):
             targets: ground truth labels with shape (num_classes)
         """
         targets = targets.float()
-        inputs2 = torch.relu(inputs)/3000
-        targets2 = targets/3000
-        loss = self.MSE(inputs2, targets2)
+        #inputs2 = inputs
+        #targets2 = targets
+        loss = self.MSE(inputs, targets)
         #loss = self.BCE(torch.relu(torch.tanh(inputs)), targets)
         return loss
