@@ -222,7 +222,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             scores = torch.softmax(logits, dim=1)
         else:
             #scores = torch.sigmoid(logits).round()
-            scores = logits.gt(0.5).int()   #回归
+            scores = logits.gt(-0.3).int()   #回归
 
         # Branch 1 Segmentation
         if model.segState == True:
