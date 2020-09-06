@@ -211,6 +211,9 @@ def do_inference(
         logger.info("Precision: {}".format(precision_dict))
         logger.info("Recall: {}".format(recall_dict))
         logger.info("Overall_Accuracy: {:.3f}".format(overall_accuracy))
+        if engine.state.metrics.get("mse") != None:
+            mse = engine.state.metrics["mse"]
+            logger.info("MSE: {:.3f}".format(mse))
         logger.info("ConfusionMatrix: x-groundTruth  y-predict \n {}".format(confusion_matrix))
         logger.info("Kappa: {}".format(kappa))
 
