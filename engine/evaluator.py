@@ -137,7 +137,7 @@ def do_inference(
                         #"recall": Recall(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
                         "precision": Precision(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
                         "recall": Recall(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
-                        "mse": MeanSquaredError(output_transform=lambda x: (x["regression-logits"], x["regression-labels"]), is_multilabel=True),
+                        "mse": MeanSquaredError(output_transform=lambda x: (x["regression-logits"], x["regression-labels"])),
                         "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["labels"], dim=1)[1])),
                         }
         #"""
