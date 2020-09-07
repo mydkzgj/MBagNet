@@ -184,11 +184,20 @@ class Baseline(nn.Module):
         self.zoom_ratio = torch.Tensor([1], requires_grad=True)
         self.regression_linear = nn.Sequential(
             nn.ReLU(),
-            nn.BatchNorm1d(4),
+            #nn.BatchNorm1d(4),
             torch.nn.Conv1d(1, 1, kernel_size=1),
         )
+        nn.init.constant_(self.regression_linear[1])
         self.lesion_area_mean = 120
         self.lesion_area_std_dev = 400
+
+        # 参数初始化
+        self.base.apply(weights_init_kaiming)
+        if self.classifier != None:
+            self.classifier.apply(weights_init_classifier)
+        if self.segmenter != None:
+            self.segmenter.apply(weights_init_kaiming)
+
 
     def forward(self, x):
         if self.visualizer != None:
