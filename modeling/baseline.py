@@ -181,10 +181,11 @@ class Baseline(nn.Module):
         #self.set_hooks()
 
         # CJY at 2020.9.5 regression module
+        self.zoom_ratio = torch.Tensor([1], requires_grad=True)
         self.regression_linear = nn.Sequential(
             nn.ReLU(),
             nn.BatchNorm1d(4),
-            torch.nn.Linear(4, 4),
+            torch.nn.Conv1d(1, 1, kernel_size=1),
         )
         self.lesion_area_mean = 120
         self.lesion_area_std_dev = 400
