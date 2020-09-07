@@ -189,8 +189,8 @@ class Baseline(nn.Module):
             torch.nn.Conv1d(1, 1, kernel_size=1, bias=False),
         )
         nn.init.constant_(self.regression_linear[1].weight, 1)
-        self.lesion_area_mean = 120
-        self.lesion_area_std_dev = 400
+        self.lesion_area_mean = 0#120
+        self.lesion_area_std_dev = 10#400
 
         # 参数初始化
         self.base.apply(weights_init_kaiming)
