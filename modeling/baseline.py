@@ -194,6 +194,7 @@ class Baseline(nn.Module):
 
         # 参数初始化
         self.base.apply(weights_init_kaiming)
+        self.base.apply(weights_init_classifier) #有可能自带classifier
         if self.classifier is not None:
             self.classifier.apply(weights_init_classifier)
         if self.segmenter is not None:
