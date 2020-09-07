@@ -183,6 +183,11 @@ class Baseline(nn.Module):
 
         # CJY at 2020.9.5 regression module
         #self.zoom_ratio = torch.tensor([1.0], requires_grad=True)
+        #"""
+        sigmoid_low_th = 5 #5以上就算饱和了  0.993
+        label_low_th = 0.1
+        self.zoom_ratio = label_low_th/sigmoid_low_th
+
         self.regression_linear = nn.Sequential(
             nn.ReLU(),
             #nn.BatchNorm1d(4),
