@@ -143,6 +143,7 @@ class Baseline(nn.Module):
         self.choose_backbone()
 
         # 2.classifier的网络结构
+        self.classifier = None
         self.choose_classifier()
 
         # 3.classifier的网络结构
@@ -181,21 +182,21 @@ class Baseline(nn.Module):
         #self.set_hooks()
 
         # CJY at 2020.9.5 regression module
-        self.zoom_ratio = torch.Tensor([1], requires_grad=True)
+        #self.zoom_ratio = torch.tensor([1.0], requires_grad=True)
         self.regression_linear = nn.Sequential(
             nn.ReLU(),
             #nn.BatchNorm1d(4),
-            torch.nn.Conv1d(1, 1, kernel_size=1),
+            torch.nn.Conv1d(1, 1, kernel_size=1, bias=False),
         )
-        nn.init.constant_(self.regression_linear[1])
+        nn.init.constant_(self.regression_linear[1].weight)
         self.lesion_area_mean = 120
         self.lesion_area_std_dev = 400
 
         # 参数初始化
         self.base.apply(weights_init_kaiming)
-        if self.classifier != None:
+        if self.classifier is not None:
             self.classifier.apply(weights_init_classifier)
-        if self.segmenter != None:
+        if self.segmenter is not None:
             self.segmenter.apply(weights_init_kaiming)
 
 
