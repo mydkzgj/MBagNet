@@ -188,7 +188,7 @@ class Baseline(nn.Module):
             #nn.BatchNorm1d(4),
             torch.nn.Conv1d(1, 1, kernel_size=1, bias=False),
         )
-        nn.init.constant_(self.regression_linear[1].weight)
+        nn.init.constant_(self.regression_linear[1].weight, 1)
         self.lesion_area_mean = 120
         self.lesion_area_std_dev = 400
 
