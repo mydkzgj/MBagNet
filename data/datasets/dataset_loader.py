@@ -222,7 +222,8 @@ class SegmentationDataset(Dataset):
             # 依照mask_no_overlap进行绘制
             for index, lesionType in enumerate(lesionTypeList):
                 #index = lesionTypeList.index(lesionType)
-                sum = mask_no_overlap[index:index + 1].sum()
+                r_mask = torch.nn.functional.adaptive_max_pool2d(mask_no_overlap[index:index + 1], (7, 7))
+                sum = r_mask.sum()
                 #if sum == 0 and img_label[index] == 1:
                 #    img_label[index] = 0   # 当病灶在边缘时可能会出现没有crop到他的问题
                 #elif sum != 0 and img_label[index] == 0:
