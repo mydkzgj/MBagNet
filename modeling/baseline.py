@@ -184,18 +184,20 @@ class Baseline(nn.Module):
         # CJY at 2020.9.5 regression module
         #self.zoom_ratio = torch.tensor([1.0], requires_grad=True)
         #"""
-        sigmoid_low_th = 5 #5以上就算饱和了  0.993
-        label_low_th = 0.1
-        self.zoom_ratio = label_low_th/sigmoid_low_th
-
         self.regression_linear = nn.Sequential(
             nn.ReLU(),
             #nn.BatchNorm1d(4),
             torch.nn.Conv1d(1, 1, kernel_size=1, bias=False),
         )
         nn.init.constant_(self.regression_linear[1].weight, 1)
-        self.lesion_area_mean = 0#120
-        self.lesion_area_std_dev = 10#400
+
+        # 均值 3.5  max 42 联通域
+        self.lesion_area_mean = 0  #120
+        self.lesion_area_std_dev = 10  #400
+
+        sigmoid_low_th = 5  # 5以上就算饱和了  0.993
+        label_low_th = 1/self.lesion_area_std_dev
+        self.zoom_ratio = label_low_th / sigmoid_low_th
 
         # 参数初始化
         self.base.apply(weights_init_kaiming)

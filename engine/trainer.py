@@ -82,6 +82,12 @@ model2 = None
 global stat
 stat = []
 
+"""
+global stat
+stat.append(labels)
+stat = [torch.cat(stat, dim=0)]
+"""
+
 def transfer_weights(model_from, model_to):
     wf = copy.deepcopy(model_from.state_dict())
     wt = model_to.state_dict()
