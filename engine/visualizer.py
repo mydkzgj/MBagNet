@@ -189,8 +189,11 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                     for i, v in enumerate(gcam_list):
                         rv = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
                         segmentations = rv  # .gt(binary_threshold)
-                        engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(),
-                                                model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
+                        if segmentations.shape[1] == 1:
+                            engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(),
+                                                    model.visualizer_name, model.visualizer.target_layer[i],
+                                                    binary_threshold)
+
 
             return {"logits": logits.detach(), "labels": labels_copy, }
 

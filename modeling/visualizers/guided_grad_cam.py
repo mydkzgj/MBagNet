@@ -20,6 +20,11 @@ class GuidedGradCAM():
         self.gcam = GradCAM(model, num_classes, target_layer=[target_layer[-2]], useGuidedBP=False)
         self.guidedBP = GuidedBackpropagation(model, num_classes)
 
+        self.gcam.reservePos = True
+        self.reservePos = True#self.guidedBP.reservePos
+
+        self.process_type = "max" #"reserve", "max", "sum"
+
 
     # Generate Visualiztions Function   # 统一用GenerateVisualiztion这个名字吧
     def GenerateVisualiztions(self, logits, labels, input_size, visual_num):
@@ -27,17 +32,22 @@ class GuidedGradCAM():
         gcam_list, self.gcam_max_list, self.overall_gcam = self.gcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
         gbp_list, _, _ = self.guidedBP.GenerateVisualiztions(logits, labels, input_size, visual_num)
 
-        gbp = gbp_list[0]
+        gbp = gbp_list[0]  #注：gbp为3通道，以0.5为baseline
         self.gcam_list = []
         for i, cam in enumerate(gcam_list):
             resized_cam = torch.nn.functional.interpolate(cam, input_size, mode='bilinear')
-            #gbp = (gbp - 0.5).abs().sum(dim=1, keepdims=True)
-            #ggcam = resized_cam * gbp/gbp.max()
-            if self.guidedBP.reservePos == True:
-                ggcam = resized_cam * torch.max(gbp.abs(), dim=1, keepdim=True)[0]  # + 0.5
+            if self.process_type == "reserve":
+                # 版本0：保留三通道
+                gbp = gbp - 0.5
+            elif self.process_type == "sum":
+                # 版本1：求和，形成单通道
+                gbp = (gbp - 0.5).abs().sum(dim=1, keepdims=True)
+            elif self.process_type == "max":
+                gbp = torch.max((gbp - 0.5).abs(), dim=1, keepdim=True)[0]
             else:
-                ggcam = resized_cam * torch.max((gbp-0.5).abs(), dim=1, keepdim=True)[0] #+ 0.5
-            norm_ggcam, ggcam_max = self.gcam.gcamNormalization(ggcam)
+                raise Exception("Wrong process type!")
+            ggcam = resized_cam * gbp
+            norm_ggcam, ggcam_max = self.guidedBP.gcamNormalization(ggcam)  #使用guidedBP的归一化，即reserve-pos为False
             self.gcam_list.append(norm_ggcam)
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam

@@ -10,7 +10,17 @@ from torch.utils.data import Dataset
 import torch
 import numpy as np
 import random
+import cv2 as cv
 
+# CJY for color mask
+def computeComponents(input):
+    # tensor 转 numpt
+    mask = input.gt(0).numpy().astype(np.uint8)
+
+    # 联通域统计
+    retval, labels, stats, centroids = cv.connectedComponentsWithStats(mask, connectivity=8, ltype=cv.CV_32S)
+
+    return retval-1
 
 
 def read_image(img_path):
@@ -222,8 +232,8 @@ class SegmentationDataset(Dataset):
             # 依照mask_no_overlap进行绘制
             for index, lesionType in enumerate(lesionTypeList):
                 #index = lesionTypeList.index(lesionType)
-                r_mask = torch.nn.functional.adaptive_max_pool2d(mask_no_overlap[index:index + 1], (7, 7))
-                sum = r_mask.sum()
+                #r_mask = torch.nn.functional.adaptive_max_pool2d(mask_no_overlap[index:index + 1], (7, 7))
+                sum = computeComponents(mask_no_overlap[index])
                 #if sum == 0 and img_label[index] == 1:
                 #    img_label[index] = 0   # 当病灶在边缘时可能会出现没有crop到他的问题
                 #elif sum != 0 and img_label[index] == 0:

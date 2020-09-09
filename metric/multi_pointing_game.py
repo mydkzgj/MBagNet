@@ -51,7 +51,7 @@ class MultiPointingGame(object):
         :return:
         """
         # 1.生成二值化关注图&真值图
-        if saliency_maps.shape[0] == 1:
+        if saliency_maps.shape[1] == 1:
             saliency_maps = saliency_maps.expand_as(seg_gtmasks)
         else:
             raise Exception("The shape[1] of saliency_map isn't 1.")
