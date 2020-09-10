@@ -51,7 +51,7 @@ class VGG(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
-        self.re_features = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)))  #CJY 2020.9.10
+        self.re_features = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)), 1)  #CJY 2020.9.10
         if self.with_classifier == True:
             x = self.avgpool(x)
             x = torch.flatten(x, 1)
