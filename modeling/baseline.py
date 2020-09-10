@@ -186,8 +186,8 @@ class Baseline(nn.Module):
         #self.zoom_ratio = torch.tensor([1.0], requires_grad=True)
         #"""
         self.regression_linear = nn.Sequential(
-            nn.ReLU(),
-            torch.nn.Linear(1, 1, kernel_size=1, bias=False),
+            #nn.ReLU(),
+            torch.nn.Linear(self.base.in_planes, 4, kernel_size=1, bias=False),
         )
         nn.init.constant_(self.regression_linear[1].weight, 1)
 
