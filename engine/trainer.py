@@ -199,7 +199,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             regression_labels = 0
         else:                           # 如果本身是向量标签
             one_hot_labels = torch.gt(labels, 0).int()
-            regression_labels = (labels - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
+            regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
 
         # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:

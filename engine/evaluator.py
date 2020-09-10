@@ -81,7 +81,7 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
                 regression_labels = 0
             else:  # 如果本身是向量标签
                 one_hot_labels = torch.gt(labels, 0).int()
-                regression_labels = (labels - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
+                regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
 
             model.transimitBatchDistribution(0)  #不生成seg
             logits = model(imgs)
@@ -137,7 +137,7 @@ def do_inference(
                         #"recall": Recall(average=False, output_transform=lambda x: (torch.cat([x["logits"], x["logits"]], dim=0).sigmoid().round().transpose(1,0), torch.cat([x["labels"], x["labels"]], dim=0).transpose(1,0)), is_multilabel=True),
                         "precision": Precision(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
                         "recall": Recall(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
-                        "mse": MeanSquaredError(output_transform=lambda x: (x["regression-logits"], x["regression-labels"].float())),
+                        "mse": MeanSquaredError(output_transform=lambda x: (x["regression-logits"], x["regression-labels"])),
                         "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["labels"], dim=1)[1])),
                         }
         #"""
