@@ -7,6 +7,7 @@ Created on 2020.7.4
 import torch
 from .draw_tool import draw_visualization
 
+# 实际上是将visual BP中的 new weight重新分配实现
 
 class CJY():
     def __init__(self, model, num_classes, target_layer):
@@ -27,7 +28,7 @@ class CJY():
         self.hookIndex = 0
         self.setHook(model)
 
-        self.reservePos = True
+        self.reservePos = False
 
         self.draw_index = 0
 
@@ -104,24 +105,26 @@ class CJY():
         if self.guidedBPstate == True:
             self.relu_index = self.relu_index - 1
             relu_input = self.relu_input[self.relu_index]
-            conv_bias = -1*torch.relu(-1*self.conv_bias[self.relu_index])
+            conv_bias = self.conv_bias[self.relu_index]#-1*torch.relu(-1*self.conv_bias[self.relu_index])
 
             if relu_input.ndimension() == 4:
                 r_conv_bias = conv_bias.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(relu_input)
             elif relu_input.ndimension() == 2:
                 r_conv_bias = conv_bias.unsqueeze(0).expand_as(relu_input)
 
-            ratio = torch.relu(relu_input)/(torch.relu(relu_input)-r_conv_bias).clamp(min=1E-12)
-            print("ratio max:{},min:{}".format(ratio.max().item(), ratio.min().item()))
-            result_grad = grad_in[0] * ratio
-            print("rg max:{},min:{}".format(result_grad.max().item(), result_grad.min().item()))
+            numerator = torch.relu(relu_input)
+            denominator = torch.relu(relu_input)-r_conv_bias
 
-            if relu_input.ndimension() == 4:
-                a = grad_out[0] * torch.relu(self.relu_input[self.relu_index])
-                l = a.sum(3).sum(2).sum(1)
-                print("l: {}".format(l[0].item()))
+            a = denominator.eq(0)
+            b = a * numerator.ne(0)
+            c = torch.eq(torch.relu(relu_input), r_conv_bias)
+            print("{} {} {}".format(a.sum(), b.sum(), c.sum()))
 
-            #raise Exception("1")
+            denominator = denominator.eq(0) * 1E-12 + denominator
+            weight_zoom_ratio = numerator/denominator
+            print(numerator.abs().max())
+            result_grad = grad_in[0] * weight_zoom_ratio
+
             return (result_grad,)
         else:
             pass
@@ -234,7 +237,7 @@ class CJY():
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
         gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-        gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
+        #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -302,6 +305,7 @@ class CJY():
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
+            print("{}: {}".format(self.target_layer[i], gcam.sum()))
             #p = gcam.sum(3).sum(2).sum(1)
 
             # 3.Post Process

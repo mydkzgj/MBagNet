@@ -175,7 +175,6 @@ class PGradCAM():
         # backward形式
         gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        print(gcam.sum())
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -243,6 +242,7 @@ class PGradCAM():
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
+            print("{}: {}".format(self.target_layer[i], gcam.sum()))
 
             # 3.Post Process
             # Amplitude Normalization

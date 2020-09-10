@@ -13,6 +13,7 @@ from .backbones.vgg import *
 from .backbones.scnet import *
 
 from .classifiers.hierarchy_linear import *
+from .classifiers.vgg_classifier import *
 
 from .segmenters.fc_mbagnet import *
 
@@ -157,7 +158,7 @@ class Baseline(nn.Module):
         # "mwp", "c-mwp"
         # "xgrad-cam", "xgrad-cam-GBP"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
-        self.visualizer_name = "pgrad-cam"#"guided-deconv-pgrad-cam"#"guided-backpropagation"
+        self.visualizer_name = "cjy"#"guided-deconv-pgrad-cam"#"guided-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
@@ -186,8 +187,7 @@ class Baseline(nn.Module):
         #"""
         self.regression_linear = nn.Sequential(
             nn.ReLU(),
-            #nn.BatchNorm1d(4),
-            torch.nn.Conv1d(1, 1, kernel_size=1, bias=False),
+            torch.nn.Linear(1, 1, kernel_size=1, bias=False),
         )
         nn.init.constant_(self.regression_linear[1].weight, 1)
 
@@ -425,7 +425,8 @@ class Baseline(nn.Module):
         # （1）linear  （2）hierarchy_linear  （3）multi-layer  (4)none
         if self.classifier_name == "linear":
             self.classifier = nn.Linear(self.in_planes, self.num_classes)
-            self.classifier.apply(weights_init_classifier)
+        elif self.classifier_name == "vgg_classifier":
+            self.classifier = VggClassifier(self.in_planes, self.num_classes)
         elif self.classifier_name == "hierarchy_linear":
             self.classifier = HierarchyLinear(self.in_planes, self.num_classes)
         elif self.classifier_name == "none":
