@@ -117,13 +117,21 @@ class CJY():
 
             a = denominator.eq(0)
             b = a * numerator.ne(0)
-            c = torch.eq(torch.relu(relu_input), r_conv_bias)
+            c = r_conv_bias.eq(0)  #torch.eq(torch.relu(relu_input), r_conv_bias)
             print("{} {} {}".format(a.sum(), b.sum(), c.sum()))
 
             denominator = denominator.eq(0) * 1E-12 + denominator
             weight_zoom_ratio = numerator/denominator
-            print(numerator.abs().max())
+            print(torch.max(weight_zoom_ratio.view(1, -1).abs(), dim=1)[0])
+            print(torch.max(weight_zoom_ratio.view(1, -1).abs(), dim=1)[1])
+            iii = torch.max(weight_zoom_ratio.view(1, -1).abs(), dim=1)[1]
+            print(numerator.view(1, -1)[0][iii])
+            print(denominator.view(1, -1)[0][iii])
+            print(relu_input.shape)
+            print(r_conv_bias.shape)
+            print(r_conv_bias.reshape(1, -1)[0][iii])
             result_grad = grad_in[0] * weight_zoom_ratio
+            print(result_grad.max())
 
             return (result_grad,)
         else:
