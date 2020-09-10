@@ -93,7 +93,7 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
                 # CJY at 2020.9.5
                 scores = torch.sigmoid(logits).round()
                 regression_logits = model.zoom_ratio * torch.relu(logits)#model.regression_linear(logits.unsqueeze(1)).squeeze(1) #model.regression_linear(logits)
-                
+
             return {"logits": logits, "scores":scores, "labels": labels, "multi-labels":one_hot_labels,
                     "regression-logits": regression_logits, "regression-labels": regression_labels}
 
