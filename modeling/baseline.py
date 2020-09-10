@@ -187,9 +187,10 @@ class Baseline(nn.Module):
         #"""
         self.regression_linear = nn.Sequential(
             #nn.ReLU(),
-            torch.nn.Linear(self.base.in_planes, 4, kernel_size=1, bias=False),
+            torch.nn.Linear(self.in_planes, 4, bias=False),
         )
-        nn.init.constant_(self.regression_linear[1].weight, 1)
+        self.regression_linear.apply(weights_init_classifier)
+        #nn.init.constant_(self.regression_linear[1].weight, 1)
 
         # 均值 3.5  max 42 联通域
         self.lesion_area_mean = 0  #120
