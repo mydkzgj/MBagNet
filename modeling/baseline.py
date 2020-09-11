@@ -361,8 +361,10 @@ class Baseline(nn.Module):
             self.base = vgg16(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
             self.in_planes = 512
         elif self.base_name == "vgg19":
+            self.in_planes = 512
             self.base = vgg19(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
         elif self.base_name == "vgg16_bn":
+            self.in_planes = 512
             self.base = vgg16_bn(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
 
         # 2.ResNet
@@ -373,10 +375,13 @@ class Baseline(nn.Module):
             self.in_planes = 512
             self.base = resnet34(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
         elif self.base_name == 'resnet50':
+            self.in_planes = 512
             self.base = resnet50(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
         elif self.base_name == 'resnet101':
+            self.in_planes = 512
             self.base = resnet101(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
         elif self.base_name == 'resnet152':
+            self.in_planes = 512
             self.base = resnet152(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
 
         # 3. DenseNet
