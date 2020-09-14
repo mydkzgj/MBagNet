@@ -148,7 +148,7 @@ class SegmentationDataset(Dataset):
 
         # CJY at 2020.9.14 color_mask_with_components_augumentation 用img筛选mask
         if self.generateColormask == True:
-            img_nonzero = torch.sum(self.to_tensor_transform(img_pil), dim=0, keepdim=True).gt(0).int()
+            img_nonzero = torch.sum(self.to_tensor_transform(img_pil), dim=0, keepdim=True).gt(0).float()
             mask = mask * img_nonzero
 
         #上面让mask读入的为原图尺寸标签
