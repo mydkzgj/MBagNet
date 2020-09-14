@@ -153,7 +153,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 exit(0)
             #"""
             # 名字
-            imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
+            engine.state.imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             # 观测类别
             #oblabelList = [labels]
