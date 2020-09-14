@@ -348,7 +348,7 @@ class DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION_COLORMASK(BaseImageDat
 
     # CJY
     def _process_segmentation_dir(self, dir_path, relabel=False):
-        f = open(dir_path + '_lesion_multilabel_colormask.txt')  #lesion_multilabel_colormask.txt
+        f = open(dir_path + '_lesion_multilabel_colormask_components_augumentation.txt')  #_lesion_multilabel_colormask.txt , _lesion_multilabel_colormask_components_augumentation.txt
         labelRecord = {}
         category2label = {}
         label2category = {}
@@ -367,7 +367,7 @@ class DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION_COLORMASK(BaseImageDat
         statistics = []
 
         dataset = []
-        image_path = os.path.join(dir_path, "color_mask_with_single_label")  #color_mask_with_single_label  color_mask
+        image_path = os.path.join(dir_path, "color_mask_with_components_augumentation")  #color_mask, color_mask_with_single_label, color_mask_with_components_augumentation
         label_path = os.path.join(dir_path, "label")
         for imgfile in os.listdir(image_path):
             pre, ext = os.path.splitext(imgfile)
@@ -376,7 +376,8 @@ class DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION_COLORMASK(BaseImageDat
             imagefullpath = os.path.join(image_path, imgfile)
             labelfullpathList = []
             for l in self.lesion:
-                labelfullpath = os.path.join(label_path, l, imgfile.replace(".jpg", ".tif").replace("-MA","").replace("-EX","").replace("-SE","").replace("-HE","").replace("-NONE",""))
+                labelfile = imgfile.split("-MA")[0].split("-EX")[0].split("-SE")[0].split("-HE")[0].split("_NONE")[0].split(".jpg")[0] + ".tif"
+                labelfullpath = os.path.join(label_path, l, labelfile)
                 if os.path.exists(labelfullpath) == True:
                     labelfullpathList.append(labelfullpath)
                 else:

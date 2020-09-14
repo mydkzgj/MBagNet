@@ -173,7 +173,10 @@ class RandomSamplerForSegmentation(Sampler):
             elif isinstance(label, list)==True:
                 int_label = 0
                 for l in label:
-                    int_label = int_label * 10 + l
+                    if l > 0:
+                        int_label = int_label * 10 + 1
+                    else:
+                        int_label = int_label * 10 + 0
                 self.index_dic[int_label].append(index)
 
         self.categories = list(self.index_dic.keys())

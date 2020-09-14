@@ -121,6 +121,10 @@ class SegmentationDataset(Dataset):
                 RandomErasing(probability=re_prob, sl=0.2, sh=0.5, mean=[0])
             ])
 
+            self.to_tensor_transform = T.Compose([
+                T.ToTensor(),
+            ])
+
 
 
     def __len__(self):
@@ -129,9 +133,10 @@ class SegmentationDataset(Dataset):
     def __getitem__(self, index):
         image_path, mask_path_list, img_label = self.dataset[index]
         #print(image_path)
-        img = read_image(image_path)
+        img_pil = read_image(image_path)
+
         if self.transform is not None:
-            img = self.transform(img)
+            img = self.transform(img_pil)
 
         mask_list = []
         for mask_path in mask_path_list:
@@ -141,6 +146,10 @@ class SegmentationDataset(Dataset):
             mask_list.append(mask[0:1])    # cjy 由于读进来的可能是3通道，所以增加[0:1]
         mask = torch.cat(mask_list)
 
+        # CJY at 2020.9.14 color_mask_with_components_augumentation 用img筛选mask
+        if self.generateColormask == True:
+            img_nonzero = torch.sum(self.to_tensor_transform(img_pil), dim=0, keepdim=True).gt(0).int()
+            mask = mask * img_nonzero
 
         #上面让mask读入的为原图尺寸标签
         mask = self.MaxPool(mask)  #mask的resize选择maxpool
