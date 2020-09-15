@@ -197,7 +197,7 @@ class Baseline(nn.Module):
         self.lesion_area_mean = 0  #120
         self.lesion_area_std_dev = 10  #400
 
-        #self.sigmoid_low_th = 5  # 5以上就算饱和了  0.993
+        self.sigmoid_low_th = 5  # 5以上就算饱和了  0.993
         #self.label_low_th = 1/self.lesion_area_std_dev
         self.zoom_ratio = 1#self.label_low_th / self.sigmoid_low_th
 

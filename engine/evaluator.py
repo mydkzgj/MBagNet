@@ -81,7 +81,8 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
                 regression_labels = 0
             else:  # 如果本身是向量标签
                 one_hot_labels = torch.gt(labels, 0).int()
-                regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
+                regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev # label 标准化
+                regression_labels = regression_labels.gt(0) * model.sigmoid_low_th + regression_labels
 
             model.transimitBatchDistribution(0)  #不生成seg
             logits = model(imgs)
