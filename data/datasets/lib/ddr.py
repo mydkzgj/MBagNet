@@ -348,7 +348,7 @@ class DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION_COLORMASK(BaseImageDat
 
     # CJY
     def _process_segmentation_dir(self, dir_path, relabel=False):
-        f = open(dir_path + '_lesion_multilabel_colormask_components_augumentation.txt')  #_lesion_multilabel_colormask.txt , _lesion_multilabel_colormask_components_augumentation.txt
+        f = open(dir_path + '_lesion_multilabel_colormask.txt')  #_lesion_multilabel_colormask.txt , _lesion_multilabel_colormask_components_augumentation.txt
         labelRecord = {}
         category2label = {}
         label2category = {}
@@ -367,7 +367,7 @@ class DDR_LESION_SEGMENTATION_MULTILABEL_WEAKSURPERVISION_COLORMASK(BaseImageDat
         statistics = []
 
         dataset = []
-        image_path = os.path.join(dir_path, "color_mask_with_components_augumentation")  #color_mask, color_mask_with_single_label, color_mask_with_components_augumentation
+        image_path = os.path.join(dir_path, "color_mask_with_single_label")  #color_mask, color_mask_with_single_label, color_mask_with_components_augumentation
         label_path = os.path.join(dir_path, "label")
         for imgfile in os.listdir(image_path):
             pre, ext = os.path.splitext(imgfile)
