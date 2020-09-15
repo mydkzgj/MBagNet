@@ -54,6 +54,7 @@ class VGG(nn.Module):
         if self.with_classifier == True:
             x = self.avgpool(x)
             x = torch.flatten(x, 1)
+            self.r_feature = x
             x = self.classifier(x)
         else:
             x = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))

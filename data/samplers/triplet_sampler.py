@@ -167,7 +167,7 @@ class RandomSamplerForSegmentation(Sampler):
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
-        s = []
+        #s = []
         for index, (_, _, label) in enumerate(self.data_source):
             if isinstance(label, int)==True:
                 self.index_dic[label].append(index)
@@ -181,7 +181,7 @@ class RandomSamplerForSegmentation(Sampler):
                 self.index_dic[int_label].append(index)
 
                 # CJY 单独统计每一类的分布 at 2020.9.15
-                s.append(label)
+                #s.append(label)
 
         self.categories = list(self.index_dic.keys())
 

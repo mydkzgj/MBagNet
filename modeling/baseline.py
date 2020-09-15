@@ -188,6 +188,7 @@ class Baseline(nn.Module):
         self.regression_linear = nn.Sequential(
             #nn.ReLU(),
             torch.nn.Linear(self.in_planes, 4, bias=False),
+            nn.ReLU(),
         )
         self.regression_linear.apply(weights_init_classifier)
         #nn.init.constant_(self.regression_linear[1].weight, 1)
@@ -196,9 +197,9 @@ class Baseline(nn.Module):
         self.lesion_area_mean = 0  #120
         self.lesion_area_std_dev = 10  #400
 
-        self.sigmoid_low_th = 5  # 5以上就算饱和了  0.993
-        self.label_low_th = 1/self.lesion_area_std_dev
-        self.zoom_ratio = self.label_low_th / self.sigmoid_low_th
+        #self.sigmoid_low_th = 5  # 5以上就算饱和了  0.993
+        #self.label_low_th = 1/self.lesion_area_std_dev
+        self.zoom_ratio = 1#self.label_low_th / self.sigmoid_low_th
 
         # 参数初始化
         self.base.apply(weights_init_kaiming)
