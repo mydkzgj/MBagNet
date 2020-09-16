@@ -360,12 +360,12 @@ class Baseline(nn.Module):
         # 1.VGG
         if self.base_name == 'vgg16':
             self.base = vgg16(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
-            self.in_planes = 512
+            self.in_planes = 512 * 7 * 7
         elif self.base_name == "vgg19":
-            self.in_planes = 512
+            self.in_planes = 512 * 7 * 7
             self.base = vgg19(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
         elif self.base_name == "vgg16_bn":
-            self.in_planes = 512
+            self.in_planes = 512 * 7 * 7
             self.base = vgg16_bn(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
 
         # 2.ResNet
