@@ -143,7 +143,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             # 显示图片的数字还是原始名字
             if hasattr(engine.state, "imgsName") != True:
                 engine.state.imgsName =[]
-            """
+            #"""
             # 数字
             if engine.state.imgsName == []:
                 engine.state.imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
@@ -153,7 +153,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 exit(0)
             #"""
             # 名字
-            engine.state.imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
+            #engine.state.imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             # 观测类别
             #oblabelList = [labels]
