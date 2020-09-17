@@ -16,7 +16,7 @@ class MSELoss(nn.Module):
     """
     def __init__(self):
         super(MSELoss, self).__init__()
-        self.MSE = torch.nn.MSELoss()
+        self.MSE = torch.nn.MSELoss(reduction="none")
 
     def forward(self, inputs, targets):
         """
@@ -25,8 +25,10 @@ class MSELoss(nn.Module):
             targets: ground truth labels with shape (num_classes)
         """
         targets = targets.float()
-        #inputs2 = inputs
-        #targets2 = targets
         loss = self.MSE(inputs, targets)
-        #loss = self.BCE(torch.relu(torch.tanh(inputs)), targets)
+        #loss = torch.mean(loss)
+
+        # CJY at 2020.9.17 为了配合回归  版本二
+        input_target_both_le_zero = ~ (inputs.le(0) * targets.le(0))
+        loss = torch.mean(loss * input_target_both_le_zero)
         return loss
