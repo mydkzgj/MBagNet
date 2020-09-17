@@ -30,5 +30,5 @@ class MSELoss(nn.Module):
 
         # CJY at 2020.9.17 为了配合回归  版本二
         input_target_both_le_zero = ~ (inputs.le(0) * targets.le(0))
-        loss = torch.mean(loss * input_target_both_le_zero)
+        loss = torch.mean(loss * input_target_both_le_zero.float())
         return loss
