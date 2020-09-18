@@ -18,6 +18,7 @@ class MultilabelBinaryCrossEntropy(nn.Module):
         super(MultilabelBinaryCrossEntropy, self).__init__()
         self.BCEL = torch.nn.BCEWithLogitsLoss(reduction="none")
         #self.BCE = torch.nn.BCELoss()
+        self.ignore_th = 1/10
 
     def forward(self, inputs, targets):
         """
@@ -38,6 +39,6 @@ class MultilabelBinaryCrossEntropy(nn.Module):
         #loss = torch.mean(loss)
 
         #CJY at 2020.9.17 为了配合回归  版本二
-        input_target_both_gt_zero = ~ (inputs.gt(0) * targets.gt(0))
+        input_target_both_gt_zero = ~ (inputs.ge(self.ignore_th) * targets.gt(0))
         loss = torch.mean(loss * input_target_both_gt_zero.float())
         return loss
