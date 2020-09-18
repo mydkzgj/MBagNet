@@ -18,7 +18,7 @@ class MultilabelBinaryCrossEntropy(nn.Module):
         super(MultilabelBinaryCrossEntropy, self).__init__()
         self.BCEL = torch.nn.BCEWithLogitsLoss(reduction="none")
         #self.BCE = torch.nn.BCELoss()
-        self.ignore_th = 1/10
+        self.ignore_th = 0
 
     def forward(self, inputs, targets):
         """
