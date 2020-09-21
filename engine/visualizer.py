@@ -116,8 +116,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             masks = seg_masks
             img_paths = gimg_path + simg_path
 
-        labels_copy = labels.clone()
-
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
 
@@ -133,10 +131,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             logits = model(imgs)
 
             if model.classifier_output_type == "multi-label":
-                labels_copy = labels_copy.max(dim=1)[1]
-                labels = labels[:, 0] * 1000 + labels[:, 1] * 100 + labels[:, 2] * 10 + labels[:, 3] * 1
-                p_labels = torch.sigmoid(logits).gt(0.5)
-                p_labels = p_labels[:, 0] * 1000 + p_labels[:, 1] * 100 + p_labels[:, 2] * 10 + p_labels[:, 3] * 1
+                p_labels = (logits.relu() * model.lesion_area_std_dev).int()
             else:
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
 
@@ -159,7 +154,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #oblabelList = [labels]
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
-            oblabelList = [labels*0 + i for i in range(model.num_classes)]
+            oblabelList = [labels*0 + i for i in range(model.num_classes)] if len(labels.shape)==1 else [labels.sum(1)*0 + i for i in range(model.num_classes)]
             #oblabelList = [labels*243, labels*250, labels*281, labels*333]
 
             # 可视化
@@ -193,11 +188,11 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                         segmentations = rv  # .gt(binary_threshold)
                         if segmentations.shape[1] == 1:
                             engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(),
-                                                    model.visualizer_name, model.visualizer.target_layer[i],
-                                                    binary_threshold)
+                                                    model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
 
+            labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
 
-            return {"logits": logits.detach(), "labels": labels_copy, }
+            return {"logits": logits.detach(), "labels": labels, }
 
     engine = Engine(_inference)
 

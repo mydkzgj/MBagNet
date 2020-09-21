@@ -44,7 +44,7 @@ class MWP():
         self.guidedBNstate = 0
         self.num_bn_layers = 0
 
-        self.useGuidedLINEAR = False  #True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.useGuidedLINEAR = True  #True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
         self.num_linear_layers = 0
         self.linear_input = []
@@ -53,7 +53,7 @@ class MWP():
 
         self.firstCAM = 1
 
-        self.reservePos = True#True  #True
+        self.reservePos = False #True
 
         self.normFlag = True
 
@@ -170,7 +170,8 @@ class MWP():
 
             new_weight = module.weight.relu()
             x = torch.nn.functional.linear(linear_input, new_weight)
-            y = grad_out[0]/x
+            x_nonzero = x.gt(0).int()
+            y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
             new_grad_in = linear_input * z
@@ -178,13 +179,13 @@ class MWP():
             if self.contrastive_first_state == 1:
                 new_weight_c = (-module.weight).relu()
                 x_c = torch.nn.functional.linear(linear_input, new_weight_c)
-                y_c = grad_out[0] / x_c
+                x_c_nonzero = x_c.gt(0).int()
+                y_c = grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
                 z_c = torch.nn.functional.linear(y_c, new_weight_c.permute(1, 0))
 
                 new_grad_in_c = linear_input * z_c
                 new_grad_in = new_grad_in - new_grad_in_c
                 self.contrastive_first_state = 0
-
             return (grad_in[0], new_grad_in, grad_in[2])
 
     def conv_forward_hook_fn(self, module, input, output):
@@ -202,8 +203,9 @@ class MWP():
 
             new_weight = module.weight.relu()
             x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-            y = grad_out[0]/x
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, output_padding=module.stride[0] // 2)
+            x_nonzero = x.gt(0).int()
+            y = grad_out[0]/(x + (1-x_nonzero)) * x_nonzero
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, output_padding=module.stride[0]//2)
             diff = z.shape[2] - grad_in[0].shape[2]
             diff_end = diff // 2
             diff_start = diff - diff_end
@@ -214,9 +216,9 @@ class MWP():
             if self.contrastive_first_state == 1:
                 new_weight_c = (-module.weight).relu()
                 x_c = torch.nn.functional.conv2d(conv_input, new_weight_c, stride=module.stride, padding=module.padding)
-                y_c = grad_out[0] / x_c
-                z_c = torch.nn.functional.conv_transpose2d(y_c, new_weight_c, stride=module.stride,
-                                                         output_padding=module.stride[0] // 2)
+                x_c_nonzero = x_c.gt(0).int()
+                y_c = grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
+                z_c = torch.nn.functional.conv_transpose2d(y_c, new_weight_c, stride=module.stride, output_padding=module.stride[0]//2)
                 diff_c = z_c.shape[2] - grad_in[0].shape[2]
                 diff_end_c = diff_c // 2
                 diff_start_c = diff_c - diff_end_c
@@ -225,6 +227,8 @@ class MWP():
                 new_grad_in_c = conv_input * z_c
                 new_grad_in = new_grad_in - new_grad_in_c
                 self.contrastive_first_state = 0
+
+
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -380,7 +384,7 @@ class MWP():
         gcam = torch.sum(inter_gradient, dim=1, keepdim=True)
         #gcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1) * inter_output, dim=1, keepdim=True)
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-        gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
+        #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -465,6 +469,7 @@ class MWP():
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
+            print("{}: {}".format(self.target_layer[i], gcam.sum()))
 
             # 3.Post Process
             # Amplitude Normalization
@@ -507,7 +512,7 @@ class MWP():
             "gray_visualization": 0,
             "binary_visualization": 0,
             "color_visualization": 1,
-            "binary_visualization_on_image": 1,
+            "binary_visualization_on_image": 0,
             "color_visualization_on_image": 0,
             "binary_visualization_on_segmentation": 0,
             "color_visualization_on_segmentation": 0,
@@ -515,22 +520,27 @@ class MWP():
         }
 
         for j in range(imgs.shape[0]):
-            #"""
+            labels_str = ""
+            plabels_str = ""
+            for k in range(labels.shape[1]):
+                labels_str = labels_str + "-" + str(labels[j][k].item())
+                plabels_str = plabels_str + "-" + str(plabels[j][k].item())
+            labels_str = labels_str.strip("-")
+            plabels_str = plabels_str.strip("-")
+            label_prefix = "L{}_P{}".format(labels_str, plabels_str)
+            # label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
+
             for i, gcam in enumerate(self.gcam_list):
-                #if i != len(self.gcam_list)-1: continue
                 layer_name = self.target_layer[i]
-                label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
                     draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
                 else:
                     draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
-            #"""
 
             # 绘制一下overall_gcam
             if self.overall_gcam is not None:
                 layer_name = "overall"
-                label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
                     draw_visualization(imgs[j], self.overall_gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)

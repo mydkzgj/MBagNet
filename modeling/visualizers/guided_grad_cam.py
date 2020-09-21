@@ -43,6 +43,7 @@ class GuidedGradCAM():
                 # 版本1：求和，形成单通道
                 gbp = (gbp - 0.5).abs().sum(dim=1, keepdims=True)
             elif self.process_type == "max":
+                # 版本2：求最大值
                 gbp = torch.max((gbp - 0.5).abs(), dim=1, keepdim=True)[0]
             else:
                 raise Exception("Wrong process type!")
@@ -75,9 +76,18 @@ class GuidedGradCAM():
         }
 
         for j in range(imgs.shape[0]):
+            labels_str = ""
+            plabels_str = ""
+            for k in range(labels.shape[1]):
+                labels_str = labels_str + "-" + str(labels[j][k].item())
+                plabels_str = plabels_str + "-" + str(plabels[j][k].item())
+            labels_str = labels_str.strip("-")
+            plabels_str = plabels_str.strip("-")
+            label_prefix = "L{}_P{}".format(labels_str, plabels_str)
+            # label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
+
             for i, gcam in enumerate(self.gcam_list):
                 layer_name = self.target_layer[i]
-                label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
                     draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)

@@ -513,25 +513,30 @@ class GuidedDeConvPGCAM():
         }
 
         for j in range(imgs.shape[0]):
-            #"""
+            labels_str = ""
+            plabels_str = ""
+            for k in range(labels.shape[1]):
+                labels_str = labels_str + "-" + str(labels[j][k].item())
+                plabels_str = plabels_str + "-" + str(plabels[j][k].item())
+            labels_str = labels_str.strip("-")
+            plabels_str = plabels_str.strip("-")
+            label_prefix = "L{}_P{}".format(labels_str, plabels_str)
+            # label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
+
             for i, gcam in enumerate(self.gcam_list):
-                #if i != len(self.gcam_list)-1: continue
                 layer_name = self.target_layer[i]
-                label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
-                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict )
+                    draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
                 else:
-                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict )
-            #"""
+                    draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
 
             # 绘制一下overall_gcam
             if 0:#self.overall_gcam is not None:
                 layer_name = "overall"
-                label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
-                    draw_visualization(imgs[j], self.overall_gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict )
+                    draw_visualization(imgs[j], self.overall_gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
                 else:
                     draw_visualization(imgs[j], self.overall_gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
 

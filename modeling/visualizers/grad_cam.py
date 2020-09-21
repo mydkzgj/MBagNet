@@ -172,7 +172,7 @@ class GradCAM():
         # backward形式
         avg_gradient = torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1)
         gcam = torch.sum(avg_gradient * inter_output, dim=1, keepdim=True)
-        gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
+        #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -240,6 +240,7 @@ class GradCAM():
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
+            print("{}: {}".format(self.target_layer[i], gcam.sum()))
 
             # 3.Post Process
             # Amplitude Normalization
@@ -275,7 +276,7 @@ class GradCAM():
             "gray_visualization": 0,
             "binary_visualization": 0,
             "color_visualization": 1,
-            "binary_visualization_on_image": 1,
+            "binary_visualization_on_image": 0,#1,
             "color_visualization_on_image": 0,
             "binary_visualization_on_segmentation": 0,
             "color_visualization_on_segmentation": 0,
@@ -283,9 +284,18 @@ class GradCAM():
         }
 
         for j in range(imgs.shape[0]):
+            labels_str = ""
+            plabels_str = ""
+            for k in range(labels.shape[1]):
+                labels_str = labels_str + "-" + str(labels[j][k].item())
+                plabels_str = plabels_str + "-" + str(plabels[j][k].item())
+            labels_str = labels_str.strip("-")
+            plabels_str = plabels_str.strip("-")
+            label_prefix = "L{}_P{}".format(labels_str, plabels_str)
+            # label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
+
             for i, gcam in enumerate(self.gcam_list):
                 layer_name = self.target_layer[i]
-                label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
                     draw_visualization(imgs[j], gcam[j], gtmasks[j], threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
