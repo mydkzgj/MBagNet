@@ -8,7 +8,7 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class GuidedDeConvPGCAM():
+class DualBackprogation():
     def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
@@ -26,18 +26,24 @@ class GuidedDeConvPGCAM():
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
-        self.useGuidedPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.useGuidedPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_pool_layers = 0
         self.pool_output = []
         self.pool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_pool_index_list = []
 
-        self.useGuidedCONV = False  #True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedLINEAR = True  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.guidedLINEARstate = 0
+        self.num_linear_layers = 0
+        self.linear_input = []
+        self.linear_current_index = 0
+
+        self.useGuidedCONV = True  #True  # True#False  # GuideBackPropagation的变体
         self.guidedCONVstate = 0
         self.num_conv_layers = 0
 
-        self.useGuidedBN = False  #True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedBN = True  #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
 
@@ -46,6 +52,10 @@ class GuidedDeConvPGCAM():
         self.reservePos = False  #True
 
         self.normFlag = True
+
+        self.backward_type = "gradient" #"bias"   #双通路
+        self.output_gradient_reserve = []
+        self.rest = 0
 
         self.setHook(model)
 
@@ -122,6 +132,14 @@ class GuidedDeConvPGCAM():
                     module.register_backward_hook(self.conv_backward_hook_fn)
                     self.num_conv_layers = self.num_conv_layers + 1
 
+        if self.useGuidedLINEAR == True:
+            print("Set GuidedBP Hook on LINEAR")
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.Linear) == True and "segmenter" not in module_name:
+                    #module.register_forward_hook(self.linear_forward_hook_fn)
+                    module.register_backward_hook(self.linear_backward_hook_fn)
+                    self.num_linear_layers = self.num_linear_layers + 1
+
 
         if self.useGuidedBN == True:
             print("Set GuidedBP Hook on BN")
@@ -152,18 +170,83 @@ class GuidedDeConvPGCAM():
         self.inter_output.append(output)
         self.targetHookIndex = self.targetHookIndex + 1
 
+
+    def linear_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.backward_type == "gradient":
+            if self.guidedLINEARstate == True:
+                """
+                new_weight = module.weight.relu()  # /module.weight.relu().sum()
+                print("weight: {}".format(module.weight.sum()))
+                print("ratio: {}".format(module.weight.gt(0).sum()))
+                print("new: {}".format(new_weight.sum()))
+                new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
+                                                                   output_padding=module.stride[0] // 2)
+                diff = new_grad_in.shape[2] - grad_in[0].shape[2]
+                diff_end = diff // 2
+                diff_start = diff - diff_end
+                new_grad_in = new_grad_in[:, :, diff_start:new_grad_in.shape[2] - diff_end,
+                              diff_start:new_grad_in.shape[3] - diff_end]
+                return (new_grad_in, grad_in[1], grad_in[2])
+                """
+                self.output_gradient_reserve.append(grad_out[0])
+        elif self.backward_type == "bias":
+            output_gradient = self.output_gradient_reserve.pop(0)
+
+            bias = module.bias.unsqueeze(0).expand_as(output_gradient)
+            old_b = grad_out[0]
+            new_b = output_gradient * 1 * bias + old_b
+
+            new_weight = module.weight * 0 + 1/module.weight.shape[1]
+
+            new_grad_in = torch.nn.functional.linear(new_b, new_weight.permute(1, 0))
+
+            return (grad_in[0], new_grad_in, grad_in[2])   # bias input weight
+
     def conv_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedCONVstate == True:
-            new_weight = module.weight.relu()#/module.weight.relu().sum()
-            print("weight: {}".format(module.weight.sum()))
-            print("ratio: {}".format(module.weight.gt(0).sum()))
-            print("new: {}".format(new_weight.sum()))
-            new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride, output_padding=module.stride[0] // 2)
+        if self.backward_type == "gradient":
+            if self.guidedCONVstate == True:
+                """
+                new_weight = module.weight.relu()  # /module.weight.relu().sum()
+                print("weight: {}".format(module.weight.sum()))
+                print("ratio: {}".format(module.weight.gt(0).sum()))
+                print("new: {}".format(new_weight.sum()))
+                new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
+                                                                   output_padding=module.stride[0] // 2)
+                diff = new_grad_in.shape[2] - grad_in[0].shape[2]
+                diff_end = diff // 2
+                diff_start = diff - diff_end
+                new_grad_in = new_grad_in[:, :, diff_start:new_grad_in.shape[2] - diff_end,
+                              diff_start:new_grad_in.shape[3] - diff_end]
+                return (new_grad_in, grad_in[1], grad_in[2])
+                """
+                self.output_gradient_reserve.append(grad_out[0])
+        elif self.backward_type == "bias":
+            output_gradient = self.output_gradient_reserve.pop(0)
+
+            bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output_gradient) if module.bias is not None else 0
+            old_b = grad_out[0]
+            new_b = output_gradient * 1 * bias + old_b
+
+            sum0 = new_b.sum()
+
+            new_weight = module.weight * 0 + 1/(module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+            #new_weight = module.weight / module.weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+            print(new_weight.sum())
+
+            new_grad_in = torch.nn.functional.conv_transpose2d(new_b, new_weight, stride=module.stride,
+                                                               output_padding=module.stride[0] // 2)
             diff = new_grad_in.shape[2] - grad_in[0].shape[2]
             diff_end = diff // 2
             diff_start = diff - diff_end
-            new_grad_in = new_grad_in[:, :, diff_start:new_grad_in.shape[2] - diff_end, diff_start:new_grad_in.shape[3] - diff_end]
+            sum1 = new_grad_in.sum()
+            new_grad_in = new_grad_in[:, :, diff_start:new_grad_in.shape[2] - diff_end,
+                          diff_start:new_grad_in.shape[3] - diff_end]
+            sum2 = new_grad_in.sum()
+
+            self.rest = self.rest + (sum0-sum2)
+
             return (new_grad_in, grad_in[1], grad_in[2])
+
 
 
     def relu_forward_hook_fn(self, module, input, output):
@@ -175,39 +258,43 @@ class GuidedDeConvPGCAM():
             self.relu_current_index = 0
 
     def relu_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedBPstate == True:
-            result_grad = grad_in[0]
+        if self.backward_type == "gradient":
+            return grad_in
+            if self.guidedBPstate == True:
+                result_grad = grad_in[0]
 
-            self.relu_output_obtain_index = self.relu_output_obtain_index - 1
-            relu_output = self.relu_output[self.relu_output_obtain_index]
+                self.relu_output_obtain_index = self.relu_output_obtain_index - 1
+                relu_output = self.relu_output[self.relu_output_obtain_index]
 
-            if grad_out[0].ndimension() == 4:
-                pgcam = self.GenerateCAM(relu_output, result_grad)
-                result_grad = result_grad * grad_out[0].gt(0)#pgcam.gt(0)
-                """
-                if self.firstCAM == 1:
-                    self.firstCAM = 0
-                    pgcam = torch.sum(relu_output * torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1), dim=1, keepdim=True).relu()
+                if grad_out[0].ndimension() == 4:
+                    pgcam = self.GenerateCAM(relu_output, result_grad)
+                    result_grad = result_grad * grad_out[0].gt(0)  # pgcam.gt(0)
+                    """
+                    if self.firstCAM == 1:
+                        self.firstCAM = 0
+                        pgcam = torch.sum(relu_output * torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1), dim=1, keepdim=True).relu()
+                    else:
+                        pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
+                    result_grad = result_grad * grad_out[0].gt(0)# * pgcam.gt(0)
+                    #result_grad = torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1).expand_as(grad_in[0])
+
+                    #pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
+                    #result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
+
+                    if 0:#self.firstCAM == 1:
+                        self.firstCAM = 0
+                        norm_pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
+                        #pgcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1) * relu_output, dim=1, keepdim=True)
+                        result_grad = result_grad * norm_pgcam.gt(0.5)
+                    """
+
                 else:
-                    pgcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).relu()
-                result_grad = result_grad * grad_out[0].gt(0)# * pgcam.gt(0)
-                #result_grad = torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1).expand_as(grad_in[0])
-
-                #pgcam1 = torch.sum(relu_output * result_grad, dim=1, keepdim=True)   # 必为非负
-                #result_grad = result_grad * pgcam / pgcam1.clamp(min=1E-12)
-
-                if 0:#self.firstCAM == 1:
-                    self.firstCAM = 0
-                    norm_pgcam = pgcam/(pgcam.max().clamp(min=1E-12))
-                    #pgcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(grad_out[0], 1) * relu_output, dim=1, keepdim=True)
-                    result_grad = result_grad * norm_pgcam.gt(0.5)
-                """
-
+                    result_grad = result_grad
+                return (result_grad,)
             else:
-                result_grad = result_grad
-            return (result_grad, )
-        else:
-            pass
+                pass
+        elif self.backward_type == "bias":
+            return (grad_out[0],)
 
 
     def pool_forward_hook_fn(self, module, input, output):
@@ -257,17 +344,35 @@ class GuidedDeConvPGCAM():
             pass
 
     def bn_forward_hook_fn(self, module, input, output):
+        eps = module.eps
         mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        output = (input[0] - mean) / var.sqrt() * weight + bias
+        output = (input[0] - mean) / (var+eps).sqrt() * weight + bias
 
     def bn_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedBNstate == 0:
-            new_weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).relu()
-            result_grad = grad_out[0] * new_weight / module.running_var.sqrt().unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-            return (result_grad, grad_in[1], grad_in[2])
+        if self.backward_type == "gradient":
+            if self.guidedBNstate == True:
+                """
+                new_weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).relu()
+                result_grad = grad_out[0] * new_weight / module.running_var.sqrt().unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                return (result_grad, grad_in[1], grad_in[2])
+                """
+                self.output_gradient_reserve.append(grad_out[0])
+        elif self.backward_type == "bias":
+            output_gradient = self.output_gradient_reserve.pop(0)
+
+            bias = - (module.running_mean * module.weight)/(module.running_var+module.eps).sqrt() + module.bias
+            bias = bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output_gradient)
+            old_b = grad_out[0]
+            new_b = output_gradient * 1 * bias + old_b
+
+            new_grad_in = new_b
+
+            return (new_grad_in, grad_in[1], grad_in[2])
+
+
 
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
@@ -291,6 +396,7 @@ class GuidedDeConvPGCAM():
         self.guidedBPstate = 1  # 是否开启guidedBP
         self.guidedPOOLstate = 1
         self.guidedCONVstate = 1
+        self.guidedLINEARstate = 1
         self.guidedBNstate = 1
 
         self.firstCAM = 1
@@ -302,9 +408,53 @@ class GuidedDeConvPGCAM():
         self.inter_gradient = list(inter_gradients)
 
         self.guidedBNstate = 0
+        self.guidedLINEARstate = 0
         self.guidedCONVstate = 0
         self.guidedPOOLstate = 0
         self.guidedBPstate = 0
+
+    # Obtain Bias —— Bias decomposition
+    def ObtainBias(self, logits, labels):
+        self.observation_class = labels.cpu().numpy().tolist()
+        # 将label转为one - hot
+        gcam_one_hot_labels = torch.nn.functional.one_hot(labels, self.num_classes).float()
+        # gcam_one_hot_labels = gcam_one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else gcam_one_hot_labels
+        try:
+            labels.get_device()
+            gcam_one_hot_labels = gcam_one_hot_labels.cuda()
+        except:
+            pass
+
+        # 回传one-hot向量  已弃用 由于其会对各变量生成梯度，而使用op.zero_grad 或model.zero_grad 都会使程序出现问题，故改用torch.autograd.grad
+        # logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)  #这样会对所有w求取梯度，且建立回传图会很大
+
+        # 求取model.inter_output对应的gradient
+        # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
+
+        self.backward_type = "bias"
+        self.rest = 0
+
+        self.guidedBPstate = 1  # 是否开启guidedBP
+        self.guidedPOOLstate = 1
+        self.guidedCONVstate = 1
+        self.guidedLINEARstate = 1
+        self.guidedBNstate = 1
+
+        self.firstCAM = 1
+        self.relu_output_obtain_index = len(self.relu_output)
+        self.pool_output_obtain_index = len(self.pool_output)
+        inter_bias = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
+                                              grad_outputs=gcam_one_hot_labels * 0,
+                                              retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
+        self.inter_bias = list(inter_bias)
+
+        self.guidedBNstate = 0
+        self.guidedLINEARstate = 0
+        self.guidedCONVstate = 0
+        self.guidedPOOLstate = 0
+        self.guidedBPstate = 0
+
+        self.backward_type = "gradient"
 
 
     def gcamNormalization(self, gcam):
@@ -363,7 +513,7 @@ class GuidedDeConvPGCAM():
 
 
     # Generate Single CAM (backward)
-    def GenerateCAM(self, inter_output, inter_gradient):
+    def GenerateCAM(self, inter_output, inter_gradient, inter_bias):
         # backward形式
         """
         avg_gradient = torch.nn.functional.adaptive_max_pool2d(inter_gradient, 1).squeeze(-1).squeeze(-1).squeeze(0)
@@ -373,12 +523,14 @@ class GuidedDeConvPGCAM():
         gcam = inter_output[:, v:v+1]#torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         """
 
-        gcam = torch.sum(inter_output * torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1), dim=1, keepdim=True)
+        #gcam = torch.sum(inter_output * torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1), dim=1, keepdim=True)
+
         #gcam = torch.sum(inter_output, dim=1, keepdim=True)
         #gcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1) * inter_output, dim=1, keepdim=True)
         #gcam = inter_output[:, 435:436,]
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
+        gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -449,6 +601,8 @@ class GuidedDeConvPGCAM():
 
         # obtain gradients
         self.ObtainGradient(logits, labels)
+        # CJY at 2020.9.22 bias
+        self.ObtainBias(logits, labels)
 
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
@@ -456,13 +610,15 @@ class GuidedDeConvPGCAM():
             visual_num = visual_num #gcamBatchDistribution[1]
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
+            inter_bias = self.inter_bias[i][batch_num - visual_num:batch_num]
 
             if inter_gradient.shape[-1] < 0:
                 print("inter_gradienhhh")
                 print(inter_gradient.abs().sum(dim=1))#.gt(0).int())
 
             # 2.生成CAM
-            gcam = self.GenerateCAM(inter_output, inter_gradient)
+            gcam = self.GenerateCAM(inter_output, inter_gradient, inter_bias)
+            print("{}: {}".format(self.target_layer[i], gcam.sum()))
 
             # 3.Post Process
             # Amplitude Normalization
@@ -477,6 +633,7 @@ class GuidedDeConvPGCAM():
 
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
+        print("logits:{} rest:{} diff:{}".format(logits[0][labels].item(), self.rest.item(), logits[0][labels].item()-self.rest.item()))
 
         # Normalization
         if self.normFlag == True:
@@ -505,7 +662,7 @@ class GuidedDeConvPGCAM():
             "gray_visualization": 0,
             "binary_visualization": 0,
             "color_visualization": 1,
-            "binary_visualization_on_image": 1,
+            "binary_visualization_on_image": 0,
             "color_visualization_on_image": 0,
             "binary_visualization_on_segmentation": 0,
             "color_visualization_on_segmentation": 0,

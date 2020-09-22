@@ -7,9 +7,13 @@ Created on 2020.7.4
 import torch
 from .draw_tool import draw_visualization
 
-# 实际上是将visual BP中的 new weight重新分配实现
+# 来自于VisualBPLemma3
+# 实际上是将visual BP中的 new weight重新分配实现以保证conservation，但是文章本身没有用这个，只用了activation，详见visual BP
+#a = relu(i + b)
+#w^ = w * a/i = w * (i+b)/i
+# 但是这种乘积的方式不可避免要面临 分母为0 的情况，而当出现这种情况时也将破坏conservation，产生损失
 
-class CJY():
+class VisualBPLemma3():
     def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
@@ -113,25 +117,16 @@ class CJY():
                 r_conv_bias = conv_bias.unsqueeze(0).expand_as(relu_input)
 
             numerator = torch.relu(relu_input)
-            denominator = torch.relu(relu_input)-r_conv_bias
+            denominator = torch.relu(relu_input) - r_conv_bias
 
             a = denominator.eq(0)
             b = a * numerator.ne(0)
-            c = r_conv_bias.eq(0)  #torch.eq(torch.relu(relu_input), r_conv_bias)
-            print("{} {} {}".format(a.sum(), b.sum(), c.sum()))
+            c = r_conv_bias.eq(0)
+            #print("{} {} {}".format(a.sum(), b.sum(), c.sum()))
 
             denominator = denominator.eq(0) * 1E-12 + denominator
             weight_zoom_ratio = numerator/denominator
-            print(torch.max(weight_zoom_ratio.view(1, -1).abs(), dim=1)[0])
-            print(torch.max(weight_zoom_ratio.view(1, -1).abs(), dim=1)[1])
-            iii = torch.max(weight_zoom_ratio.view(1, -1).abs(), dim=1)[1]
-            print(numerator.view(1, -1)[0][iii])
-            print(denominator.view(1, -1)[0][iii])
-            print(relu_input.shape)
-            print(r_conv_bias.shape)
-            print(r_conv_bias.reshape(1, -1)[0][iii])
             result_grad = grad_in[0] * weight_zoom_ratio
-            print(result_grad.max())
 
             return (result_grad,)
         else:
@@ -350,7 +345,7 @@ class CJY():
             "gray_visualization": 0,
             "binary_visualization": 0,
             "color_visualization": 1,
-            "binary_visualization_on_image": 1,
+            "binary_visualization_on_image": 0,
             "color_visualization_on_image": 0,
             "binary_visualization_on_segmentation": 0,
             "color_visualization_on_segmentation": 0,
