@@ -97,13 +97,13 @@ class DualBackprogation():
                 if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
                     if "densenet" in self.model.base_name and "denseblock" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
-                        print("Stem ReLU:{}".format(module_name))
+                        #print("Stem ReLU:{}".format(module_name))
                     elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
-                        print("Stem ReLU:{}".format(module_name))
+                        #print("Stem ReLU:{}".format(module_name))
                     elif "vgg" in self.model.base_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
-                        print("Stem ReLU:{}".format(module_name))
+                        #print("Stem ReLU:{}".format(module_name))
                     self.num_relu_layers = self.num_relu_layers + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
@@ -230,11 +230,10 @@ class DualBackprogation():
             sum0 = new_b.sum()
 
             new_weight = module.weight * 0 + 1/(module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
-            #new_weight = module.weight / module.weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
-            print(new_weight.sum())
+            #new_weight = module.weight.relu() / (module.weight.relu().sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)).clamp(min=1E-12)
+            #print(new_weight.sum())
 
-            new_grad_in = torch.nn.functional.conv_transpose2d(new_b, new_weight, stride=module.stride,
-                                                               output_padding=module.stride[0] // 2)
+            new_grad_in = torch.nn.functional.conv_transpose2d(new_b, new_weight, stride=module.stride, output_padding=module.stride[0] // 2)
             diff = new_grad_in.shape[2] - grad_in[0].shape[2]
             diff_end = diff // 2
             diff_start = diff - diff_end
@@ -633,7 +632,7 @@ class DualBackprogation():
 
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
-        print("logits:{} rest:{} diff:{}".format(logits[0][labels].item(), self.rest.item(), logits[0][labels].item()-self.rest.item()))
+        print("logits:{} rest:{} diff:{} label:{}".format(logits[0][labels].item(), self.rest.item(), logits[0][labels].item()-self.rest.item(), labels.item()))
 
         # Normalization
         if self.normFlag == True:
