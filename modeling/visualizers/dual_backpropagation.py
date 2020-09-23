@@ -671,11 +671,15 @@ class DualBackprogation():
         for j in range(imgs.shape[0]):
             labels_str = ""
             plabels_str = ""
-            for k in range(labels.shape[1]):
-                labels_str = labels_str + "-" + str(labels[j][k].item())
-                plabels_str = plabels_str + "-" + str(plabels[j][k].item())
-            labels_str = labels_str.strip("-")
-            plabels_str = plabels_str.strip("-")
+            if len(labels.shape) == 1:
+                labels_str = str(labels[j].item())
+                plabels_str = str(plabels[j].item())
+            elif len(labels.shape) == 2:
+                for k in range(labels.shape[1]):
+                    labels_str = labels_str + "-" + str(labels[j][k].item())
+                    plabels_str = plabels_str + "-" + str(plabels[j][k].item())
+                labels_str = labels_str.strip("-")
+                plabels_str = plabels_str.strip("-")
             label_prefix = "L{}_P{}".format(labels_str, plabels_str)
             # label_prefix = "L{}_P{}".format(labels[j].item(), plabels[j].item())
 

@@ -95,7 +95,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 and seg_masks is not None else seg_masks
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
-        dataType = "seg"
+        dataType = "grade"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
         savePath = r"D:\MIP\Experiment\1"  #r"D:\graduateStudent\eyes datasets\cjy\visualization"#
 
@@ -154,8 +154,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #oblabelList = [labels]
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
-            oblabelList = [labels*0 + i for i in range(model.num_classes)] if len(labels.shape)==1 else [labels.sum(1)*0 + i for i in range(model.num_classes)]
-            #oblabelList = [labels*243, labels*250, labels*281, labels*333]
+            #oblabelList = [labels*0 + i for i in range(model.num_classes)] if len(labels.shape)==1 else [labels.sum(1)*0 + i for i in range(model.num_classes)]
+            oblabelList = [labels*243, labels*250, labels*281, labels*333]
 
             # 可视化
             for oblabels in oblabelList:
