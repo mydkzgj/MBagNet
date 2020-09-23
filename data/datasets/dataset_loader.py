@@ -240,6 +240,7 @@ class SegmentationDataset(Dataset):
 
             # 依照mask_no_overlap进行绘制
             for index, lesionType in enumerate(lesionTypeList):
+                #sum = mask_no_overlap[index].sum()
                 #sum = mask_no_overlap[index].sum().gt(0).int()
                 #sum = torch.nn.functional.adaptive_max_pool2d(mask_no_overlap[index:index + 1], (7, 7)).sum()  #计算7*7max-sum
                 sum = computeComponents(mask_no_overlap[index])    #计算联通域个数
