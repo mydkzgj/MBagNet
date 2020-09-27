@@ -226,13 +226,14 @@ class DualBackprogation():
                 # (1)
                 new_weight = module.weight
                 x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
-                y = bias_backprop / x
+                x_nonzero = x.ne(0).float()
+                y = bias_backprop / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_backprop_distribution1 = linear_input * z
                 #print(bias_backprop_distribution1.sum())
                 # (2)
                 new_weight = torch.ones_like(module.weight)
-                y = bias_backprop * bias_current / (x * module.weight.shape[1])
+                y = bias_backprop * bias_current / (x * module.weight.shape[1] + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_backprop_distribution2 = z
                 #print(bias_backprop_distribution2.sum())
@@ -254,7 +255,7 @@ class DualBackprogation():
                 # """
                 new_weight = module.weight.relu()
                 x = torch.nn.functional.linear(linear_input, new_weight)
-                x_nonzero = x.ne(0).int()
+                x_nonzero = x.ne(0).float()
                 y = bias_amount / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 distribution = linear_input * z
@@ -266,7 +267,7 @@ class DualBackprogation():
                 new_weight = module.weight.relu()
                 bias_pos = bias_amount.relu()
                 x = torch.nn.functional.linear(linear_input, new_weight)
-                x_nonzero = x.ne(0).int()
+                x_nonzero = x.ne(0).float()
                 y = bias_pos / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 distribution_pos = linear_input * z
@@ -275,7 +276,7 @@ class DualBackprogation():
                 new_weight = -(-module.weight).relu()
                 bias_neg = -(-bias_amount).relu()
                 x = torch.nn.functional.linear(linear_input, new_weight)
-                x_nonzero = x.ne(0).int()
+                x_nonzero = x.ne(0).float()
                 y = bias_neg / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 distribution_neg = linear_input * z
@@ -294,7 +295,8 @@ class DualBackprogation():
                 # (1)
                 new_weight = module.weight
                 x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
-                y = bias_amount / x
+                x_nonzero = x.ne(0).float()
+                y = bias_amount / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 distribution1 = linear_input * z
                 # print(distribution1.sum())
@@ -304,7 +306,7 @@ class DualBackprogation():
                 activation_map = linear_input.ne(0).float()
                 activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
                 x_nonzero = (x * activation_num_map).ne(0).float()
-                y = bias_amount * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
+                y = bias_amount * bias_current / (x * activation_num_map + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 distribution2 = z * activation_map
                 # print(distribution2.sum())
@@ -368,13 +370,14 @@ class DualBackprogation():
                 # (1)
                 new_weight = module.weight
                 x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias_current
-                y = bias_backprop / x
+                x_nonzero = x.ne(0).float()
+                y = bias_backprop / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 bias_backprop_distribution1 = conv_input * z
                 #print(bias_backprop_distribution1.sum())
                 # (2)
                 new_weight = torch.ones_like(module.weight)
-                y = bias_backprop * bias_current / (x * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+                y = bias_backprop * bias_current / (x * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3] + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 bias_backprop_distribution2 = z
                 #print(bias_backprop_distribution2.sum())
