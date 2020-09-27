@@ -14,7 +14,7 @@ ECCV16
 原本只是适用于vgg，并未说明BN层，以及Resnet跨越连接的反向传播方式，本程序已实现。
 """
 
-class MWP():
+class MWP_CJY():
     def __init__(self, model, num_classes, target_layer, contrastive=False):
         self.model = model
         self.num_classes = num_classes
@@ -172,13 +172,44 @@ class MWP():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_weight = module.weight.relu()
+            """
+            new_weight = module.weight
             x = torch.nn.functional.linear(linear_input, new_weight)
-            x_nonzero = x.gt(0).int()
+            x_nonzero = x.ne(0).int()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
             new_grad_in = linear_input * z
+            """
+
+            # 版本二
+            contribution_backprop = grad_out[0]
+            bias_current = module.bias.unsqueeze(0).expand_as(contribution_backprop) if module.bias is not None else 0
+            # (1)
+            new_weight = module.weight
+            x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
+            y = contribution_backprop / x
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            contribution_assignment1 = linear_input * z
+            # print(old_bias_assignment1.sum())
+
+            # (2)
+            new_weight = torch.ones_like(module.weight)
+
+            # x为0的点为死点，不将bias分给这种点
+            activation_map = linear_input.ne(0).float()
+            activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
+            x_nonzero = (x * activation_num_map).ne(0).int()
+            y = contribution_backprop * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
+
+            #y = contribution_backprop * bias_current / (x * module.weight.shape[1])
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            contribution_assignment2 = z * activation_map
+            # print(old_bias_assignment2.sum())
+
+            contribution_assignment = contribution_assignment1 + contribution_assignment2
+            new_grad_in = contribution_assignment
+
 
             if self.contrastive_first_state == 1:
                 new_weight_c = (-module.weight).relu()
@@ -219,9 +250,10 @@ class MWP():
             else:
                 weight = module.weight
 
-            new_weight = weight.relu()
+            """
+            new_weight = weight
             x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-            x_nonzero = x.gt(0).int()
+            x_nonzero = x.ne(0).int()
             y = grad_out[0]/(x + (1-x_nonzero)) * x_nonzero   # 文章中并没有说应该怎么处理分母为0的情况
 
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
@@ -230,6 +262,50 @@ class MWP():
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
 
             new_grad_in = conv_input * z
+            """
+
+            # 版本二
+            contribution_backprop = grad_out[0]
+            print(1)
+            print(contribution_backprop.sum())
+            bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(contribution_backprop) if module.bias is not None else 0
+            # bias分为两部分 current 后续传递
+            # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
+            # 0.for transposed conv
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+
+            # (1)
+            new_weight = module.weight
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias_current
+            x_nonzero = x.ne(0).int()
+            y = contribution_backprop / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+
+            contribution_assignment1 = conv_input * z
+            print(contribution_assignment1.sum())
+
+            # (2)
+            new_weight = torch.ones_like(module.weight)  # module.weight * 0 + 1 / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+
+            # x为0的点为死点，不将bias分给这种点
+            activation_map = conv_input.ne(0).float()
+            activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride, padding=module.padding)  #计算非死点个数之和
+            x_nonzero = (x * activation_num_map).ne(0).int()
+            y = contribution_backprop * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
+
+            #y = contribution_backprop * bias_current / ((x + (1 - x_nonzero)) * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3]) * x_nonzero
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            contribution_assignment2 = z * activation_map
+            print(contribution_assignment2.sum())
+
+            contribution_assignment = contribution_assignment1 + contribution_assignment2
+            print(contribution_assignment.sum())
+            print("max:{}".format(contribution_assignment.max()))
+            print("min:{}".format(contribution_assignment.min()))
+
+            new_grad_in = contribution_assignment
 
             if self.contrastive_first_state == 1:
                 new_weight_c = (-weight).relu()
@@ -439,6 +515,8 @@ class MWP():
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
+
+        print("max:{}".format(gcam.max()))
         return gcam
 
     # Generate Overall CAM

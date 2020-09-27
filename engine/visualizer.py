@@ -90,16 +90,41 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         model.eval()
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
         grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 and grade_imgs is not None else grade_imgs
-        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None  else grade_labels
+        grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None else grade_labels
         seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 and seg_imgs is not None else seg_imgs
         seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 and seg_masks is not None else seg_masks
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
-        dataType = "grade"
+        #dataType = "grade"
         heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
         savePath = r"D:\MIP\Experiment\1"  #r"D:\graduateStudent\eyes datasets\cjy\visualization"#
 
-        # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
+        # 记录grade和seg的样本数量
+        grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
+        seg_num = seg_masks.shape[0] if seg_imgs is not None else 0
+        # 将grade和seg样本concat起来
+        if grade_num > 0 and seg_num > 0:       # joint
+            dataType = "joint"
+            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
+            labels = torch.cat([grade_labels, seg_labels], dim=0)
+            masks = seg_masks
+            img_paths = gimg_path + simg_path
+        elif grade_num > 0 and seg_num == 0:    # grade
+            dataType = "grade"
+            # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
+            imgs = grade_imgs
+            labels = torch.zeros_like(grade_labels) + 1  # 333#243
+            #labels = grade_labels
+            masks = None
+            img_paths = gimg_path
+        elif grade_num == 0 and seg_num > 0:    # seg
+            dataType = "seg"
+            imgs = seg_imgs
+            labels = seg_labels
+            masks = seg_masks
+            img_paths = simg_path
+
+        """
         if dataType == "grade":
             imgs = grade_imgs
             labels = torch.zeros_like(grade_labels) + 1#333#243
@@ -115,6 +140,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             labels = torch.cat([grade_labels, seg_labels], dim=0)
             masks = seg_masks
             img_paths = gimg_path + simg_path
+        """
 
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
@@ -151,18 +177,21 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #engine.state.imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             # 观测类别
+            if dataType == "seg":
+                oblabelList = [labels*0 + i for i in range(model.num_classes)] if len(labels.shape)==1 else [labels.sum(1)*0 + i for i in range(model.num_classes)]
+            elif dataType == "grade":
+                oblabelList = [labels*243, labels*250, labels*281, labels*333]
             #oblabelList = [labels]
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
-            #oblabelList = [labels*0 + i for i in range(model.num_classes)] if len(labels.shape)==1 else [labels.sum(1)*0 + i for i in range(model.num_classes)]
-            oblabelList = [labels*243, labels*250, labels*281, labels*333]
 
             # 可视化
+            showFlag = 1
             for oblabels in oblabelList:
                 binary_threshold = 0#0.25#0.5
                 if model.visualizer.reservePos != True:
                     binary_threshold = binary_threshold*0.5 + 0.5
-                showFlag = 1
+
                 input_size = (imgs.shape[2], imgs.shape[3])
                 visual_num = imgs.shape[0]
                 gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, oblabels, input_size, visual_num=visual_num)
@@ -187,8 +216,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                         rv = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
                         segmentations = rv  # .gt(binary_threshold)
                         if segmentations.shape[1] == 1:
-                            engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(),
-                                                    model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
+                            engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
 
             labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
 

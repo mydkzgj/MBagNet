@@ -39,9 +39,11 @@ class DualBackprogation():
         self.linear_input = []
         self.linear_current_index = 0
 
-        self.useGuidedCONV = True  #True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedCONV = True  # True  # True#False  # GuideBackPropagation的变体
         self.guidedCONVstate = 0
         self.num_conv_layers = 0
+        self.conv_input = []
+        self.conv_current_index = 0
 
         self.useGuidedBN = True  #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
@@ -129,6 +131,7 @@ class DualBackprogation():
             print("Set GuidedBP Hook on CONV")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.Conv2d) == True and "segmenter" not in module_name:
+                    module.register_forward_hook(self.conv_forward_hook_fn)
                     module.register_backward_hook(self.conv_backward_hook_fn)
                     self.num_conv_layers = self.num_conv_layers + 1
 
@@ -136,7 +139,7 @@ class DualBackprogation():
             print("Set GuidedBP Hook on LINEAR")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.Linear) == True and "segmenter" not in module_name:
-                    #module.register_forward_hook(self.linear_forward_hook_fn)
+                    module.register_forward_hook(self.linear_forward_hook_fn)
                     module.register_backward_hook(self.linear_backward_hook_fn)
                     self.num_linear_layers = self.num_linear_layers + 1
 
@@ -145,7 +148,10 @@ class DualBackprogation():
             print("Set GuidedBP Hook on BN")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.BatchNorm2d) == True and "segmenter" not in module_name:
-                    module.register_backward_hook(self.bn_backward_hook_fn)
+                    if "resnet" in self.model.base_name and "bn3" in module_name:
+                        module.register_backward_hook(self.bn_backward_hook_fn_with_zero_input)
+                    else:
+                        module.register_backward_hook(self.bn_backward_hook_fn)
                     #module.register_forward_hook(self.bn_forward_hook_fn)
                     self.num_bn_layers = self.num_bn_layers + 1
 
@@ -170,6 +176,13 @@ class DualBackprogation():
         self.inter_output.append(output)
         self.targetHookIndex = self.targetHookIndex + 1
 
+    def linear_forward_hook_fn(self, module, input, output):
+        if self.linear_current_index == 0:
+            self.linear_input.clear()
+        self.linear_input.append(input[0])
+        self.linear_current_index = self.linear_current_index + 1
+        if self.linear_current_index % self.num_linear_layers == 0:
+            self.linear_current_index = 0
 
     def linear_backward_hook_fn(self, module, grad_in, grad_out):
         if self.backward_type == "gradient":
@@ -190,17 +203,97 @@ class DualBackprogation():
                 """
                 self.output_gradient_reserve.append(grad_out[0])
         elif self.backward_type == "bias":
+            self.linear_input_obtain_index = self.linear_input_obtain_index - 1
+            linear_input = self.linear_input[self.linear_input_obtain_index]
+
             output_gradient = self.output_gradient_reserve.pop(0)
 
-            bias = module.bias.unsqueeze(0).expand_as(output_gradient)
-            old_b = grad_out[0]
+            bias_backprop = grad_out[0]
+            bias_current = module.bias.unsqueeze(0).expand_as(output_gradient) if module.bias is not None else 0
+            bias_amount = bias_backprop + output_gradient * bias_current
+            print("bias_back_linear")
+            print(bias_amount.sum())
+
+            # 版本一：
+            """            
+            # bias分为两部分 current 后续传递
+            # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
+            # (1)
+            old_b = new_b
+            new_weight = module.weight
+            x = torch.nn.functional.linear(linear_input, new_weight) + bias
+            y = old_b / x
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            old_bias_assignment1 = linear_input * z
+            #print(old_bias_assignment1.sum())
+
+            # (2)
+            new_weight = torch.ones_like(module.weight)
+            y = old_b * bias_current / (x * module.weight.shape[1])
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            old_bias_assignment2 = z
+            #print(old_bias_assignment2.sum())
+
+            old_bias_assignment = old_bias_assignment1 + old_bias_assignment2
+
+            # 2. 分配current_bias 均匀分配
+            new_weight = torch.ones_like(module.weight)
+            y = bias_current * output_gradient / module.weight.shape[1]
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            current_bias_assignment = z
+            #print(current_bias_assignment.sum())
+
+            new_grad_in = old_bias_assignment #+ current_bias_assignment
+            print(new_grad_in.sum())
+            """
+
+            # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
+            new_weight = module.weight.relu()
+            x = torch.nn.functional.linear(linear_input, new_weight)
+            y = bias_amount / x
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            distribution = linear_input * z
+
+            """
+            new_b_p = output_gradient * 1 * bias#.relu()
+            new_weight = module.weight#.relu()
+            x = torch.nn.functional.linear(linear_input, new_weight)
+            x_nonzero = x.ne(0).int()
+            y = new_b_p / (x + (1 - x_nonzero)) * x_nonzero
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            new_grad_in_p = linear_input * z
+
+            # neg
+            new_b_n = -(-new_b).relu()
+            new_weight = -(-module.weight).relu()
+            x = torch.nn.functional.linear(linear_input, new_weight)
+            x_nonzero = x.ne(0).int()
+            y = new_b_n / (x + (1 - x_nonzero)) * x_nonzero
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            new_grad_in_n = linear_input * z
+
+
+
             new_b = output_gradient * 1 * bias + old_b
+            #new_weight = module.weight * 0 + 1/module.weight.shape[1]
+            new_weight = module.weight / (module.weight.sum(dim=1, keepdim=True))  # .clamp(min=1E-12)
+            new_grad_in2 = torch.nn.functional.linear(new_b, new_weight.permute(1, 0))
 
-            new_weight = module.weight * 0 + 1/module.weight.shape[1]
+            new_grad_in = new_grad_in2
+            """
 
-            new_grad_in = torch.nn.functional.linear(new_b, new_weight.permute(1, 0))
+            new_grad_in = distribution
 
             return (grad_in[0], new_grad_in, grad_in[2])   # bias input weight
+
+
+    def conv_forward_hook_fn(self, module, input, output):
+        if self.conv_current_index == 0:
+            self.conv_input.clear()
+        self.conv_input.append(input[0])
+        self.conv_current_index = self.conv_current_index + 1
+        if self.conv_current_index % self.num_conv_layers == 0:
+            self.conv_current_index = 0
 
     def conv_backward_hook_fn(self, module, grad_in, grad_out):
         if self.backward_type == "gradient":
@@ -221,28 +314,135 @@ class DualBackprogation():
                 """
                 self.output_gradient_reserve.append(grad_out[0])
         elif self.backward_type == "bias":
+            self.conv_input_obtain_index = self.conv_input_obtain_index - 1
+            conv_input = self.conv_input[self.conv_input_obtain_index]
+
             output_gradient = self.output_gradient_reserve.pop(0)
 
-            bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output_gradient) if module.bias is not None else 0
-            old_b = grad_out[0]
-            new_b = output_gradient * 1 * bias + old_b
+            bias_backprop = grad_out[0]
+            bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output_gradient) if module.bias is not None else 0
+            bias_amount = bias_backprop + output_gradient * bias_current
+            print("bias_back_conv")
+            print(bias_amount.sum())
 
-            sum0 = new_b.sum()
+            sum0 = bias_amount.sum()
 
-            new_weight = module.weight * 0 + 1/(module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
-            #new_weight = module.weight.relu() / (module.weight.relu().sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)).clamp(min=1E-12)
-            #print(new_weight.sum())
+            # 版本1：
+            """
+            # bias分为两部分 current 后续传递
+            # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
+            # 0.for transposed conv
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
 
-            new_grad_in = torch.nn.functional.conv_transpose2d(new_b, new_weight, stride=module.stride, output_padding=module.stride[0] // 2)
-            diff = new_grad_in.shape[2] - grad_in[0].shape[2]
-            diff_end = diff // 2
-            diff_start = diff - diff_end
+            # (1)
+            old_b = new_b
+            new_weight = module.weight
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias
+            y = old_b / x
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+
+            old_bias_assignment1 = conv_input * z
+            print(old_bias_assignment1.sum())
+
+            # (2)
+            new_weight = torch.ones_like(module.weight) #module.weight * 0 + 1 / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+            y = old_b * bias / (x * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            old_bias_assignment2 = z
+            print(old_bias_assignment2.sum())
+
+            old_bias_assignment = old_bias_assignment1 + old_bias_assignment2
+
+            # 2. 分配current_bias 均匀分配
+            new_weight = torch.ones_like(module.weight) #module.weight * 0 + 1 / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+            y = bias * output_gradient / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            current_bias_assignment = z
+            print(current_bias_assignment.sum())
+
+            new_grad_in = old_bias_assignment #+ current_bias_assignment
+            print(new_grad_in.sum())
+            """
+
+            # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
+            # 假设其输入为relu输出，输出为relu输入时，可有如此设定
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+
+            new_weight = module.weight.relu()
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            y = bias_amount / x
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            distribution = conv_input * z
+
+            """
+            # pos
+            new_b_p = new_b#(output_gradient * 1 * bias).relu() + old_b.relu()
+            new_weight = module.weight.relu()
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            print(x.sum())
+            x_nonzero = x.ne(0).int()
+            y = new_b_p / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+            print(x_nonzero.sum())
+
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
+                        module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
+                                                     output_padding=output_padding)
+
+
+            new_grad_in_p = conv_input * z
+            print(new_b_p.sum())
+            print(new_grad_in_p.sum())
+            print("p_max:{}, p_min{}".format(new_grad_in_p.max(), new_grad_in_p.min()))
+            """
+
+            # neg
+            """
+            new_b_n = -(-1*output_gradient * 1 * bias).relu() - (-1*old_b).relu()
+            new_weight = -(-module.weight).relu()
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            print(x.sum())
+            x_nonzero = x.ne(0).int()
+            y = new_b_n / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+            print(x_nonzero.sum())
+
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
+                    module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
+                                                     output_padding=output_padding)
+
+            new_grad_in_n = conv_input * z
+            print(new_b_n.sum())
+            print(new_grad_in_n.sum())
+            print("n_max:{}, n_min{}".format(new_grad_in_n.max(), new_grad_in_n.min()))
+
+           
+            #"""
+            #new_grad_in = new_grad_in_p# + new_grad_in_n
+
+            #new_weight = module.weight * 0 + 1/(module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+            #new_weight = module.weight.relu() / (module.weight.relu().sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))#.clamp(min=1E-12)
+            #print(new_weight.abs().max())
+            #print(new_weight.max())
+
+            #new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            #output_size = (new_b.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            #output_padding = grad_in[0].shape[3] - output_size
+            #new_grad_in = torch.nn.functional.conv_transpose2d(new_b, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+
+            new_grad_in = distribution
+
             sum1 = new_grad_in.sum()
-            new_grad_in = new_grad_in[:, :, diff_start:new_grad_in.shape[2] - diff_end,
-                          diff_start:new_grad_in.shape[3] - diff_end]
-            sum2 = new_grad_in.sum()
-
-            self.rest = self.rest + (sum0-sum2)
+            self.rest = self.rest + (sum0-sum1)
+            print("rest:{}".format(sum0-sum1))
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -368,7 +568,29 @@ class DualBackprogation():
             new_b = output_gradient * 1 * bias + old_b
 
             new_grad_in = new_b
+            return (new_grad_in, grad_in[1], grad_in[2])
 
+    def bn_backward_hook_fn_with_zero_input(self, module, grad_in, grad_out):  #for resnet
+        if self.backward_type == "gradient":
+            if self.guidedBNstate == True:
+                """
+                new_weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).relu()
+                result_grad = grad_out[0] * new_weight / module.running_var.sqrt().unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                return (result_grad, grad_in[1], grad_in[2])
+                """
+                self.output_gradient_reserve.append(grad_out[0])
+        elif self.backward_type == "bias":
+            output_gradient = self.output_gradient_reserve.pop(0)
+
+            bias = - (module.running_mean * module.weight)/(module.running_var+module.eps).sqrt() + module.bias
+            bias = bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output_gradient)
+            #old_b = grad_out[0]
+            new_b = output_gradient * 1 * bias
+
+            new_grad_in = new_b
+            print("BN2")
+            print(grad_out[0].sum())
+            print(new_grad_in.sum())
             return (new_grad_in, grad_in[1], grad_in[2])
 
 
@@ -401,6 +623,8 @@ class DualBackprogation():
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
         self.pool_output_obtain_index = len(self.pool_output)
+        self.conv_input_obtain_index = len(self.conv_input)
+        self.linear_input_obtain_index = len(self.linear_input)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
@@ -442,6 +666,8 @@ class DualBackprogation():
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
         self.pool_output_obtain_index = len(self.pool_output)
+        self.conv_input_obtain_index = len(self.conv_input)
+        self.linear_input_obtain_index = len(self.linear_input)
         inter_bias = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels * 0,
                                               retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
@@ -529,7 +755,12 @@ class DualBackprogation():
         #gcam = inter_output[:, 435:436,]
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
+        gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True) #
+
+        gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True) #inter_gradient * inter_output + inter_bias
+        gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)  # inter_gradient * inter_output + inter_bias
+        print("linear:{}, bias:{}, sum:{}".format(gcam_l.sum(), gcam_b.sum(), gcam.sum()))
+        print("linear_max:{}, bias_max:{}, sum_max:{}".format(gcam_l.max(), gcam_b.max(), gcam.max()))
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
         return gcam
@@ -610,10 +841,6 @@ class DualBackprogation():
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
             inter_bias = self.inter_bias[i][batch_num - visual_num:batch_num]
-
-            if inter_gradient.shape[-1] < 0:
-                print("inter_gradienhhh")
-                print(inter_gradient.abs().sum(dim=1))#.gt(0).int())
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient, inter_bias)
