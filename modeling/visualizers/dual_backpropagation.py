@@ -215,7 +215,7 @@ class DualBackprogation():
             bias_amount = bias_backprop + output_gradient * bias_current
 
             print("bias_back_linear")
-            print(bias_amount.sum())
+            print("sum0:{}".format(bias_amount.sum()))   #只有transpose-conv可能会出现损失，记录在rest中
 
             if self.conv_back_version == 1:
                 # 版本一：
@@ -341,7 +341,6 @@ class DualBackprogation():
             print("sum0:{}".format(sum0))   #只有transpose-conv可能会出现损失，记录在rest中
 
             if self.conv_back_version == 1:
-                print()
                 # bias分为两部分 current 后续传递
                 # 1.首先依靠当前节点对后面回传的bias_backprop进行分配，需要将bias_current先均匀分配
                 # bias分配规则：(wa + b/n)/sum(wa + b/n)    之和为1，有正有负
