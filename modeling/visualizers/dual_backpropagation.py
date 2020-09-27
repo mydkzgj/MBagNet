@@ -213,6 +213,7 @@ class DualBackprogation():
             bias_backprop = grad_out[0]
             bias_current = module.bias.unsqueeze(0).expand_as(output_gradient) if module.bias is not None else 0
             bias_amount = bias_backprop + output_gradient * bias_current
+
             print("bias_back_linear")
             print(bias_amount.sum())
 
@@ -220,7 +221,8 @@ class DualBackprogation():
                 # 版本一：
                 # """
                 # bias分为两部分 current 后续传递
-                # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
+                # 1.首先依靠当前节点对后面回传的bias_backprop进行分配，需要将bias_current先均匀分配
+                # bias分配规则：(wa + b/n)/sum(wa + b/n)    之和为1，有正有负
                 # (1)
                 new_weight = module.weight
                 x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
@@ -228,7 +230,6 @@ class DualBackprogation():
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_backprop_distribution1 = linear_input * z
                 #print(bias_backprop_distribution1.sum())
-
                 # (2)
                 new_weight = torch.ones_like(module.weight)
                 y = bias_backprop * bias_current / (x * module.weight.shape[1])
@@ -237,13 +238,14 @@ class DualBackprogation():
                 #print(bias_backprop_distribution2.sum())
 
                 bias_backprop_distribution = bias_backprop_distribution1 + bias_backprop_distribution2
+                print(bias_backprop_distribution.sum())
 
-                # 2. 分配current_bias 均匀分配
+                # 2. 分配bias_current均匀分配
                 new_weight = torch.ones_like(module.weight)
                 y = bias_current * output_gradient / module.weight.shape[1]
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_current_distribution = z
-                #print(bias_current_distribution.sum())
+                print(bias_current_distribution.sum())
 
                 distribution = bias_backprop_distribution + bias_current_distribution
                 #"""
@@ -328,41 +330,38 @@ class DualBackprogation():
             bias_backprop = grad_out[0]
             bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output_gradient) if module.bias is not None else 0
             bias_amount = bias_backprop + output_gradient * bias_current
-            print("bias_back_conv")
-            print(bias_amount.sum())
 
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
             output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
+            print("bias_back_conv")
             sum0 = bias_amount.sum()
+            print("sum0:{}".format(sum0))   #只有transpose-conv可能会出现损失，记录在rest中
 
             if self.conv_back_version == 1:
                 print()
-                # 版本一：分别对bias_backprop和bias_current进行分别处理
-                # """
                 # bias分为两部分 current 后续传递
-                # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配，即将输入都减去bias_current/n
+                # 1.首先依靠当前节点对后面回传的bias_backprop进行分配，需要将bias_current先均匀分配
+                # bias分配规则：(wa + b/n)/sum(wa + b/n)    之和为1，有正有负
                 # (1)
                 new_weight = module.weight
                 x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias_current
                 y = bias_backprop / x
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
-
                 bias_backprop_distribution1 = conv_input * z
-                print(bias_backprop_distribution1.sum())
-
+                #print(bias_backprop_distribution1.sum())
                 # (2)
                 new_weight = torch.ones_like(module.weight)
                 y = bias_backprop * bias_current / (x * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 bias_backprop_distribution2 = z
-                print(bias_backprop_distribution2.sum())
-
+                #print(bias_backprop_distribution2.sum())
                 bias_backprop_distribution = bias_backprop_distribution1 + bias_backprop_distribution2
+                print(bias_backprop_distribution.sum())
 
-                # 2. 分配current_bias 均匀分配
+                # 2.分配current_bias 均匀分配
                 new_weight = torch.ones_like(module.weight)
                 y = bias_current * output_gradient / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
@@ -426,6 +425,8 @@ class DualBackprogation():
             new_grad_in = distribution
 
             sum1 = new_grad_in.sum()
+            print("sum1:{}".format(sum1))
+
             self.rest = self.rest + (sum0-sum1)
             print("rest:{}".format(sum0-sum1))
 
