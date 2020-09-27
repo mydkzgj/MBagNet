@@ -59,7 +59,7 @@ class DualBackprogation():
         self.output_gradient_reserve = []
         self.rest = 0
 
-        self.conv_back_version = 1
+        self.back_version = 5
 
         self.setHook(model)
 
@@ -217,8 +217,8 @@ class DualBackprogation():
             print("bias_back_linear")
             print("sum0:{}".format(bias_amount.sum()))   #只有transpose-conv可能会出现损失，记录在rest中
 
-            if self.conv_back_version == 1:
-                # 版本一：
+            if self.back_version == 1:
+                # 版本一： 但是目前这个损失特别大
                 # """
                 # bias分为两部分 current 后续传递
                 # 1.首先依靠当前节点对后面回传的bias_backprop进行分配，需要将bias_current先均匀分配
@@ -249,7 +249,7 @@ class DualBackprogation():
 
                 distribution = bias_backprop_distribution + bias_current_distribution
                 #"""
-            elif self.conv_back_version == 2:
+            elif self.back_version == 2:
                 # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
                 # """
                 new_weight = module.weight.relu()
@@ -258,7 +258,7 @@ class DualBackprogation():
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 distribution = linear_input * z
                 # """
-            elif self.conv_back_version == 3:
+            elif self.back_version == 3:
                 # 版本三：对正负分量做不同处理
                 # """
                 # 1.pos
@@ -281,7 +281,7 @@ class DualBackprogation():
 
                 distribution = distribution_pos + distribution_neg
                 # """
-            elif self.conv_back_version == 4:
+            elif self.back_version == 4:
                 # 版本四：均匀分配，但是目前看来均匀分配是无用的
                 # """
                 new_b = output_gradient * 1 * bias_current + bias_backprop
@@ -289,6 +289,26 @@ class DualBackprogation():
                 new_weight = module.weight / (module.weight.sum(dim=1, keepdim=True))
                 distribution = torch.nn.functional.linear(new_b, new_weight.permute(1, 0))
                 # """
+            elif self.back_version == 5:
+                # (1)
+                new_weight = module.weight
+                x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
+                y = bias_amount / x
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                distribution1 = linear_input * z
+                # print(distribution1.sum())
+                # (2)
+                new_weight = torch.ones_like(module.weight)
+                # x为0的点为死点，不将bias分给这种点
+                activation_map = linear_input.ne(0).float()
+                activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
+                x_nonzero = (x * activation_num_map).ne(0).float()
+                y = bias_amount * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                distribution2 = z * activation_map
+                # print(distribution2.sum())
+
+                distribution = distribution1 + distribution2
 
             new_grad_in = distribution
 
@@ -340,8 +360,8 @@ class DualBackprogation():
             sum0 = bias_amount.sum()
             print("sum0:{}".format(sum0))   #只有transpose-conv可能会出现损失，记录在rest中
 
-            if self.conv_back_version == 1:
-                # bias分为两部分 current 后续传递
+            if self.back_version == 1:
+                # 版本一：bias分为两部分，先back，后current
                 # 1.首先依靠当前节点对后面回传的bias_backprop进行分配，需要将bias_current先均匀分配
                 # bias分配规则：(wa + b/n)/sum(wa + b/n)    之和为1，有正有负
                 # (1)
@@ -370,7 +390,7 @@ class DualBackprogation():
                 distribution = bias_backprop_distribution + bias_current_distribution
                 print(distribution.sum())
                 #"""
-            elif self.conv_back_version == 2:
+            elif self.back_version == 2:
                 # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
                 # """
                 # 假设其输入为relu输出，输出为relu输入时，可有如此设定
@@ -381,7 +401,7 @@ class DualBackprogation():
                                                          output_padding=output_padding)
                 distribution = conv_input * z
                 # """
-            elif self.conv_back_version == 3:
+            elif self.back_version == 3:
                 # 版本三：对正负分量做不同处理
                 # """
                 # 1.pos
@@ -409,17 +429,43 @@ class DualBackprogation():
 
                 print(bias_neg.sum())
                 print(distribution_neg.sum())
-                print("p_max:{}, p_min{}".format(bias_pos.max(), distribution_neg.min()))
+                print("n_max:{}, n_min{}".format(bias_pos.max(), distribution_neg.min()))
 
                 distribution = distribution_pos + distribution_neg
                 # """
-            elif self.conv_back_version == 4:
-                # 版本四：
+            elif self.back_version == 4:
+                # 版本四：bias均分
                 # """
                 new_weight = torch.ones_like(module.weight) / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
                 # new_weight = module.weight.relu() / (module.weight.relu().sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))#.clamp(min=1E-12)
                 distribution = torch.nn.functional.conv_transpose2d(bias_amount, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 # """
+            elif self.back_version == 5:
+                # 版本五：避免0激活值处（死点，对后续任意激活值都无影响）分得贡献，将bias分给"活点"。
+                # (1)
+                new_weight = module.weight
+                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias_current
+                x_nonzero = x.ne(0).float()
+                y = bias_amount / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                distribution1 = conv_input * z
+                print(distribution1.sum())
+
+                # (2)
+                new_weight = torch.ones_like(module.weight)
+                # x为0的点为死点，不将bias分给这种点
+                activation_map = conv_input.ne(0).float()
+                activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride, padding=module.padding)  # 计算非死点个数之和
+                x_nonzero = (x * activation_num_map).ne(0).float()
+                y = bias_amount * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                distribution2 = z * activation_map
+                print(distribution2.sum())
+
+                distribution = distribution1 + distribution2
+                print(distribution.sum())
+                print("max:{}".format(distribution.max()))
+                print("min:{}".format(distribution.min()))
 
             new_grad_in = distribution
 
