@@ -161,7 +161,7 @@ class Baseline(nn.Module):
         # "xgrad-cam", "xgrad-cam-GBP"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
         # "dual-backpropagation"
-        self.visualizer_name = "mwp-cjy"#"guided-deconv-pgrad-cam"#"guided-backpropagation"
+        self.visualizer_name = "dual-backpropagation"#"guided-deconv-pgrad-cam"#"guided-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []

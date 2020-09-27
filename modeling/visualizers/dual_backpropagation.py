@@ -223,18 +223,18 @@ class DualBackprogation():
                 # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
                 # (1)
                 new_weight = module.weight
-                x = torch.nn.functional.linear(linear_input, new_weight) + bias
+                x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
                 y = bias_backprop / x
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_backprop_distribution1 = linear_input * z
-                # print(bias_backprop_distribution1.sum())
+                #print(bias_backprop_distribution1.sum())
 
                 # (2)
                 new_weight = torch.ones_like(module.weight)
                 y = bias_backprop * bias_current / (x * module.weight.shape[1])
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_backprop_distribution2 = z
-                # print(bias_backprop_distribution2.sum())
+                #print(bias_backprop_distribution2.sum())
 
                 bias_backprop_distribution = bias_backprop_distribution1 + bias_backprop_distribution2
 
@@ -243,10 +243,10 @@ class DualBackprogation():
                 y = bias_current * output_gradient / module.weight.shape[1]
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_current_distribution = z
-                # print(bias_current_distribution.sum())
+                #print(bias_current_distribution.sum())
 
                 distribution = bias_backprop_distribution + bias_current_distribution
-                # """
+                #"""
             elif self.conv_back_version == 2:
                 # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
                 # """
