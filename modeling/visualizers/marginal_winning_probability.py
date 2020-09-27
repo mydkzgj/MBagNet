@@ -172,10 +172,8 @@ class MWP():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            if self.linear_input_obtain_index == self.num_linear_layers - 1:
-                new_weight = module.weight
-            else:
-                new_weight = module.weight.relu()
+            #if self.linear_input_obtain_index == self.num_linear_layers - 1:
+            new_weight = module.weight.relu()
             x = torch.nn.functional.linear(linear_input, new_weight)
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
