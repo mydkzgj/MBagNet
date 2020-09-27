@@ -177,7 +177,7 @@ class MWP():
             else:
                 new_weight = module.weight.relu()
             x = torch.nn.functional.linear(linear_input, new_weight)
-            x_nonzero = x.gt(0).int()
+            x_nonzero = x.gt(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
@@ -186,7 +186,7 @@ class MWP():
             if self.contrastive_first_state == 1:
                 new_weight_c = (-module.weight).relu()
                 x_c = torch.nn.functional.linear(linear_input, new_weight_c)
-                x_c_nonzero = x_c.gt(0).int()
+                x_c_nonzero = x_c.gt(0).float()
                 y_c = grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
                 z_c = torch.nn.functional.linear(y_c, new_weight_c.permute(1, 0))
 
@@ -224,7 +224,7 @@ class MWP():
 
             new_weight = weight.relu()
             x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-            x_nonzero = x.gt(0).int()
+            x_nonzero = x.gt(0).float()
             y = grad_out[0]/(x + (1-x_nonzero)) * x_nonzero   # 文章中并没有说应该怎么处理分母为0的情况
 
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
@@ -237,7 +237,7 @@ class MWP():
             if self.contrastive_first_state == 1:
                 new_weight_c = (-weight).relu()
                 x_c = torch.nn.functional.conv2d(conv_input, new_weight_c, stride=module.stride, padding=module.padding)
-                x_c_nonzero = x_c.gt(0).int()
+                x_c_nonzero = x_c.gt(0).float()
                 y_c = grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
 
                 new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
