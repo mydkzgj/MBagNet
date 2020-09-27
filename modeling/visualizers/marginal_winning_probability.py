@@ -172,7 +172,10 @@ class MWP():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_weight = module.weight.relu()
+            if self.linear_input_obtain_index == self.num_linear_layers - 1:
+                new_weight = module.weight
+            else:
+                new_weight = module.weight.relu()
             x = torch.nn.functional.linear(linear_input, new_weight)
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
@@ -188,7 +191,7 @@ class MWP():
                 z_c = torch.nn.functional.linear(y_c, new_weight_c.permute(1, 0))
 
                 new_grad_in_c = linear_input * z_c
-                new_grad_in = -new_grad_in_c #new_grad_in - new_grad_in_c
+                new_grad_in = new_grad_in - new_grad_in_c
                 self.contrastive_first_state = 0
 
             return (grad_in[0], new_grad_in, grad_in[2])
