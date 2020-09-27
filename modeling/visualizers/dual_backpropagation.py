@@ -59,6 +59,8 @@ class DualBackprogation():
         self.output_gradient_reserve = []
         self.rest = 0
 
+        self.conv_back_version = 1
+
         self.setHook(model)
 
     def setHook(self, model):
@@ -214,73 +216,77 @@ class DualBackprogation():
             print("bias_back_linear")
             print(bias_amount.sum())
 
-            # 版本一：
-            """            
-            # bias分为两部分 current 后续传递
-            # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
-            # (1)
-            old_b = new_b
-            new_weight = module.weight
-            x = torch.nn.functional.linear(linear_input, new_weight) + bias
-            y = old_b / x
-            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-            old_bias_assignment1 = linear_input * z
-            #print(old_bias_assignment1.sum())
+            if self.conv_back_version == 1:
+                # 版本一：
+                # """
+                # bias分为两部分 current 后续传递
+                # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
+                # (1)
+                new_weight = module.weight
+                x = torch.nn.functional.linear(linear_input, new_weight) + bias
+                y = bias_backprop / x
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                bias_backprop_distribution1 = linear_input * z
+                # print(bias_backprop_distribution1.sum())
 
-            # (2)
-            new_weight = torch.ones_like(module.weight)
-            y = old_b * bias_current / (x * module.weight.shape[1])
-            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-            old_bias_assignment2 = z
-            #print(old_bias_assignment2.sum())
+                # (2)
+                new_weight = torch.ones_like(module.weight)
+                y = bias_backprop * bias_current / (x * module.weight.shape[1])
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                bias_backprop_distribution2 = z
+                # print(bias_backprop_distribution2.sum())
 
-            old_bias_assignment = old_bias_assignment1 + old_bias_assignment2
+                bias_backprop_distribution = bias_backprop_distribution1 + bias_backprop_distribution2
 
-            # 2. 分配current_bias 均匀分配
-            new_weight = torch.ones_like(module.weight)
-            y = bias_current * output_gradient / module.weight.shape[1]
-            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-            current_bias_assignment = z
-            #print(current_bias_assignment.sum())
+                # 2. 分配current_bias 均匀分配
+                new_weight = torch.ones_like(module.weight)
+                y = bias_current * output_gradient / module.weight.shape[1]
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                bias_current_distribution = z
+                # print(bias_current_distribution.sum())
 
-            new_grad_in = old_bias_assignment #+ current_bias_assignment
-            print(new_grad_in.sum())
-            """
+                distribution = bias_backprop_distribution + bias_current_distribution
+                # """
+            elif self.conv_back_version == 2:
+                # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
+                # """
+                new_weight = module.weight.relu()
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                y = bias_amount / x
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                distribution = linear_input * z
+                # """
+            elif self.conv_back_version == 3:
+                # 版本三：对正负分量做不同处理
+                # """
+                # 1.pos
+                new_weight = module.weight.relu()
+                bias_pos = bias_amount.relu()
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                x_nonzero = x.ne(0).int()
+                y = bias_pos / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                distribution_pos = linear_input * z
 
-            # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
-            new_weight = module.weight.relu()
-            x = torch.nn.functional.linear(linear_input, new_weight)
-            y = bias_amount / x
-            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-            distribution = linear_input * z
+                # 2.neg
+                new_weight = -(-module.weight).relu()
+                bias_neg = -(-bias_amount).relu()
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                x_nonzero = x.ne(0).int()
+                y = bias_neg / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                distribution_neg = linear_input * z
 
-            """
-            new_b_p = output_gradient * 1 * bias#.relu()
-            new_weight = module.weight#.relu()
-            x = torch.nn.functional.linear(linear_input, new_weight)
-            x_nonzero = x.ne(0).int()
-            y = new_b_p / (x + (1 - x_nonzero)) * x_nonzero
-            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-            new_grad_in_p = linear_input * z
-
-            # neg
-            new_b_n = -(-new_b).relu()
-            new_weight = -(-module.weight).relu()
-            x = torch.nn.functional.linear(linear_input, new_weight)
-            x_nonzero = x.ne(0).int()
-            y = new_b_n / (x + (1 - x_nonzero)) * x_nonzero
-            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-            new_grad_in_n = linear_input * z
-
-
-
-            new_b = output_gradient * 1 * bias + old_b
-            #new_weight = module.weight * 0 + 1/module.weight.shape[1]
-            new_weight = module.weight / (module.weight.sum(dim=1, keepdim=True))  # .clamp(min=1E-12)
-            new_grad_in2 = torch.nn.functional.linear(new_b, new_weight.permute(1, 0))
-
-            new_grad_in = new_grad_in2
-            """
+                distribution = distribution_pos + distribution_neg
+                # """
+            elif self.conv_back_version == 4:
+                # 版本四：均匀分配，但是目前看来均匀分配是无用的
+                # """
+                new_b = output_gradient * 1 * bias_current + bias_backprop
+                # new_weight = module.weight * 0 + 1/module.weight.shape[1]
+                new_weight = module.weight / (module.weight.sum(dim=1, keepdim=True))
+                distribution = torch.nn.functional.linear(new_b, new_weight.permute(1, 0))
+                # """
 
             new_grad_in = distribution
 
@@ -325,118 +331,97 @@ class DualBackprogation():
             print("bias_back_conv")
             print(bias_amount.sum())
 
+            # prepare for transposed conv
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+
             sum0 = bias_amount.sum()
 
-            # 版本1：
-            """
-            # bias分为两部分 current 后续传递
-            # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
-            # 0.for transposed conv
-            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
-            output_padding = grad_in[0].shape[3] - output_size
+            if self.conv_back_version == 1:
+                print()
+                # 版本一：分别对bias_backprop和bias_current进行分别处理
+                # """
+                # bias分为两部分 current 后续传递
+                # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配，即将输入都减去bias_current/n
+                # (1)
+                new_weight = module.weight
+                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias_current
+                y = bias_backprop / x
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
 
-            # (1)
-            old_b = new_b
-            new_weight = module.weight
-            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias
-            y = old_b / x
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                bias_backprop_distribution1 = conv_input * z
+                print(bias_backprop_distribution1.sum())
 
-            old_bias_assignment1 = conv_input * z
-            print(old_bias_assignment1.sum())
+                # (2)
+                new_weight = torch.ones_like(module.weight)
+                y = bias_backprop * bias_current / (x * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                bias_backprop_distribution2 = z
+                print(bias_backprop_distribution2.sum())
 
-            # (2)
-            new_weight = torch.ones_like(module.weight) #module.weight * 0 + 1 / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
-            y = old_b * bias / (x * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
-            old_bias_assignment2 = z
-            print(old_bias_assignment2.sum())
+                bias_backprop_distribution = bias_backprop_distribution1 + bias_backprop_distribution2
 
-            old_bias_assignment = old_bias_assignment1 + old_bias_assignment2
+                # 2. 分配current_bias 均匀分配
+                new_weight = torch.ones_like(module.weight)
+                y = bias_current * output_gradient / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                bias_current_distribution = z
+                print(bias_current_distribution.sum())
 
-            # 2. 分配current_bias 均匀分配
-            new_weight = torch.ones_like(module.weight) #module.weight * 0 + 1 / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
-            y = bias * output_gradient / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
-            current_bias_assignment = z
-            print(current_bias_assignment.sum())
+                distribution = bias_backprop_distribution + bias_current_distribution
+                print(distribution.sum())
+                #"""
+            elif self.conv_back_version == 2:
+                # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
+                # """
+                # 假设其输入为relu输出，输出为relu输入时，可有如此设定
+                new_weight = module.weight.relu()
+                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+                y = bias_amount / x
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
+                                                         output_padding=output_padding)
+                distribution = conv_input * z
+                # """
+            elif self.conv_back_version == 3:
+                # 版本三：对正负分量做不同处理
+                # """
+                # 1.pos
+                new_weight = module.weight.relu()
+                bias_pos = (output_gradient * 1 * bias_current).relu() + bias_backprop.relu()
+                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+                x_nonzero = x.ne(0).float()
+                y = bias_pos / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
+                                                         output_padding=output_padding)
+                distribution_pos = conv_input * z
 
-            new_grad_in = old_bias_assignment #+ current_bias_assignment
-            print(new_grad_in.sum())
-            """
+                print(bias_pos.sum())
+                print(distribution_pos.sum())
+                print("p_max:{}, p_min{}".format(bias_pos.max(), distribution_pos.min()))
 
-            # 版本二：只反向传播给正向分量（实际上考虑的并非是普遍的线性分量，而是考虑经过）  wa+/sum(wa+)
-            # 假设其输入为relu输出，输出为relu输入时，可有如此设定
-            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
-            output_padding = grad_in[0].shape[3] - output_size
+                # 2.neg
+                new_weight = -(-module.weight).relu()
+                bias_neg = - (-1 * output_gradient * 1 * bias_current).relu() - (-1 * bias_backprop).relu()
+                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+                x_nonzero = x.ne(0).float()
+                y = bias_neg / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                distribution_neg = conv_input * z
 
-            new_weight = module.weight.relu()
-            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-            y = bias_amount / x
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
-            distribution = conv_input * z
+                print(bias_neg.sum())
+                print(distribution_neg.sum())
+                print("p_max:{}, p_min{}".format(bias_pos.max(), distribution_neg.min()))
 
-            """
-            # pos
-            new_b_p = new_b#(output_gradient * 1 * bias).relu() + old_b.relu()
-            new_weight = module.weight.relu()
-            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-            print(x.sum())
-            x_nonzero = x.ne(0).int()
-            y = new_b_p / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
-            print(x_nonzero.sum())
-
-            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
-                        module.kernel_size[0] - 1) + 1
-            output_padding = grad_in[0].shape[3] - output_size
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
-                                                     output_padding=output_padding)
-
-
-            new_grad_in_p = conv_input * z
-            print(new_b_p.sum())
-            print(new_grad_in_p.sum())
-            print("p_max:{}, p_min{}".format(new_grad_in_p.max(), new_grad_in_p.min()))
-            """
-
-            # neg
-            """
-            new_b_n = -(-1*output_gradient * 1 * bias).relu() - (-1*old_b).relu()
-            new_weight = -(-module.weight).relu()
-            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-            print(x.sum())
-            x_nonzero = x.ne(0).int()
-            y = new_b_n / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
-            print(x_nonzero.sum())
-
-            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
-                    module.kernel_size[0] - 1) + 1
-            output_padding = grad_in[0].shape[3] - output_size
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
-                                                     output_padding=output_padding)
-
-            new_grad_in_n = conv_input * z
-            print(new_b_n.sum())
-            print(new_grad_in_n.sum())
-            print("n_max:{}, n_min{}".format(new_grad_in_n.max(), new_grad_in_n.min()))
-
-           
-            #"""
-            #new_grad_in = new_grad_in_p# + new_grad_in_n
-
-            #new_weight = module.weight * 0 + 1/(module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
-            #new_weight = module.weight.relu() / (module.weight.relu().sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))#.clamp(min=1E-12)
-            #print(new_weight.abs().max())
-            #print(new_weight.max())
-
-            #new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            #output_size = (new_b.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
-            #output_padding = grad_in[0].shape[3] - output_size
-            #new_grad_in = torch.nn.functional.conv_transpose2d(new_b, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                distribution = distribution_pos + distribution_neg
+                # """
+            elif self.conv_back_version == 4:
+                # 版本四：
+                # """
+                new_weight = torch.ones_like(module.weight) / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
+                # new_weight = module.weight.relu() / (module.weight.relu().sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))#.clamp(min=1E-12)
+                distribution = torch.nn.functional.conv_transpose2d(bias_amount, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                # """
 
             new_grad_in = distribution
 

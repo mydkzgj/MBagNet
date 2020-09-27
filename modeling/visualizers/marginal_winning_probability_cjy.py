@@ -597,10 +597,6 @@ class MWP_CJY():
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
 
-            if inter_gradient.shape[-1] < 0:
-                print("inter_gradienhhh")
-                print(inter_gradient.abs().sum(dim=1))#.gt(0).int())
-
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
             print("{}: {}".format(self.target_layer[i], gcam.sum()))
