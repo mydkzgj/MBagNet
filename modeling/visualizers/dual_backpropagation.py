@@ -254,7 +254,8 @@ class DualBackprogation():
                 # """
                 new_weight = module.weight.relu()
                 x = torch.nn.functional.linear(linear_input, new_weight)
-                y = bias_amount / x
+                x_nonzero = x.ne(0).int()
+                y = bias_amount / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 distribution = linear_input * z
                 # """
@@ -396,9 +397,9 @@ class DualBackprogation():
                 # 假设其输入为relu输出，输出为relu输入时，可有如此设定
                 new_weight = module.weight.relu()
                 x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-                y = bias_amount / x
-                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
-                                                         output_padding=output_padding)
+                x_nonzero = x.ne(0).float()
+                y = bias_amount / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 distribution = conv_input * z
                 # """
             elif self.back_version == 3:
@@ -410,8 +411,7 @@ class DualBackprogation():
                 x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
                 x_nonzero = x.ne(0).float()
                 y = bias_pos / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
-                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
-                                                         output_padding=output_padding)
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 distribution_pos = conv_input * z
 
                 print(bias_pos.sum())
