@@ -292,7 +292,7 @@ class MWP_CJY():
             # x为0的点为死点，不将bias分给这种点
             activation_map = conv_input.ne(0).float()
             activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride, padding=module.padding)  #计算非死点个数之和
-            x_nonzero = (x * activation_num_map).ne(0).int()
+            x_nonzero = (x * activation_num_map).ne(0).float()
             y = contribution_backprop * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
 
             #y = contribution_backprop * bias_current / ((x + (1 - x_nonzero)) * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3]) * x_nonzero
