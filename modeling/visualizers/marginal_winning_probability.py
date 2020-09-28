@@ -311,20 +311,6 @@ class MWP():
             return (result_grad, grad_in[1], grad_in[2])
 
     def pool_forward_hook_fn(self, module, input, output):
-        input_size = (input[0].shape[2], input[0].shape[3])
-        channels = output.shape[1]
-
-        stride = ((input_size[0] // module.output_size[0]) if module.output_size[0] != 1 else 1) if hasattr(module, "stride") == False else module.stride
-        kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
-        padding = 0 if hasattr(module, "padding") == False else module.padding
-
-        new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / (kernel_size * kernel_size)
-        new_weight = new_weight.cuda()
-        x = torch.nn.functional.conv2d(input[0], new_weight, stride=stride, padding=padding, groups=channels)
-
-        b = torch.equal(x, output)
-        print(b)
-
         if self.pool_current_index == 0:
             self.pool_input.clear()
         self.pool_input.append(input[0])
@@ -334,7 +320,9 @@ class MWP():
 
     def pool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedPOOLstate == True:
-            result_grad = grad_in[0]
+            #result_grad = grad_in[0]
+            print("BN")
+            print(grad_out[0].sum())
 
             self.pool_input_obtain_index = self.pool_input_obtain_index - 1
             pool_input = self.pool_input[ self.pool_input_obtain_index]
@@ -355,12 +343,8 @@ class MWP():
             output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1   #y.shape[3]为1是不是不适用
             output_padding = pool_input.shape[3] - output_size
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding, output_padding=output_padding, groups=channels)
-            z1 = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding,
-                                                     output_padding=output_padding, groups=channels)
             result_grad = pool_input * z
-
-            bb = torch.equal(z1, grad_in[0])
-            print()
+            print(result_grad.sum())
 
             return (result_grad, )
         else:
