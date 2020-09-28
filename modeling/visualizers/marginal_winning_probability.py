@@ -321,7 +321,7 @@ class MWP():
     def pool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedPOOLstate == True:
             #result_grad = grad_in[0]
-            print("BN")
+            print("POOL")
             print(grad_out[0].sum())
 
             self.pool_input_obtain_index = self.pool_input_obtain_index - 1
