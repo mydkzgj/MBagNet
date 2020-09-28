@@ -144,9 +144,9 @@ class MWP():
                     self.num_linear_layers = self.num_linear_layers + 1
 
         if self.useGuidedPOOL == True:
-            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
+            print("Set GuidedBP Hook on AVGPOOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
+                if isinstance(module, torch.nn.AvgPool2d) == True and isinstance(module, torch.nn.AdaptiveAvgPool2d) == True and "segmenter" not in module_name:
                     if "densenet" in self.model.base_name and "denseblock" not in module_name:
                         self.stem_pool_index_list.append(self.num_pool_layers)
                         #print("Stem POOL:{}".format(module_name))
@@ -311,6 +311,19 @@ class MWP():
             return (result_grad, grad_in[1], grad_in[2])
 
     def pool_forward_hook_fn(self, module, input, output):
+        input_size = (input[0].shape[2], input[0].shape[3])
+        channels = output[0].shape[1]
+
+        stride = (input_size // module.output_size) if hasattr(module, "stride") == False else module.stride
+        kernel_size = input_size - (module.output_size - 1) * stride if hasattr(module,
+                                                                                "kernel_size") == False else module.kernel_size
+        padding = 0 if hasattr(module, "padding") == False else module.padding
+
+        new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / kernel_size
+        x = torch.nn.functional.conv2d(input[0], new_weight, stride=stride, padding=padding, groups=channels)
+
+        b = torch.equal(x, output[0])
+
         if self.pool_current_index == 0:
             self.pool_input.clear()
         self.pool_input.append(input[0])
@@ -330,9 +343,9 @@ class MWP():
 
             stride = (input_size // module.output_size) if hasattr(module, "stride") == False else module.stride
             kernel_size = input_size - (module.output_size - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
-            padding = 0 if hasattr(module, "kernel_size") == False else module.kernel_size
+            padding = 0 if hasattr(module, "padding") == False else module.padding
 
-            new_weight = torch.ones((channels, channels, kernel_size, kernel_size))
+            new_weight = torch.ones((channels, 1, kernel_size, kernel_size))/kernel_size
             x = torch.nn.functional.conv2d(pool_input, new_weight, stride=stride, padding=padding, groups=channels)
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
