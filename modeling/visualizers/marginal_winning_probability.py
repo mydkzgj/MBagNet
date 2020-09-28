@@ -54,6 +54,13 @@ class MWP():
         self.linear_input = []
         self.linear_current_index = 0
 
+        self.useGuidedPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_pool_layers = 0
+        self.pool_input = []
+        self.pool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_pool_index_list = []
+
 
         self.firstCAM = 1
 
@@ -136,6 +143,23 @@ class MWP():
                     module.register_forward_hook(self.linear_forward_hook_fn)
                     module.register_backward_hook(self.linear_backward_hook_fn)
                     self.num_linear_layers = self.num_linear_layers + 1
+
+        if self.useGuidedPOOL == True:
+            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
+                    if "densenet" in self.model.base_name and "denseblock" not in module_name:
+                        self.stem_pool_index_list.append(self.num_pool_layers)
+                        #print("Stem POOL:{}".format(module_name))
+                    elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
+                        self.stem_pool_index_list.append(self.num_pool_layers)
+                        #print("Stem POOL:{}".format(module_name))
+                    elif "vgg" in self.model.base_name:
+                        self.stem_pool_index_list.append(self.num_pool_layers)
+                        #print("Stem POOL:{}".format(module_name))
+                    self.num_pool_layers = self.num_pool_layers + 1
+                    module.register_forward_hook(self.pool_forward_hook_fn)
+                    module.register_backward_hook(self.pool_backward_hook_fn)
 
 
     # Hook Function
@@ -287,6 +311,36 @@ class MWP():
                 result_grad = result_grad.expand_as(grad_in[0])
             return (result_grad, grad_in[1], grad_in[2])
 
+    def pool_forward_hook_fn(self, module, input, output):
+        if self.pool_current_index == 0:
+            self.pool_input.clear()
+        self.pool_input.append(input[0])
+        self.pool_current_index = self.pool_current_index + 1
+        if self.pool_current_index % self.num_pool_layers == 0:
+            self.pool_current_index = 0
+
+    def pool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedPOOLstate == True:
+            result_grad = grad_in[0]
+
+            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
+            pool_input = self.pool_input[self.pool_output_obtain_index]
+
+            new_weight = module.weight.relu()
+            x = torch.nn.functional.conv2d(pool_input, new_weight, stride=module.stride, padding=module.padding)
+            x_nonzero = x.ne(0).float()
+            y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            result_grad = pool_input * z
+
+            return (result_grad, )
+        else:
+            pass
+
 
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
@@ -311,6 +365,7 @@ class MWP():
         self.guidedCONVstate = 1
         self.guidedBNstate = 1
         self.guidedLINEARstate = 1
+        self.guidedPOOLstate = 1
 
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
@@ -324,6 +379,7 @@ class MWP():
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
         self.inter_gradient = list(inter_gradients)
 
+        self.guidedPOOLstate = 0
         self.guidedLINEARstate = 0
         self.guidedBNstate = 0
         self.guidedCONVstate = 0
@@ -352,6 +408,7 @@ class MWP():
         self.guidedCONVstate = 1
         self.guidedBNstate = 1
         self.guidedLINEARstate = 1
+        self.guidedPOOLstate = 1
 
         if self.useGuidedBN == True:
             self.backpropagtionBNWeightstate = 1
@@ -370,6 +427,8 @@ class MWP():
                                               retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
 
         self.backpropagtionBNWeightstate = 0
+
+        self.guidedPOOLstate = 0
         self.guidedLINEARstate = 0
         self.guidedBNstate = 0
         self.guidedCONVstate = 0
