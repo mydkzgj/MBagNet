@@ -354,8 +354,13 @@ class MWP():
 
             output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1   #y.shape[3]为1是不是不适用
             output_padding = pool_input.shape[3] - output_size
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding, output_padding=output_padding)
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding, output_padding=output_padding, groups=channels)
+            z1 = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding,
+                                                     output_padding=output_padding, groups=channels)
             result_grad = pool_input * z
+
+            bb = torch.equal(z1, grad_in[0])
+            print()
 
             return (result_grad, )
         else:
