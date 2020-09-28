@@ -248,10 +248,10 @@ class MWP():
             x_nonzero = x.ne(0).float()
             y = grad_out[0]/(x + (1-x_nonzero)) * x_nonzero   # 文章中并没有说应该怎么处理分母为0的情况
 
-            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            #new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * module.padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=module.padding, output_padding=output_padding)
 
             new_grad_in = conv_input * z
 
@@ -261,10 +261,10 @@ class MWP():
                 x_c_nonzero = x_c.ne(0).float()
                 y_c = grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
 
-                new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-                output_size = (y_c.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+                #new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+                output_size = (y_c.shape[3] - 1) * module.stride[0] - 2 * module.padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
                 output_padding = grad_in[0].shape[3] - output_size
-                z_c = torch.nn.functional.conv_transpose2d(y_c, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                z_c = torch.nn.functional.conv_transpose2d(y_c, new_weight, stride=module.stride, padding=module.padding, output_padding=output_padding)
 
                 new_grad_in_c = conv_input * z_c
                 new_grad_in = new_grad_in - new_grad_in_c
@@ -352,10 +352,9 @@ class MWP():
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
 
-            new_padding = kernel_size - padding - 1
-            output_size = (y.shape[3] - 1) * stride - 2 * new_padding + (kernel_size - 1) + 1   #y.shape[3]为1是不是不适用
+            output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1   #y.shape[3]为1是不是不适用
             output_padding = pool_input.shape[3] - output_size
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=new_padding, output_padding=output_padding)
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding, output_padding=output_padding)
             result_grad = pool_input * z
 
             return (result_grad, )
