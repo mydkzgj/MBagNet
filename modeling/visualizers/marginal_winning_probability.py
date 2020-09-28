@@ -146,7 +146,7 @@ class MWP():
         if self.useGuidedPOOL == True:
             print("Set GuidedBP Hook on AVGPOOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.AvgPool2d) == True and isinstance(module, torch.nn.AdaptiveAvgPool2d) == True and "segmenter" not in module_name:
+                if (isinstance(module, torch.nn.AvgPool2d) == True or isinstance(module, torch.nn.AdaptiveAvgPool2d) == True) and "segmenter" not in module_name:
                     if "densenet" in self.model.base_name and "denseblock" not in module_name:
                         self.stem_pool_index_list.append(self.num_pool_layers)
                         #print("Stem POOL:{}".format(module_name))
