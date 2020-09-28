@@ -354,7 +354,7 @@ class MWP():
 
             new_padding = kernel_size - padding - 1
             output_size = (y.shape[3] - 1) * stride - 2 * new_padding + (kernel_size - 1) + 1
-            output_padding = grad_in[0].shape[3] - output_size
+            output_padding = pool_input.shape[3] - output_size
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=new_padding, output_padding=output_padding)
             result_grad = pool_input * z
 
