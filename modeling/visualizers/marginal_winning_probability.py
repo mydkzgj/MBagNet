@@ -325,15 +325,22 @@ class MWP():
             self.pool_input_obtain_index = self.pool_input_obtain_index - 1
             pool_input = self.pool_input[ self.pool_input_obtain_index]
 
-            new_weight = module.weight.relu()
-            x = torch.nn.functional.conv2d(pool_input, new_weight, stride=module.stride, padding=module.padding)
+            input_size = (pool_input.shape[2], pool_input.shape[3])
+            channels = grad_out[0].shape[1]
+
+            stride = (input_size // module.output_size) if hasattr(module, "stride") == False else module.stride
+            kernel_size = input_size - (module.output_size - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
+            padding = 0 if hasattr(module, "kernel_size") == False else module.kernel_size
+
+            new_weight = torch.ones((channels, channels, kernel_size, kernel_size))
+            x = torch.nn.functional.conv2d(pool_input, new_weight, stride=stride, padding=padding, groups=channels)
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
 
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
             output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
-            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=new_padding, output_padding=output_padding)
             result_grad = pool_input * z
 
             return (result_grad, )
