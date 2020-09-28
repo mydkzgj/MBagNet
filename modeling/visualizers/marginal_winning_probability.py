@@ -320,10 +320,9 @@ class MWP():
 
     def pool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedPOOLstate == True:
-            #result_grad = grad_in[0]
-            print("POOL")
-            print(grad_out[0].sum())
+            result_grad = grad_in[0]
 
+            """
             self.pool_input_obtain_index = self.pool_input_obtain_index - 1
             pool_input = self.pool_input[ self.pool_input_obtain_index]
 
@@ -344,7 +343,7 @@ class MWP():
             output_padding = pool_input.shape[3] - output_size
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding, output_padding=output_padding, groups=channels)
             result_grad = pool_input * z
-            print(result_grad.sum())
+            #"""
 
             return (result_grad, )
         else:
