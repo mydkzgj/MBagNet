@@ -322,7 +322,8 @@ class MWP():
         new_weight = new_weight.cuda()
         x = torch.nn.functional.conv2d(input[0], new_weight, stride=stride, padding=padding, groups=channels)
 
-        b = torch.equal(x, output[0])
+        b = torch.equal(x, output)
+        print(b)
 
         if self.pool_current_index == 0:
             self.pool_input.clear()
