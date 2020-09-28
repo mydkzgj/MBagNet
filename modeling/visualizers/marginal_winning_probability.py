@@ -314,7 +314,7 @@ class MWP():
         input_size = (input[0].shape[2], input[0].shape[3])
         channels = output.shape[1]
 
-        stride = (input_size[0] // module.output_size[0]) if hasattr(module, "stride") == False else module.stride
+        stride = ((input_size[0] // module.output_size[0]) if module.output_size[0] != 1 else 1) if hasattr(module, "stride") == False else module.stride
         kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
         padding = 0 if hasattr(module, "padding") == False else module.padding
 
@@ -342,7 +342,7 @@ class MWP():
             input_size = (pool_input.shape[2], pool_input.shape[3])
             channels = grad_out[0].shape[1]
 
-            stride = (input_size[0] // module.output_size[0]) if hasattr(module, "stride") == False else module.stride
+            stride = ((input_size[0] // module.output_size[0]) if module.output_size[0] != 1 else 1) if hasattr(module, "stride") == False else module.stride
             kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
             padding = 0 if hasattr(module, "padding") == False else module.padding
 
@@ -353,7 +353,7 @@ class MWP():
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
 
             new_padding = kernel_size - padding - 1
-            output_size = (y.shape[3] - 1) * stride - 2 * new_padding + (kernel_size - 1) + 1
+            output_size = (y.shape[3] - 1) * stride - 2 * new_padding + (kernel_size - 1) + 1   #y.shape[3]为1是不是不适用
             output_padding = pool_input.shape[3] - output_size
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=new_padding, output_padding=output_padding)
             result_grad = pool_input * z
