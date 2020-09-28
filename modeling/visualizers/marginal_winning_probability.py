@@ -314,9 +314,8 @@ class MWP():
         input_size = (input[0].shape[2], input[0].shape[3])
         channels = output[0].shape[1]
 
-        stride = (input_size // module.output_size) if hasattr(module, "stride") == False else module.stride
-        kernel_size = input_size - (module.output_size - 1) * stride if hasattr(module,
-                                                                                "kernel_size") == False else module.kernel_size
+        stride = (input_size[0] // module.output_size[0]) if hasattr(module, "stride") == False else module.stride
+        kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
         padding = 0 if hasattr(module, "padding") == False else module.padding
 
         new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / kernel_size
