@@ -174,7 +174,8 @@ class DenseNet(nn.Module):
         # 2020.7.5 CJY 源代码中relu操作用在了forward中，那么就无法找到该模块。此处加进来
         self.features.add_module('relu5', nn.ReLU())
 
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        #self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.avgpool = nn.AvgPool2d(kernel_size=7, stride=1)   # for mwp  224*224 ——> 7*7
 
         # Linear layer
         # CJY at 2020.6.20

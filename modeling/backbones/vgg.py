@@ -48,7 +48,6 @@ class VGG(nn.Module):
             self._initialize_weights()
 
 
-
     def forward(self, x):
         x = self.features(x)
         if self.with_classifier == True:
