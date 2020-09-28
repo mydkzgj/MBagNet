@@ -318,7 +318,7 @@ class MWP():
         kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
         padding = 0 if hasattr(module, "padding") == False else module.padding
 
-        new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / kernel_size
+        new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / (kernel_size * kernel_size)
         new_weight = new_weight.cuda()
         x = torch.nn.functional.conv2d(input[0], new_weight, stride=stride, padding=padding, groups=channels)
 
@@ -345,7 +345,7 @@ class MWP():
             kernel_size = input_size - (module.output_size - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
             padding = 0 if hasattr(module, "padding") == False else module.padding
 
-            new_weight = torch.ones((channels, 1, kernel_size, kernel_size))/kernel_size
+            new_weight = torch.ones((channels, 1, kernel_size, kernel_size))/(kernel_size * kernel_size)
             new_weight = new_weight.cuda()
             x = torch.nn.functional.conv2d(pool_input, new_weight, stride=stride, padding=padding, groups=channels)
             x_nonzero = x.ne(0).float()
