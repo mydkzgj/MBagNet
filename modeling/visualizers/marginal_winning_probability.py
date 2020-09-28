@@ -312,7 +312,7 @@ class MWP():
 
     def pool_forward_hook_fn(self, module, input, output):
         input_size = (input[0].shape[2], input[0].shape[3])
-        channels = output[0].shape[1]
+        channels = output.shape[1]
 
         stride = (input_size[0] // module.output_size[0]) if hasattr(module, "stride") == False else module.stride
         kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module, "kernel_size") == False else module.kernel_size
