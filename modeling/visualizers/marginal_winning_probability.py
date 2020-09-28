@@ -319,6 +319,7 @@ class MWP():
         padding = 0 if hasattr(module, "padding") == False else module.padding
 
         new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / kernel_size
+        new_weight = new_weight.cuda()
         x = torch.nn.functional.conv2d(input[0], new_weight, stride=stride, padding=padding, groups=channels)
 
         b = torch.equal(x, output[0])
@@ -345,6 +346,7 @@ class MWP():
             padding = 0 if hasattr(module, "padding") == False else module.padding
 
             new_weight = torch.ones((channels, 1, kernel_size, kernel_size))/kernel_size
+            new_weight = new_weight.cuda()
             x = torch.nn.functional.conv2d(pool_input, new_weight, stride=stride, padding=padding, groups=channels)
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
