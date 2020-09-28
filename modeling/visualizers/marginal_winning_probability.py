@@ -352,7 +352,7 @@ class MWP():
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
 
-            new_padding = (kernel_size - padding - 1, kernel_size - padding - 1)
+            new_padding = kernel_size - padding - 1
             output_size = (y.shape[3] - 1) * stride - 2 * new_padding + (kernel_size - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=new_padding, output_padding=output_padding)
