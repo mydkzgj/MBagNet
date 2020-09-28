@@ -61,7 +61,6 @@ class MWP():
         self.pool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_pool_index_list = []
 
-
         self.firstCAM = 1
 
         self.reservePos = False #True
@@ -323,8 +322,8 @@ class MWP():
         if self.guidedPOOLstate == True:
             result_grad = grad_in[0]
 
-            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
-            pool_input = self.pool_input[self.pool_output_obtain_index]
+            self.pool_input_obtain_index = self.pool_input_obtain_index - 1
+            pool_input = self.pool_input[ self.pool_input_obtain_index]
 
             new_weight = module.weight.relu()
             x = torch.nn.functional.conv2d(pool_input, new_weight, stride=module.stride, padding=module.padding)
@@ -371,6 +370,7 @@ class MWP():
         self.relu_output_obtain_index = len(self.relu_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+        self.pool_input_obtain_index = len(self.pool_input)
 
         if self.contrastive == True:
             self.contrastive_first_state = 1
@@ -418,6 +418,7 @@ class MWP():
         self.relu_output_obtain_index = len(self.relu_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+        self.pool_input_obtain_index = len(self.pool_input)
 
 
         if self.contrastive == True:
