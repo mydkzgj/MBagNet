@@ -4,7 +4,7 @@
 @contact: sherlockliao01@gmail.com
 """
 
-from .dataset_loader import ImageDataset, SegmentationDataset
+from .custom_datasets import ImageDataset, SegmentationDataset
 
 from data.datasets.lib.cuhk03 import CUHK03
 from data.datasets.lib.dukemtmcreid import DukeMTMCreID

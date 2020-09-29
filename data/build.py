@@ -8,12 +8,13 @@ from .datasets import init_dataset, ImageDataset, SegmentationDataset
 from .samplers import RandomSampler, RandomSamplerForSegmentation
 from .transforms import build_transforms, build_seg_transforms
 
-import torchvision
-from torchvision import transforms
-
 import torch
 from torch.utils.data import DataLoader
+import torchvision
+
 import os
+
+from .datasets.lib.pascal_voc_classification import VOCClassification
 
 def collate_fn_seg(batch):
     imgs, masks, labels, imgs_path = zip(*batch)
@@ -51,26 +52,34 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         test_set = val_set
         classes_list = train_set.classes
         num_classes = len(train_set.classes)
+    elif cfg.DATA.DATASETS.NAMES == "pascal-voc-classification":
+        root_path = os.path.join(root_path, "PASCAL-VOC")
+        train_set = VOCClassification(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
+        val_set = VOCClassification(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
+        test_set = val_set
+        classes_list = train_set.classes
+        num_classes = len(train_set.classes)
     elif cfg.DATA.DATASETS.NAMES == "pascal-voc-detection":
         root_path = os.path.join(root_path, "PASCAL-VOC")
         train_set = torchvision.datasets.VOCDetection(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
         val_set = torchvision.datasets.VOCDetection(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
         test_set = val_set
-        classes_list = train_set.classes
-        num_classes = len(train_set.classes)
+        classes_list = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
+                        'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
+        num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "pascal-voc-segmentation":
         root_path = os.path.join(root_path, "PASCAL-VOC")
         train_set = torchvision.datasets.VOCSegmentation(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
         val_set = torchvision.datasets.VOCSegmentation(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
         test_set = val_set
-        classes_list = train_set.classes
-        num_classes = len(train_set.classes)
+        classes_list = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
+                        'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
+        num_classes = len(classes_list)
 
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH,
         sampler=RandomSampler(train_set, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes,
-                              is_train=for_train),
+                              cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
         num_workers=num_workers, collate_fn=collate_fn
     )
 
