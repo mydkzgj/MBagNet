@@ -126,7 +126,7 @@ class VOCClassification(VisionDataset):
         #self.annotations = [os.path.join(annotation_dir, x + ".xml") for x in file_names]
 
         self.__init_classes()
-        self.images, self.labels = self.__dataset_info(record_txt=split_f, image_dir=image_dir, annotation_dir=annotation_dir)
+        self.images, self.annotations, self.labels = self.__dataset_info(record_txt=split_f, image_dir=image_dir, annotation_dir=annotation_dir)
 
         assert (len(self.images) == len(self.annotations))
 
@@ -142,13 +142,21 @@ class VOCClassification(VisionDataset):
 
     def __dataset_info(self, record_txt, image_dir, annotation_dir):
         with open(record_txt) as f:
-            annotations = f.readlines()
-        annotations = [n[:-1] for n in annotations]
-        names = []
+            filenames = f.readlines()
+        filenames = [x.strip() for x in filenames]
+
+        images = []
+        annotations = []
         labels = []
-        for af in annotations:
-            filename = os.path.join(self.data_path,'Annotations',af)
-            tree = ET.parse(filename+'.xml')
+        for filename in filenames:
+            # image path
+            imagefilename = os.path.join(image_dir, filename + '.jpg')
+            images.append(imagefilename)
+            # xml path
+            xmlfilename = os.path.join(annotation_dir, filename + '.xml')
+            annotations.append(xmlfilename)
+            # label
+            tree = ET.parse(xmlfilename)
             objs = tree.findall('object')
             num_objs = len(objs)
 
@@ -161,9 +169,8 @@ class VOCClassification(VisionDataset):
             lbl = np.zeros(self.num_classes)
             lbl[boxes_cl] = 1
             labels.append(lbl)
-            names.append(af)
 
-        return np.array(names), np.array(labels).astype(np.float32)
+        return images, annotations, labels
 
     def __init_classes(self):
         self.classes = ('aeroplane', 'bicycle', 'bird', 'boat',
