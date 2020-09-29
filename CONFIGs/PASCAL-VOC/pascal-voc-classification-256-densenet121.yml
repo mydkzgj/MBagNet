@@ -19,7 +19,7 @@ DATA:
   IMS_PER_BATCH: 24
 
  TRANSFORM:
-  SIZE: [224, 224]       
+  SIZE: [256, 256]       
   MASK_SIZE_RATIO: 1
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
@@ -119,7 +119,7 @@ TRAIN:
 
  # Train Transform
  TRANSFORM:
-  PROB: 0.0
+  PROB: 0.5
   RE_PROB: 0.0
 
  # Train Dataloader
