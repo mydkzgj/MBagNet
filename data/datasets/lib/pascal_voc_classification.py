@@ -158,17 +158,12 @@ class VOCClassification(VisionDataset):
             # label
             tree = ET.parse(xmlfilename)
             objs = tree.findall('object')
-            num_objs = len(objs)
-
-            boxes_cl = np.zeros((num_objs), dtype=np.int32)
-
+            multi_label = [0] * self.num_classes
             for ix, obj in enumerate(objs):
-                cls = self.class_to_ind[obj.find('name').text.lower().strip()]
-                boxes_cl[ix] = cls
-
-            lbl = np.zeros(self.num_classes)
-            lbl[boxes_cl] = 1
-            labels.append(lbl)
+                obj_class_index = self.class_to_ind[obj.find('name').text.lower().strip()]
+                #multi_label[obj_class_index] = 1
+                multi_label[obj_class_index] = multi_label[obj_class_index] + 1
+            labels.append(multi_label)
 
         return images, annotations, labels
 
