@@ -290,12 +290,14 @@ class MWP():
             pass
 
     def bn_forward_hook_fn(self, module, input, output):
+        """
         eps = module.eps
         mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         output = (input[0] - mean) / (var + eps).sqrt() * weight + bias
+        """
 
     def bn_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBNstate == True:
@@ -575,9 +577,9 @@ class MWP():
         self.gcam_list = []
         self.gcam_max_list = [] # 记录每个Grad-CAM的归一化最大值
 
-        # 如果有bn，则回传相应的BNweight
-        if self.num_bn_layers != 0:
-            self.BackpropagationBNWeight(logits, labels)
+        # 如果有bn，则回传相应的BNweight（似乎没有用，因为一个CONV后面有多个BN）
+        #if self.num_bn_layers != 0:
+        #    self.BackpropagationBNWeight(logits, labels)
 
         # obtain gradients
         self.ObtainGradient(logits, labels)
