@@ -158,7 +158,9 @@ def make_data_loader(cfg, for_train):
         classes_list = ["{}".format(i) for i in range(cfg.MODEL.CLA_NUM_CLASSES)]
         return None, None, None, classes_list
 
-    torchvision_dataset_list = ["cifar10", "cifar100", "pascal-voc", "coco"]
+    torchvision_dataset_list = ["cifar10", "cifar100",
+                                "pascal-voc-classification", "pascal-voc-detection", "pascal-voc-segmentation",
+                                "coco"]
     #custom_dataset_list = [""]
 
     if cfg.DATA.DATASETS.NAMES in torchvision_dataset_list:
