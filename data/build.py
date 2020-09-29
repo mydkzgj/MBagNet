@@ -16,14 +16,7 @@ from torch.utils.data import DataLoader
 
 def collate_fn_seg(batch):
     imgs, masks, labels, imgs_path = zip(*batch)
-
     labels = torch.tensor(labels, dtype=torch.int64)   # for continuous var CJY at 2020.9.5
-    """
-    a = set()
-    for i in range(224):
-        for j in range(224):
-            a.add(masks[0][0][i][j].item())
-    """
     return torch.stack(imgs, dim=0), torch.stack(masks, dim=0), labels, imgs_path
 
 def collate_fn(batch):
