@@ -44,13 +44,22 @@ class RandomSampler(Sampler):
             if isinstance(label, int)==True:
                 self.index_dic[label].append(index)
             elif isinstance(label, list)==True:
+                # for random
+                i_list = []
+                for i, l in enumerate(label):
+                    if l > 0:
+                        i_list.append(i)
+                int_label = random.choice(i_list)
+                """
                 int_label = 0
                 for l in label:
                     if l > 0:
                         int_label = int_label * 10 + 1
                     else:
                         int_label = int_label * 10 + 0
+                """
                 self.index_dic[int_label].append(index)
+
         self.categories = list(self.index_dic.keys())
 
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
