@@ -39,8 +39,18 @@ class RandomSampler(Sampler):
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
-        for index, (_, label) in enumerate(self.data_source):
-            self.index_dic[label].append(index)
+        # for single-label and multi-label  at 2020.9.15
+        for index, (_, _, label) in enumerate(self.data_source):
+            if isinstance(label, int)==True:
+                self.index_dic[label].append(index)
+            elif isinstance(label, list)==True:
+                int_label = 0
+                for l in label:
+                    if l > 0:
+                        int_label = int_label * 10 + 1
+                    else:
+                        int_label = int_label * 10 + 0
+                self.index_dic[int_label].append(index)
         self.categories = list(self.index_dic.keys())
 
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
@@ -167,7 +177,7 @@ class RandomSamplerForSegmentation(Sampler):
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
-        #s = []
+        # for single-label and multi-label  at 2020.9.15
         for index, (_, _, label) in enumerate(self.data_source):
             if isinstance(label, int)==True:
                 self.index_dic[label].append(index)
@@ -179,10 +189,6 @@ class RandomSamplerForSegmentation(Sampler):
                     else:
                         int_label = int_label * 10 + 0
                 self.index_dic[int_label].append(index)
-
-                # CJY 单独统计每一类的分布 at 2020.9.15
-                #s.append(label)
-
         self.categories = list(self.index_dic.keys())
 
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
