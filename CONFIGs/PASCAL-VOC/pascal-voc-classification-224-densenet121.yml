@@ -37,7 +37,7 @@ MODEL:
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear" 
  CLASSIFIER_OUTPUT_TYPE: "multi-label"                                #"single-label"
- CLA_NUM_CLASSES: 21
+ CLA_NUM_CLASSES: 20  # without background
  SEGMENTER_NAME: "none"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
  VISUALIZER_NAME: "none"
