@@ -77,8 +77,11 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "coco-classification":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
-        train_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=root_path, transform=train_transforms)
-        val_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=root_path, transform=val_transforms)
+        annotation_path = os.path.join(root_path, "annotations")
+        train_annfile =os.path.join(annotation_path, "captions_{}2017".format("train"))
+        train_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=train_annfile, transform=train_transforms)
+        val_annfile = os.path.join(annotation_path, "captions_{}2017".format("val"))
+        val_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
         num_classes = len(classes_list)
