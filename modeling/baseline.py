@@ -373,12 +373,12 @@ class Baseline(nn.Module):
 
         # 2.GoogLeNet
         elif self.base_name == 'googlenet':
-            self.base = googlenet(num_classes=self.base_num_classes, aux_logits=True, with_classifier=self.base_with_classifier)
+            self.base = googlenet(num_classes=self.base_num_classes, aux_logits=False, with_classifier=self.base_with_classifier)
             self.in_planes = 1024
 
         # 2.InceptionV3
         elif self.base_name == 'inceptionV3':
-            self.base = inception_v3(num_classes=self.base_num_classes, aux_logits=True, with_classifier=self.base_with_classifier)
+            self.base = inception_v3(num_classes=self.base_num_classes, aux_logits=False, with_classifier=self.base_with_classifier)
             self.in_planes = 2048
 
         # 4.VGG
