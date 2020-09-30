@@ -77,34 +77,43 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "coco-classification":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
+        year = "2017"
         annotation_path = os.path.join(root_path, "annotations")
+        train_image_path = os.path.join(root_path, "{}{}".format("train", year))
         train_annfile =os.path.join(annotation_path, "instances_{}2017.json".format("train"))
-        train_set = torchvision.datasets.CocoDetection(root=root_path, annFile=train_annfile, transform=train_transforms)
+        train_set = torchvision.datasets.CocoDetection(root=train_image_path, annFile=train_annfile, transform=train_transforms)
+        val_image_path = os.path.join(root_path, "{}{}".format("val", year))
         val_annfile = os.path.join(annotation_path, "instances_{}2017.json".format("val"))
-        val_set = torchvision.datasets.CocoDetection(root=root_path, annFile=val_annfile, transform=val_transforms)
+        val_set = torchvision.datasets.CocoDetection(root=val_image_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
         classes_list = [train_set.coco.dataset["categories"][i]["name"] for i in range(len(train_set.coco.dataset["categories"]))]
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "coco-caption":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
+        year = "2017"
         annotation_path = os.path.join(root_path, "annotations")
+        train_image_path = os.path.join(root_path, "{}{}".format("train", year))
         train_annfile =os.path.join(annotation_path, "captions_{}2017.json".format("train"))
-        train_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=train_annfile, transform=train_transforms)
+        train_set = torchvision.datasets.CocoCaptions(root=train_image_path, annFile=train_annfile, transform=train_transforms)
+        val_image_path = os.path.join(root_path, "{}{}".format("val", year))
         val_annfile = os.path.join(annotation_path, "captions_{}2017.json".format("val"))
-        val_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=val_annfile, transform=val_transforms)
+        val_set = torchvision.datasets.CocoCaptions(root=val_image_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
         classes_list = None
         num_classes = None
     elif cfg.DATA.DATASETS.NAMES == "coco-detection":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
+        year = "2017"
         annotation_path = os.path.join(root_path, "annotations")
-        train_annfile =os.path.join(annotation_path, "captions_{}2017.json".format("train"))
-        train_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=train_annfile, transform=train_transforms)
-        val_annfile = os.path.join(annotation_path, "captions_{}2017.json".format("val"))
-        val_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=val_annfile, transform=val_transforms)
+        train_image_path = os.path.join(root_path, "{}{}".format("train", year))
+        train_annfile =os.path.join(annotation_path, "captions_{}{}.json".format("train", year))
+        train_set = torchvision.datasets.CocoCaptions(root=train_image_path, annFile=train_annfile, transform=train_transforms)
+        val_image_path = os.path.join(root_path, "{}{}".format("val", year))
+        val_annfile = os.path.join(annotation_path, "captions_{}{}.json".format("val", year))
+        val_set = torchvision.datasets.CocoCaptions(root=val_image_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
-        classes_list = None
-        num_classes = None
+        classes_list = [train_set.coco.dataset["categories"][i]["name"] for i in range(len(train_set.coco.dataset["categories"]))]
+        num_classes = len(classes_list)
 
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH, #shuffle=True
