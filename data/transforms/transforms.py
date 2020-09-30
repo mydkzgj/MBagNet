@@ -72,7 +72,7 @@ class PaddingToSquare(object):
     def __init__(self, padding_mode):
         choices = ["none", "constant", "edge", "reflect", "symmetric"]
         self.padding_mode = padding_mode
-        if self.padding_mode in choices:
+        if self.padding_mode not in choices:
             raise Exception("Wrong Padding Mode!")
 
     def __call__(self, img):
