@@ -15,6 +15,7 @@ import torchvision
 import os
 
 from .datasets.lib.pascal_voc_classification import VOCClassification
+from .datasets.lib.coco_classification import CocoClassification
 
 def collate_fn_seg(batch):
     imgs, masks, labels, imgs_path = zip(*batch)
@@ -81,10 +82,10 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         annotation_path = os.path.join(root_path, "annotations")
         train_image_path = os.path.join(root_path, "{}{}".format("train", year))
         train_annfile =os.path.join(annotation_path, "instances_{}2017.json".format("train"))
-        train_set = torchvision.datasets.CocoClassification(root=train_image_path, annFile=train_annfile, transform=train_transforms)
+        train_set = CocoClassification(root=train_image_path, annFile=train_annfile, transform=train_transforms)
         val_image_path = os.path.join(root_path, "{}{}".format("val", year))
         val_annfile = os.path.join(annotation_path, "instances_{}2017.json".format("val"))
-        val_set = torchvision.datasets.CocoClassification(root=val_image_path, annFile=val_annfile, transform=val_transforms)
+        val_set = CocoClassification(root=val_image_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
         classes_list = [train_set.coco.dataset["categories"][i]["name"] for i in range(len(train_set.coco.dataset["categories"]))]
         num_classes = len(classes_list)
