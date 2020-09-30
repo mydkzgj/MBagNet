@@ -83,8 +83,8 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         val_annfile = os.path.join(annotation_path, "instances_{}2017.json".format("val"))
         val_set = torchvision.datasets.CocoDetection(root=root_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
-        classes_list = None
-        num_classes = None
+        classes_list = [train_set.coco.dataset["categories"][i]["name"] for i in range(len(train_set.coco.dataset["categories"]))]
+        num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "coco-caption":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
         annotation_path = os.path.join(root_path, "annotations")
