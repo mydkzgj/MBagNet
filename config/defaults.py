@@ -49,18 +49,17 @@ _C.DATA.DATALOADER.IMS_PER_BATCH = _C.DATA.DATALOADER.CATEGORIES_PER_BATCH * _C.
 # -----------------------------------------------------------------------------
 _C.DATA.TRANSFORM = CN()
 # Size of the image during training
-_C.DATA.TRANSFORM.SIZE = [384, 128]
+_C.DATA.TRANSFORM.SIZE = [224, 224]
 # 掩膜缩放比例
-_C.DATA.TRANSFORM.MASK_SIZE_RATIO = 4
+_C.DATA.TRANSFORM.MASK_SIZE_RATIO = 1  #4
 # Values to be used for image normalization
 _C.DATA.TRANSFORM.PIXEL_MEAN = [0.485, 0.456, 0.406]
 # Values to be used for image normalization
 _C.DATA.TRANSFORM.PIXEL_STD = [0.229, 0.224, 0.225]
 # Value of padding size
-_C.DATA.TRANSFORM.PADDING = 10    #square
-
+_C.DATA.TRANSFORM.PADDING = 10
+# Padding To Square
 _C.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE = "none"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
-
 
 
 # -----------------------------------------------------------------------------
