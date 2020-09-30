@@ -51,14 +51,19 @@ class CocoClassification(VisionDataset):
         img_id = self.ids[index]
         ann_ids = coco.getAnnIds(imgIds=img_id)
         target = coco.loadAnns(ann_ids)
+        label = self.createMultiLabel(target)
 
         path = coco.loadImgs(img_id)[0]['file_name']
 
         img = Image.open(os.path.join(self.root, path)).convert('RGB')
         if self.transforms is not None:
-            img, target = self.transforms(img, target)
+            img = self.transforms(img)
 
-        return img, target
+        return img, label  #target
 
     def __len__(self):
         return len(self.ids)
+
+    def createMultiLabel(self, target):
+        for t in target:
+            print(1)
