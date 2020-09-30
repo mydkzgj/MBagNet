@@ -53,8 +53,7 @@ class RandomSampler(Sampler):
                 if i_list != []:
                     int_label = random.choice(i_list)
                 else:
-                    int_label = -1
-                    continue
+                    int_label = -1                    
                 """
                 #"""
                 # for max random  PACSCAL
@@ -71,7 +70,6 @@ class RandomSampler(Sampler):
                     int_label = random.choice(i_list)
                 else:
                     int_label = -1
-                    continue
                 #"""
                 """
                 int_label = 0
