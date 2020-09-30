@@ -38,7 +38,7 @@ class CocoClassification(VisionDataset):
         from pycocotools.coco import COCO
         self.coco = COCO(annFile)
         self.ids = list(sorted(self.coco.imgs.keys()))
-        self.class_list = [self.coco.dataset["categories"][i]["name"] for i in range(len(self.coco.dataset["categories"]))].append("background")
+        self.class_list = [self.coco.dataset["categories"][i]["name"] for i in range(len(self.coco.dataset["categories"]))] + ["background"]
         self.num_classes = len(self.coco.dataset["categories"]) + 1  # 其他类别
         self.label_map = self.get_label_map()
         self.transform = self.transform  #此处用自己的函数
