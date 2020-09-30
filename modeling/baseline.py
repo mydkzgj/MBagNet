@@ -187,7 +187,7 @@ class Baseline(nn.Module):
 
         # CJY at 2020.9.5 regression module
         #self.zoom_ratio = torch.tensor([1.0], requires_grad=True)
-        #"""
+        """
         self.regression_linear = nn.Sequential(
             #nn.ReLU(),
             torch.nn.Linear(self.in_planes, 4, bias=False),
@@ -195,6 +195,7 @@ class Baseline(nn.Module):
         )
         self.regression_linear.apply(weights_init_classifier)
         #nn.init.constant_(self.regression_linear[1].weight, 1)
+        #"""
 
         # 均值 3.5  max 42 联通域
         self.lesion_area_mean = 0  #120

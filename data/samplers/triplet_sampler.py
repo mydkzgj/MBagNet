@@ -45,9 +45,14 @@ class RandomSampler(Sampler):
                 self.index_dic[label].append(index)
             elif isinstance(label, list)==True:
                 # for random
+                max = 0
                 i_list = []
                 for i, l in enumerate(label):
-                    if l > 0:
+                    if l > max:
+                        max = l
+                        i_list.clear()
+                        i_list.append(i)
+                    elif l == max:
                         i_list.append(i)
                 int_label = random.choice(i_list)
                 """
