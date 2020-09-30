@@ -98,7 +98,7 @@ SOLVER:
 
  # SCHEDULER configuration
  SCHEDULER:
-  BASE_LR: 0.0001        #0.0001
+  BASE_LR: 0.001#0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
   STEPS: [10, 15, 20] #[8, 12, 16, 20] #[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
