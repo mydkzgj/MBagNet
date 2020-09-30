@@ -39,6 +39,7 @@ class CocoClassification(VisionDataset):
         self.coco = COCO(annFile)
         self.ids = list(sorted(self.coco.imgs.keys()))
         self.num_classes = len(self.coco.dataset["categories"])
+        self.transform = self.transform  #此处用自己的函数
 
     def __getitem__(self, index):
         """
@@ -57,8 +58,10 @@ class CocoClassification(VisionDataset):
         path = coco.loadImgs(img_id)[0]['file_name']
 
         img = Image.open(os.path.join(self.root, path)).convert('RGB')
-        if self.transforms is not None:
-            img = self.transforms(img)
+        #if self.transforms is not None:
+        #    img = self.transforms(img)
+        if self.transform is not None:
+            img = self.transform(img)
 
         return img, label  #target
 
