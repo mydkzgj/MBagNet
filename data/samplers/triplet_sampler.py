@@ -39,12 +39,12 @@ class RandomSampler(Sampler):
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
-        num_abandon = 0
         # for single-label and multi-label  at 2020.9.15
         for index, (_, label) in enumerate(self.data_source):
             if isinstance(label, int)==True:
                 self.index_dic[label].append(index)
             elif isinstance(label, list)==True:
+                """
                 # for random
                 i_list = []
                 for i, l in enumerate(label):
@@ -53,9 +53,10 @@ class RandomSampler(Sampler):
                 if i_list != []:
                     int_label = random.choice(i_list)
                 else:
-                    num_abandon = num_abandon + 1
+                    int_label = -1
                     continue
                 """
+                #"""
                 # for max random  PACSCAL
                 max = 0
                 i_list = []
@@ -66,8 +67,12 @@ class RandomSampler(Sampler):
                         i_list.append(i)
                     elif l == max:
                         i_list.append(i)
-                int_label = random.choice(i_list)
-                """
+                if i_list != []:
+                    int_label = random.choice(i_list)
+                else:
+                    int_label = -1
+                    continue
+                #"""
                 """
                 int_label = 0
                 for l in label:
@@ -75,7 +80,7 @@ class RandomSampler(Sampler):
                         int_label = int_label * 10 + 1
                     else:
                         int_label = int_label * 10 + 0
-                """
+                #"""
                 self.index_dic[int_label].append(index)
 
         self.categories = list(self.index_dic.keys())
@@ -83,7 +88,7 @@ class RandomSampler(Sampler):
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
         self.targetNum_instances_per_category = {}
         max_num_samples = 0
-        min_num_samples = 10000000
+        min_num_samples = 100000000
         for category in self.index_dic.keys():
             self.targetNum_instances_per_category[category] = len(self.index_dic[category])
             if max_num_samples < self.targetNum_instances_per_category[category]:

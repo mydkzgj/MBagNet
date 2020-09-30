@@ -118,24 +118,24 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
 
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH, shuffle=True,
-        #sampler=RandomSampler(train_set, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
-        #                      cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
+        sampler=RandomSampler(train_set, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
+                              cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
         num_workers=num_workers, collate_fn=collate_fn
     )
 
     val_loader = DataLoader(
         val_set, batch_size=cfg.VAL.DATALOADER.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
         # CJY at 2019.9.26 为了能够平衡样本
-        #sampler=RandomSampler(val_set, cfg.VAL.DATALOADER.CATEGORIES_PER_BATCH,
-        #                      cfg.VAL.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
+        sampler=RandomSampler(val_set, cfg.VAL.DATALOADER.CATEGORIES_PER_BATCH,
+                              cfg.VAL.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
         collate_fn=collate_fn
     )
 
     test_loader = DataLoader(
         test_set, batch_size=cfg.TEST.DATALOADER.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
         # CJY at 2019.9.26 为了能够平衡样本
-        #sampler=RandomSampler(test_set, cfg.TEST.DATALOADER.CATEGORIES_PER_BATCH,
-        #                      cfg.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
+        sampler=RandomSampler(test_set, cfg.TEST.DATALOADER.CATEGORIES_PER_BATCH,
+                              cfg.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
         collate_fn=collate_fn
     )
 
