@@ -44,6 +44,8 @@ def weights_init_kaiming(m):
     if classname.find('Linear') != -1:
         nn.init.kaiming_normal_(m.weight, a=0, mode='fan_out')
         nn.init.constant_(m.bias, 0.0)
+    elif classname.find('BasicConv') != -1:   # for googlenet
+        pass
     elif classname.find('Conv') != -1:
         nn.init.kaiming_normal_(m.weight, a=0, mode='fan_in')
         if m.bias is not None:
@@ -371,12 +373,12 @@ class Baseline(nn.Module):
 
         # 2.GoogLeNet
         elif self.base_name == 'googlenet':
-            self.base = googlenet(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+            self.base = googlenet(num_classes=self.base_num_classes, aux_logits=True, with_classifier=self.base_with_classifier)
             self.in_planes = 1024
 
         # 2.InceptionV3
         elif self.base_name == 'inception_v3':
-            self.base = inception_v3(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+            self.base = inception_v3(num_classes=self.base_num_classes, aux_logits=True, with_classifier=self.base_with_classifier)
             self.in_planes = 2048
 
         # 4.VGG
