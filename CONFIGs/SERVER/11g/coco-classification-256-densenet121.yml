@@ -10,6 +10,7 @@ DATA:
   SEG_NAMES:  ('none')   
   #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
   ROOT_DIR: ('D:/Research/DataBase')#('./data')#
+
  DATALOADER:
   NUM_WORKERS: 4
   SAMPLER: 'softmax_rank'
