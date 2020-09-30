@@ -39,6 +39,7 @@ class CocoClassification(VisionDataset):
         self.coco = COCO(annFile)
         self.ids = list(sorted(self.coco.imgs.keys()))
         self.num_classes = len(self.coco.dataset["categories"])
+        self.label_map = self.get_label_map()
         self.transform = self.transform  #此处用自己的函数
 
     def __getitem__(self, index):
@@ -72,10 +73,14 @@ class CocoClassification(VisionDataset):
         multi_label = [0] * self.num_classes
         for t in target:
             category_id = t["category_id"]
-            multi_label[category_id] = multi_label[category_id] + 1
-            print(category_id)
+            category_index = self.label_map[category_id]
+            multi_label[category_index] = multi_label[category_index] + 1
 
         return multi_label
 
     def get_label_map(self):  #计算类别映射，category_id不是按顺序的
-        pass
+        label_map = {}
+        for index, item in enumerate(self.coco.dataset["categories"]):
+            label_map[item["id"]] = index
+
+        return label_map
