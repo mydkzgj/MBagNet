@@ -81,10 +81,10 @@ class PaddingToSquare(object):
         else:
             if img.width > img.height:
                 d = img.width - img.height
-                padding = (0, 0, d//2, d - d//2)
+                padding = (0, d//2, 0, d - d//2)
             elif img.height > img.width:
                 d = img.height - img.width
-                padding = (d//2, d - d//2, 0, 0)
+                padding = (d//2, 0, d - d//2, 0)
             else:
                 padding = (0, 0, 0, 0)
 
