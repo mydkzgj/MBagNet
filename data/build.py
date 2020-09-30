@@ -136,7 +136,7 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         # CJY at 2019.9.26 为了能够平衡样本
         sampler=RandomSampler(test_set, cfg.TEST.DATALOADER.CATEGORIES_PER_BATCH,
                               cfg.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
-        #collate_fn=collate_fn
+        collate_fn=collate_fn
     )
 
     return train_loader, val_loader, test_loader, classes_list

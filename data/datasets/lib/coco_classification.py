@@ -38,6 +38,7 @@ class CocoClassification(VisionDataset):
         from pycocotools.coco import COCO
         self.coco = COCO(annFile)
         self.ids = list(sorted(self.coco.imgs.keys()))
+        self.num_classes = len(self.coco.dataset["categories"])
 
     def __getitem__(self, index):
         """
@@ -65,5 +66,10 @@ class CocoClassification(VisionDataset):
         return len(self.ids)
 
     def createMultiLabel(self, target):
+        multi_label = [0] * self.num_classes
         for t in target:
-            print(1)
+            category_id = t["category_id"]
+            multi_label[category_id] = multi_label[category_id] + 1
+            print(category_id)
+
+        return multi_label
