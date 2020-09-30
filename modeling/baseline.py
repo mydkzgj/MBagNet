@@ -5,6 +5,9 @@
 """
 import re
 
+from .backbones.alexnet import *
+from .backbones.googlenet import *
+from .backbones.inception import *
 from .backbones.resnet import *
 from .backbones.densenet import *
 from .backbones.multi_bagnet import *
@@ -361,8 +364,23 @@ class Baseline(nn.Module):
 
     # choose backbone
     def choose_backbone(self):
-        # 1.VGG
-        if self.base_name == 'vgg16':
+        # 1.AlexNet
+        if self.base_name == 'alexnet':
+            self.base = alexnet(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+            self.in_planes = 256 * 6 * 6
+
+        # 2.GoogLeNet
+        elif self.base_name == 'googlenet':
+            self.base = googlenet(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+            self.in_planes = 1024
+
+        # 2.InceptionV3
+        elif self.base_name == 'inception_v3':
+            self.base = inception_v3(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
+            self.in_planes = 2048
+
+        # 4.VGG
+        elif self.base_name == 'vgg16':
             self.base = vgg16(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
             self.in_planes = 512 * 7 * 7
         elif self.base_name == "vgg19":
@@ -372,7 +390,7 @@ class Baseline(nn.Module):
             self.in_planes = 512 * 7 * 7
             self.base = vgg16_bn(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
 
-        # 2.ResNet
+        # 5.ResNet
         elif self.base_name == 'resnet18':
             self.in_planes = 512
             self.base = resnet18(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
@@ -389,7 +407,7 @@ class Baseline(nn.Module):
             self.in_planes = 512
             self.base = resnet152(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)
 
-        # 3. DenseNet
+        # 6. DenseNet
         elif self.base_name == "densenet121":
             self.base = densenet121(num_classes=self.base_num_classes, with_classifier=self.base_with_classifier)  # densenet121o-640.yml
             self.in_planes = self.base.num_features
@@ -414,7 +432,7 @@ class Baseline(nn.Module):
                                    )
             self.in_planes = self.base.num_features
 
-        # 5.scnet
+        # 7.scnet
         elif self.base_name == "scnet":
             self.base = scnet121(pretrained=True)
             self.in_planes = 1000
