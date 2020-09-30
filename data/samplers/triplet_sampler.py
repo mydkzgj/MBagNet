@@ -39,6 +39,7 @@ class RandomSampler(Sampler):
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
+        num_abandon = 0
         # for single-label and multi-label  at 2020.9.15
         for index, (_, label) in enumerate(self.data_source):
             if isinstance(label, int)==True:
@@ -52,7 +53,8 @@ class RandomSampler(Sampler):
                 if i_list != []:
                     int_label = random.choice(i_list)
                 else:
-                    int_label = 80
+                    num_abandon = num_abandon + 1
+                    continue
                 """
                 # for max random  PACSCAL
                 max = 0
