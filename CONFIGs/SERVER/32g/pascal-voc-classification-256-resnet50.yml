@@ -23,7 +23,7 @@ DATA:
   MASK_SIZE_RATIO: 1
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
-  PADDING: 10
+  PADDING: 0
   PADDING_TO_SQUARE_MODE: "reflect"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
 
 # -----------------------------------------------------------------------------
@@ -34,7 +34,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "resnet50"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear" 
  CLASSIFIER_OUTPUT_TYPE: "multi-label"                                #"single-label"
@@ -82,7 +82,7 @@ LOSS:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 SOLVER:
- MAX_EPOCHS: 30
+ MAX_EPOCHS: 25
  EVAL_PERIOD: 1
  CHECKPOINT_PERIOD: 1
  LOG_PERIOD: 50
@@ -132,7 +132,7 @@ TRAIN:
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'
+  PRETRAIN_PATH: './pretrained/resnet50-19c8e357.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
@@ -150,7 +150,7 @@ VAL:
  # Val Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 20
-  INSTANCES_PER_CATEGORY_IN_BATCH: 4
+  INSTANCES_PER_CATEGORY_IN_BATCH: 8
   MASK_PER_BATCH: 1
 
 # -----------------------------------------------------------------------------

@@ -150,7 +150,7 @@ VAL:
  # Val Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 20
-  INSTANCES_PER_CATEGORY_IN_BATCH: 4
+  INSTANCES_PER_CATEGORY_IN_BATCH: 8
   MASK_PER_BATCH: 1
 
 # -----------------------------------------------------------------------------
