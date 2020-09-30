@@ -49,7 +49,10 @@ class RandomSampler(Sampler):
                 for i, l in enumerate(label):
                     if l > 0:
                         i_list.append(i)
-                int_label = random.choice(i_list)
+                if i_list != []:
+                    int_label = random.choice(i_list)
+                else:
+                    int_label = 80
                 """
                 # for max random  PACSCAL
                 max = 0
