@@ -43,6 +43,7 @@ MODEL:
  SEG_NUM_CLASSES: 4
  VISUALIZER_NAME: "none"
  VISUAL_TARGET_LAYERS: "none"
+ BIAS_FREE: 0
 
  # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
  # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"

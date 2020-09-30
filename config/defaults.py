@@ -92,6 +92,8 @@ _C.MODEL.SEG_NUM_CLASSES = 1000
 _C.MODEL.VISUALIZER_NAME = "none"
 
 _C.MODEL.VISUAL_TARGET_LAYERS = "none"
+# model中bias隐去（不优化，置为0）
+_C.MODEL.BIAS_FREE = 0
 
 # * （option）Specific For MBagNet
 # If block is pre_activated, options: 1 or 0

@@ -71,8 +71,8 @@ def train(cfg):
     print('Train with the loss type is', cfg.LOSS.TYPE)
 
     # build optimizer
-    optimizers = make_optimizers(cfg, model, bias_free=False)  #loss里也可能有参数
-
+    optimizers = make_optimizers(cfg, model, bias_free=cfg.MODEL.BIAS_FREE)  #loss里也可能有参数
+    print("Bias-Free Model:{}".format(cfg.MODEL.BIAS_FREE))
     print('Train with the optimizer type is', cfg.SOLVER.OPTIMIZER.NAME)
 
     # build scheduler （断点续传功能暂时有问题）

@@ -6,10 +6,9 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('pascal-voc-classification') #none
-  SEG_NAMES:  ('none')   
-  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
-  ROOT_DIR: ('D:/Research/DataBase')
+  NAMES: ('none')#('ddr_dr_grading')
+  SEG_NAMES: ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')   #('ddr_lesion_segmentation_regroup') 
+  ROOT_DIR: ('./data')
 
  DATALOADER:
   NUM_WORKERS: 4
@@ -19,12 +18,11 @@ DATA:
   IMS_PER_BATCH: 24
 
  TRANSFORM:
-  SIZE: [256, 256]       
+  SIZE: [224, 224]       #[736, 736]#[640,640]#[512, 512]#[448, 448]#[224, 224]
   MASK_SIZE_RATIO: 1
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
-  PADDING: 0
-  PADDING_TO_SQUARE_MODE: "reflect"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
+  PADDING: 10
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -34,20 +32,16 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "densenet121"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "vgg16"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear" 
  CLASSIFIER_OUTPUT_TYPE: "multi-label"                                #"single-label"
- CLA_NUM_CLASSES: 20  # without background
+ CLA_NUM_CLASSES: 4
  SEGMENTER_NAME: "none"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
  VISUALIZER_NAME: "none"
  VISUAL_TARGET_LAYERS: "none"
- BIAS_FREE: 0
-
- # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
- # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation"
- # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
+ BIAS_FREE: 1
 
  # For MBagNet
  PRE_ACTIVATION: 1
@@ -83,7 +77,7 @@ LOSS:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 SOLVER:
- MAX_EPOCHS: 30
+ MAX_EPOCHS: 20
  EVAL_PERIOD: 1
  CHECKPOINT_PERIOD: 1
  LOG_PERIOD: 50
@@ -101,7 +95,7 @@ SOLVER:
   BASE_LR: 0.0001        #0.0001
   BIAS_LR_FACTOR: 1
   GAMMA: 0.1
-  STEPS: [8, 12, 16, 20] #[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
+  STEPS: [10, 15, 20]  #[8, 12, 16, 20] #[4, 6, 8, 10]#[3, 4, 5, 6] #[4, 6, 8, 10]#[10, 15, 20, 25]#
   WARMUP_FACTOR: 0.33
   WARMUP_ITERS: 0
   WARMUP_METHOD: "linear"
@@ -122,18 +116,18 @@ TRAIN:
  # Train Transform
  TRANSFORM:
   PROB: 0.5
-  RE_PROB: 0.0
+  RE_PROB: 0.5
 
  # Train Dataloader
  DATALOADER:
-  CATEGORIES_PER_BATCH: 3
+  CATEGORIES_PER_BATCH: 2
   INSTANCES_PER_CATEGORY_IN_BATCH: 1
-  MASK_PER_BATCH: 16
+  MASK_PER_BATCH: 32
   ACCUMULATION_STEP: 1
 
  # Train Trick
  TRICK:
-  PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'
+  PRETRAIN_PATH: './pretrained/vgg16-397923af.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
 
