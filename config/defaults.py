@@ -59,7 +59,7 @@ _C.DATA.TRANSFORM.PIXEL_STD = [0.229, 0.224, 0.225]
 # Value of padding size
 _C.DATA.TRANSFORM.PADDING = 10    #square
 
-_C.DATA.TRANSFORM.PADDING_MODE = "constant"  #constant, edge, reflect(mirror), symmetric
+_C.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE = "none"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
 
 
 

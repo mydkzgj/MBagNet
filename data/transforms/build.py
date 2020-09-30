@@ -6,7 +6,7 @@
 
 import torchvision.transforms as T
 
-from .transforms import RandomErasing
+from .transforms import RandomErasing, PaddingToSquare
 
 from PIL import Image
 
@@ -15,6 +15,7 @@ def build_transforms(cfg, is_train=True):
     normalize_transform = T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD)
     if is_train:
         transform = T.Compose([
+            PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE),
             T.RandomHorizontalFlip(p=cfg.TRAIN.TRANSFORM.PROB),
             T.Pad(cfg.DATA.TRANSFORM.PADDING),
@@ -25,6 +26,7 @@ def build_transforms(cfg, is_train=True):
         ])
     else:
         transform = T.Compose([
+            PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE),
             T.ToTensor(),
             normalize_transform

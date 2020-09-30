@@ -70,33 +70,24 @@ class PaddingToSquare(object):
     """
 
     def __init__(self, padding_mode):
+        choices = ["none", "constant", "edge", "reflect", "symmetric"]
         self.padding_mode = padding_mode
+        if self.padding_mode in choices:
+            raise Exception("Wrong Padding Mode!")
 
     def __call__(self, img):
-
-
-
-        if random.uniform(0, 1) >= self.probability:
+        if self.padding_mode == "none":
             return img
+        else:
+            if img.width > img.height:
+                d = img.width - img.height
+                padding = (0, 0, d//2, d - d//2)
+            elif img.height > img.width:
+                d = img.height - img.width
+                padding = (d//2, d - d//2, 0, 0)
+            else:
+                padding = (0, 0, 0, 0)
 
-        for attempt in range(100):
-            area = img.size()[1] * img.size()[2]
-
-            target_area = random.uniform(self.sl, self.sh) * area
-            aspect_ratio = random.uniform(self.r1, 1 / self.r1)
-
-            h = int(round(math.sqrt(target_area * aspect_ratio)))
-            w = int(round(math.sqrt(target_area / aspect_ratio)))
-
-            if w < img.size()[2] and h < img.size()[1]:
-                x1 = random.randint(0, img.size()[1] - h)
-                y1 = random.randint(0, img.size()[2] - w)
-                if img.size()[0] == 3:
-                    img[0, x1:x1 + h, y1:y1 + w] = self.mean[0]
-                    img[1, x1:x1 + h, y1:y1 + w] = self.mean[1]
-                    img[2, x1:x1 + h, y1:y1 + w] = self.mean[2]
-                else:
-                    img[0, x1:x1 + h, y1:y1 + w] = self.mean[0]
-                return img
+            img = TF.pad(img, padding=padding, padding_mode=self.padding_mode)
 
         return img
