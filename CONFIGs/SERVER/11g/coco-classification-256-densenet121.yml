@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('cocco-classification') #none
+  NAMES: ('coco-classification') #none
   SEG_NAMES:  ('none')   
   #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
   ROOT_DIR: ('./data')#('D:/Research/DataBase')
