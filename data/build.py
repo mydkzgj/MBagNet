@@ -107,9 +107,9 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         num_classes = None
 
     train_loader = DataLoader(
-        train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH,
-        sampler=RandomSampler(train_set, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
+        train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH, #shuffle=True
+        #sampler=RandomSampler(train_set, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
+        #                      cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
         num_workers=num_workers, collate_fn=collate_fn
     )
 
