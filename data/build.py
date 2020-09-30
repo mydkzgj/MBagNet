@@ -75,7 +75,7 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         classes_list = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
                         'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
         num_classes = len(classes_list)
-    elif cfg.DATA.DATASETS.NAMES == "coco-captions":
+    elif cfg.DATA.DATASETS.NAMES == "coco-classification":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
         train_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=root_path, transform=train_transforms)
         val_set = torchvision.datasets.CocoCaptions(root=root_path, annFile=root_path, transform=val_transforms)
