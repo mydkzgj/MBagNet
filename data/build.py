@@ -39,28 +39,28 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
     root_path = cfg.DATA.DATASETS.ROOT_DIR
     # for those have been realized by torchvision
     if cfg.DATA.DATASETS.NAMES == "cifar10":
-        root_path = os.path.join(root_path, "CIFAR10")
+        root_path = os.path.join(root_path, "DATABASE", "CIFAR10")
         train_set = torchvision.datasets.CIFAR10(root=root_path, train=True, download=True, transform=train_transforms)
         val_set = torchvision.datasets.CIFAR10(root=root_path, train=False, download=True, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "cifar100":
-        root_path = os.path.join(root_path, "CIFAR100")
+        root_path = os.path.join(root_path, "DATABASE", "CIFAR100")
         train_set = torchvision.datasets.CIFAR100(root=root_path, train=True, download=True, transform=train_transforms)
         val_set = torchvision.datasets.CIFAR100(root=root_path, train=False, download=True, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "pascal-voc-classification":
-        root_path = os.path.join(root_path, "PASCAL-VOC")
+        root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
         train_set = VOCClassification(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
         val_set = VOCClassification(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "pascal-voc-detection":
-        root_path = os.path.join(root_path, "PASCAL-VOC")
+        root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
         train_set = torchvision.datasets.VOCDetection(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
         val_set = torchvision.datasets.VOCDetection(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
         test_set = val_set
@@ -68,7 +68,7 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
                         'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "pascal-voc-segmentation":
-        root_path = os.path.join(root_path, "PASCAL-VOC")
+        root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
         train_set = torchvision.datasets.VOCSegmentation(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
         val_set = torchvision.datasets.VOCSegmentation(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
         test_set = val_set
