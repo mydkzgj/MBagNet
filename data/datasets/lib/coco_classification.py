@@ -76,3 +76,5 @@ class CocoClassification(VisionDataset):
             print(category_id)
 
         return multi_label
+
+    def get_label_map(self):  #计算类别映射，category_id不是按顺序的
