@@ -5,13 +5,10 @@
 DR Progression Prognosis
 """
 
-import glob
-import re
-
 import os.path as osp
 import os
 
-from data.datasets.bases import BaseImageDataset
+from data.datasets.lib.bases import BaseImageDataset
 
 
 class FundusTR_DRgrading(BaseImageDataset):

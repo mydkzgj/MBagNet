@@ -64,7 +64,6 @@ class ImageDataset(Dataset):
 
 # 所有子类应该override__len__和__getitem__，前者提供了数据集的大小，后者支持整数索引，范围从0到len(self)
 
-
 class SegmentationDataset(Dataset):
 
     # 创建LiverDataset类的实例时，就是在调用init初始化

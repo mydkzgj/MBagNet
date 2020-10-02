@@ -12,7 +12,7 @@ import zipfile
 import os.path as osp
 
 from utils.iotools import mkdir_if_missing
-from data.datasets.bases import BaseImageDataset
+from data.datasets.lib.bases import BaseImageDataset
 
 
 class DukeMTMCreID(BaseImageDataset):

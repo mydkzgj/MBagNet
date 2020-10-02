@@ -2,6 +2,7 @@
 """
 @author:  sherlock
 @contact: sherlockliao01@gmail.com
+自定义数据集的基础类，起源于Re-ID任务（对于分类任务其实无用）
 """
 
 import numpy as np

@@ -4,12 +4,9 @@
 # @Author  : Hao Luo
 # @File    : msmt17.py
 
-import glob
-import re
-
 import os.path as osp
 
-from data.datasets.bases import BaseImageDataset
+from data.datasets.lib.bases import BaseImageDataset
 
 
 class MSMT17(BaseImageDataset):

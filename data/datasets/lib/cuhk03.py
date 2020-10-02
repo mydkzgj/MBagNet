@@ -10,8 +10,7 @@ from scipy.io import loadmat
 from scipy.misc import imsave
 
 from utils.iotools import mkdir_if_missing, write_json, read_json
-from data.datasets.bases import BaseImageDataset
-
+from data.datasets.lib.bases import BaseImageDataset
 
 class CUHK03(BaseImageDataset):
     """
