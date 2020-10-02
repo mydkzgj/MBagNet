@@ -6,10 +6,9 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('coco-classification') #none
-  SEG_NAMES:  ('none')   
-  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
-  ROOT_DIR: ('D:/Research/DataBase')#('./data')#
+  NAMES: ('coco-classification') 
+  SEG_NAMES:  ('none')
+  ROOT_DIR: ('D:/Research')
 
  DATALOADER:
   NUM_WORKERS: 4

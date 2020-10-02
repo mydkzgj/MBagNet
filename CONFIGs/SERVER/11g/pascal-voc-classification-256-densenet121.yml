@@ -6,10 +6,9 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('pascal-voc-classification') #none
+  NAMES: ('pascal-voc-classification')
   SEG_NAMES:  ('none')   
-  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
-  ROOT_DIR: ('D:/Research/DataBase')#('./data')#
+  ROOT_DIR: ('D:/Research')
 
  DATALOADER:
   NUM_WORKERS: 4
