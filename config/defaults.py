@@ -37,7 +37,7 @@ _C.DATA.DATALOADER = CN()
 # Number of data loading threads
 _C.DATA.DATALOADER.NUM_WORKERS = 4
 # Sampler for data loading
-_C.DATA.DATALOADER.SAMPLER = 'softmax_rank'
+_C.DATA.DATALOADER.SAMPLER = "random"  #"sequential", "random", "weighted_random", "class_balance_random"  #'softmax_rank'
 # Number of images per batch during test
 _C.DATA.DATALOADER.CATEGORIES_PER_BATCH = 6
 # Number of images per batch during test

@@ -2,6 +2,7 @@
 """
 @author:  JiayangChen
 @contact: sychenjiayang@163.com
+origin: triplet_sampler
 """
 
 import copy
@@ -14,7 +15,7 @@ from torch.utils.data.sampler import Sampler
 
 
 #CJY at 2019.9.26
-class RandomSampler(Sampler):
+class ClassBalanceRandomSampler(Sampler):
     """
     Randomly sample N identities, then for each identity,
     randomly sample K instances, therefore batch size is N*K.
@@ -186,7 +187,7 @@ class RandomSampler(Sampler):
 
 
 #CJY at 2019.9.26
-class RandomSamplerForSegmentation(Sampler):
+class ClassBalanceRandomSamplerForSegmentation(Sampler):
     """
     Randomly sample N identities, then for each identity,
     randomly sample K instances, therefore batch size is N*K.

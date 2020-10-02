@@ -177,7 +177,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #engine.state.imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             # 观测类别
-            if dataType == "seg":
+            if dataType != "seg":
                 oblabelList = [labels*0 + i for i in range(model.num_classes)] if len(labels.shape)==1 else [labels.sum(1)*0 + i for i in range(model.num_classes)]
             elif dataType == "grade":
                 oblabelList = [labels*243, labels*250, labels*281, labels*333]

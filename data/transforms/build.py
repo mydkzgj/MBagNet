@@ -1,7 +1,7 @@
 # encoding: utf-8
 """
-@author:  liaoxingyu
-@contact: liaoxingyu2@jd.com
+@author:  chenjiayang
+@contact: sychenjiayang@163.com
 """
 
 import torchvision.transforms as T
@@ -76,7 +76,5 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
                 # T.Pad(cfg.DATA.TRANSFORM.PADDING),
                 T.ToTensor(),
             ])
-
-
 
     return transform

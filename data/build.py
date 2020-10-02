@@ -3,19 +3,23 @@
 @author:  liaoxingyu
 @contact: sherlockliao01@gmail.com
 """
-
-from .datasets import init_dataset, ImageDataset, SegmentationDataset
-from .samplers import RandomSampler, RandomSamplerForSegmentation
-from .transforms import build_transforms, build_seg_transforms
-
 import torch
-from torch.utils.data import DataLoader
 import torchvision
-
 import os
 
+from .datasets import init_dataset, ImageDataset, SegmentationDataset
 from .datasets.lib.pascal_voc_classification import VOCClassification
 from .datasets.lib.coco_classification import CocoClassification
+
+#from .samplers import ClassBalanceRandomSampler, ClassBalanceRandomSamplerForSegmentation
+from .samplers import build_sampler, build_seg_sampler
+
+from .transforms import build_transforms, build_seg_transforms
+
+from torch.utils.data import DataLoader
+
+
+
 
 def collate_fn_seg(batch):
     imgs, masks, labels, imgs_path = zip(*batch)
@@ -38,6 +42,7 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
 
     num_workers = cfg.DATA.DATALOADER.NUM_WORKERS
     root_path = cfg.DATA.DATASETS.ROOT_DIR
+
     # for those have been realized by torchvision
     if cfg.DATA.DATASETS.NAMES == "cifar10":
         root_path = os.path.join(root_path, "DATABASE", "CIFAR10")
@@ -55,8 +60,8 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         num_classes = len(classes_list)
     elif cfg.DATA.DATASETS.NAMES == "pascal-voc-classification":
         root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
-        train_set = VOCClassification(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
-        val_set = VOCClassification(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
+        train_set = VOCClassification(root=root_path, year="2012", image_set="train", download=False, transform=train_transforms)
+        val_set = VOCClassification(root=root_path, year="2012", image_set="val", download=False, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
         num_classes = len(classes_list)
@@ -116,26 +121,31 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         classes_list = [train_set.coco.dataset["categories"][i]["name"] for i in range(len(train_set.coco.dataset["categories"]))]
         num_classes = len(classes_list)
 
+    train_sampler = build_seg_sampler(cfg, train_set, num_classes, set_name="train", is_train=for_train)
+    val_sampler = build_seg_sampler(cfg, val_set, num_classes, set_name="val", is_train=False)
+    test_sampler = build_seg_sampler(cfg, test_set, num_classes, set_name="test", is_train=False)
+
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH, #shuffle=True,
-        sampler=RandomSampler(train_set, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
+        #sampler=RandomSampler(train_set, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
+        #                      cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
+        sampler= train_sampler,
         num_workers=num_workers, collate_fn=collate_fn
     )
 
     val_loader = DataLoader(
-        val_set, batch_size=cfg.VAL.DATALOADER.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
+        val_set, batch_size=cfg.VAL.DATALOADER.IMS_PER_BATCH, shuffle=False, sampler=val_sampler, num_workers=num_workers,
         # CJY at 2019.9.26 为了能够平衡样本
-        sampler=RandomSampler(val_set, cfg.VAL.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.VAL.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
+        #sampler=RandomSampler(val_set, cfg.VAL.DATALOADER.CATEGORIES_PER_BATCH,
+        #                      cfg.VAL.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
         collate_fn=collate_fn
     )
 
     test_loader = DataLoader(
-        test_set, batch_size=cfg.TEST.DATALOADER.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
+        test_set, batch_size=cfg.TEST.DATALOADER.IMS_PER_BATCH, shuffle=False, sampler=test_sampler, num_workers=num_workers,
         # CJY at 2019.9.26 为了能够平衡样本
-        sampler=RandomSampler(test_set, cfg.TEST.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
+        #sampler=RandomSampler(test_set, cfg.TEST.DATALOADER.CATEGORIES_PER_BATCH,
+        #                      cfg.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
         collate_fn=collate_fn
     )
 
@@ -168,8 +178,8 @@ def make_data_loader(cfg, for_train):
     train_set = ImageDataset(dataset.train, train_transforms)
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH,
-        sampler=RandomSampler(dataset.train, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
+        sampler=ClassBalanceRandomSampler(dataset.train, cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH,
+                                          cfg.TRAIN.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=for_train),
         num_workers=num_workers, collate_fn=collate_fn
     )
 
@@ -178,8 +188,8 @@ def make_data_loader(cfg, for_train):
     val_loader = DataLoader(
         val_set, batch_size=cfg.VAL.DATALOADER.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
         #CJY at 2019.9.26 为了能够平衡样本
-        sampler=RandomSampler(dataset.val, cfg.VAL.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.VAL.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
+        sampler=ClassBalanceRandomSampler(dataset.val, cfg.VAL.DATALOADER.CATEGORIES_PER_BATCH,
+                                          cfg.VAL.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
         collate_fn=collate_fn
     )
 
@@ -188,8 +198,8 @@ def make_data_loader(cfg, for_train):
     test_loader = DataLoader(
         test_set, batch_size=cfg.TEST.DATALOADER.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
         # CJY at 2019.9.26 为了能够平衡样本
-        sampler=RandomSampler(dataset.test, cfg.TEST.DATALOADER.CATEGORIES_PER_BATCH,
-                              cfg.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
+        sampler=ClassBalanceRandomSampler(dataset.test, cfg.TEST.DATALOADER.CATEGORIES_PER_BATCH,
+                                          cfg.TEST.DATALOADER.INSTANCES_PER_CATEGORY_IN_BATCH, num_classes, is_train=False),
         collate_fn=collate_fn
     )
     #notes:
@@ -221,7 +231,7 @@ def make_seg_data_loader(cfg, for_train):
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.MASK_PER_BATCH, num_workers=num_workers, #shuffle=True,
         # CJY  为了保证类别均衡
-        sampler=RandomSamplerForSegmentation(dataset.seg_train, 1, 1, num_classes, is_train=for_train),    #此处让所有分类标签的按顺序以1为单位交替进行
+        sampler=ClassBalanceRandomSamplerForSegmentation(dataset.seg_train, 1, 1, num_classes, is_train=for_train),    #此处让所有分类标签的按顺序以1为单位交替进行
         collate_fn=collate_fn_seg
     )
 
