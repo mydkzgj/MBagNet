@@ -40,9 +40,8 @@ def read_image(img_path):
 
 
 class ImageDataset(Dataset):
-    """Fundus Dataset from TongRen """
-
     def __init__(self, dataset, transform=None):
+        super(ImageDataset, self).__init__()
         self.dataset = dataset
         self.transform = transform
 
