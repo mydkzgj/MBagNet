@@ -5,9 +5,10 @@
 """
 from torch.utils.data.sampler import SequentialSampler
 from torch.utils.data.sampler import RandomSampler
-from .class_balance_random_sampler import ClassBalanceRandomSampler, ClassBalanceRandomSamplerForSegmentation
-#from torch.utils.data.sampler import WeightedRandomSampler
+from torch.utils.data.sampler import BatchSampler
 from .weighted_random_sampler import AutoWeightedRandomSampler
+from .class_balance_random_sampler import ClassBalanceRandomSampler, ClassBalanceRandomSamplerForSegmentation
+
 
 
 def build_sampler(cfg, data_source, num_classes, set_name="train", is_train=True):
@@ -33,6 +34,11 @@ def build_sampler(cfg, data_source, num_classes, set_name="train", is_train=True
         sampler = ClassBalanceRandomSampler(data_source, num_categories_per_batch, num_instances_per_category, max_num_categories, is_train=is_train)
     else:
         raise Exception("Wrong Sampler Name!")
+
+    if cfg.MODEL.CLASSIFIER_OUTPUT_TYPE == "multi-label" and is_train == True:
+        batch_size = cfg.DATA.DATALOADER.IMS_PER_BATCH
+        sampler = BatchSampler(sampler, batch_size, drop_last=True)   # 由于目前multi-label metric的限制（我取巧了），不得已需要保证每个batch数量固定
+
     return sampler
 
 

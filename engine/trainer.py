@@ -717,13 +717,6 @@ def do_train(
                 writer_train[i].add_scalar("Train/" + "LearningRate", LearningRateDict["optimizer" + str(i)], step)
                 writer_train[i].flush()
 
-            #记录weight
-            choose_list = ["base.conv1.weight", "base.bn1.weight",
-                          "base.layer1.0.conv1.weight", "base.layer1.2.conv3.weight",
-                          "base.layer2.0.conv1.weight", "base.layer2.3.conv3.weight",
-                          "base.layer3.0.conv1.weight", "base.layer3.5.conv3.weight",
-                          "base.layer4.0.conv1.weight", "base.layer4.2.conv1.weight",
-                          "bottleneck.weight", "classifier.weight"]
             """
             #记录参数分布 非常耗时
             params_dict = {}
@@ -743,7 +736,6 @@ def do_train(
                                 engine.state.metrics['avg_total_loss'], avg_losses, avg_precisions, engine.state.metrics['avg_accuracy'],
                                 schedulers[engine.state.schedulers_epochs_index][engine.state.optimizer_index].get_lr()[0], step))
 
-            #logger.info(engine.state.output["rf_loss"])
 
             if engine.state.output["losses"].get("cluster_loss") != None:
                 logger.info("Epoch[{}] Iteration[{}/{}] Center {} \n r_inter: {}, r_outer: {}, step: {}"
