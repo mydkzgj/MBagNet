@@ -185,22 +185,17 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             labels =seg_labels
 
         # 置入cuda
-        #one_hot_labels = torch.nn.functional.one_hot(grade_labels, scores.shape[1]).float()
         #grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
         grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None else grade_labels
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
         seg_gt_masks = seg_gt_masks.to(device) if torch.cuda.device_count() >= 1 and seg_gt_masks is not None else seg_gt_masks
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 and imgs is not None else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 and labels is not None else labels
-        # 创建multi-labels以及regression_labels
+        # 创建multi-labels
         if len(labels.shape) == 1:      # 如果本身是标量标签
             one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-            one_hot_labels = one_hot_labels.to(device) if torch.cuda.device_count() >= 1 and one_hot_labels is not None else one_hot_labels
-            regression_labels = 0
         else:                           # 如果本身是向量标签
             one_hot_labels = torch.gt(labels, 0).int()
-            regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
-            #regression_labels = regression_labels.gt(0).float() * model.sigmoid_low_th + regression_labels
 
         # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:
@@ -227,12 +222,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         if model.classifier_output_type == "single-label":
             scores = torch.softmax(logits, dim=1)
+            regression_labels = 0
             regression_logits = 0
         else:
             # CJY at 2020.9.5
             scores = torch.sigmoid(logits).round()
-            #regression_logits = logits
+            regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
             regression_logits = model.zoom_ratio * torch.relu(logits)
+            # regression_logits = logits
             #regression_logits = model.regression_linear(model.base.r_feature)
             #logits = model.sigmoid_low_th - torch.relu(model.sigmoid_low_th - logits)
 

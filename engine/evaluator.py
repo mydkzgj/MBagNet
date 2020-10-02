@@ -76,25 +76,22 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
             # 创建multi-labels以及regression_labels
             if len(labels.shape) == 1:  # 如果本身是标量标签
                 one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-                one_hot_labels = one_hot_labels.to(
-                    device) if torch.cuda.device_count() >= 1 and one_hot_labels is not None else one_hot_labels
-                regression_labels = 0
             else:  # 如果本身是向量标签
                 one_hot_labels = torch.gt(labels, 0).int()
-                regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev # label 标准化
-                #regression_labels = regression_labels.gt(0).float() * model.sigmoid_low_th + regression_labels
 
             model.transimitBatchDistribution(0)  #不生成seg
             logits = model(imgs)
 
             if model.classifier_output_type == "single-label":
                 scores = torch.softmax(logits, dim=1)
+                regression_labels = 0
                 regression_logits = 0
             else:
                 # CJY at 2020.9.5
                 scores = torch.sigmoid(logits).round()
-                #regression_logits = logits
+                regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
                 regression_logits = model.zoom_ratio * torch.relu(logits)
+                # regression_logits = logits
                 # regression_logits = model.regression_linear(model.base.r_feature)
                 # logits = model.sigmoid_low_th - torch.relu(model.sigmoid_low_th - logits)
 
