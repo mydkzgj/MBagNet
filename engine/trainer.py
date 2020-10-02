@@ -224,14 +224,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # CJY at 2020.9.5
             scores = torch.sigmoid(logits).round()
             if len(labels.shape) == 1:
-                regression_labels = 0
-                regression_logits = 0
+                regression_labels = torch.zeros_like(labels)
+                regression_logits = torch.zeros_like(labels)
             else:
                 regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
                 regression_logits = model.zoom_ratio * torch.relu(logits)
-                #regression_logits = logits
-                #regression_logits = model.regression_linear(model.base.r_feature)
-                #logits = model.sigmoid_low_th - torch.relu(model.sigmoid_low_th - logits)
+                # regression_logits = logits
+                # regression_logits = model.regression_linear(model.base.r_feature)
+                # logits = model.sigmoid_low_th - torch.relu(model.sigmoid_low_th - logits)
         else:
             raise Exception("Wrong Classifier Output Type")
 
