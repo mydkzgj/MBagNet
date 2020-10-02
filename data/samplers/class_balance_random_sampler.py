@@ -85,6 +85,9 @@ class ClassBalanceRandomSampler(Sampler):
         if self.num_categories_per_batch > max_num_categories:# or self.num_categories_per_batch < 2:
             raise Exception("Invalid Num_categories_per_batch!", self.num_categories_per_batch)
 
+        import time
+        start_time = time.time()
+
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
         # for single-label and multi-label  at 2020.9.15
@@ -101,6 +104,9 @@ class ClassBalanceRandomSampler(Sampler):
                 self.index_dic[int_label].append(index)
 
         self.categories = list(self.index_dic.keys())
+
+        end_time = time.time()
+        print("screen dataset：{}".format(end_time - start_time))
 
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
         self.targetNum_instances_per_category = {}
