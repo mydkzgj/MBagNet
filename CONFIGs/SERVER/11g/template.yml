@@ -6,8 +6,8 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('none')#('ddr_dr_grading')
-  SEG_NAMES:  ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')   
+  NAMES: ('ddr_dr_grading')#('ddr_dr_grading')
+  SEG_NAMES: ('none')# ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')   
   #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
   ROOT_DIR: ('./data')
 
