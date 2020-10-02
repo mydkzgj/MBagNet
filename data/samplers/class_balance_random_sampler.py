@@ -12,6 +12,55 @@ from collections import defaultdict
 from torch.utils.data.sampler import Sampler
 
 
+def converMultiLabel2SingleLabel(multilabel, convertType="random"):
+    if convertType == "random":
+        # for random
+        i_list = []
+        for i, l in enumerate(multilabel):
+            if l > 0:
+                i_list.append(i)
+        if i_list != []:
+            int_label = random.choice(i_list)
+        else:
+            int_label = -1
+    elif convertType == "max_random":
+        # for max random  PACSCAL
+        max = 0
+        i_list = []
+        for i, l in enumerate(multilabel):
+            if l > max:
+                max = l
+                i_list.clear()
+                i_list.append(i)
+            elif l == max:
+                i_list.append(i)
+        if i_list != []:
+            int_label = random.choice(i_list)
+        else:
+            int_label = -1
+    elif convertType == "decimalism":
+        # 十进制
+        int_label = 0
+        for l in multilabel:
+            if l > 0:
+                int_label = int_label * 10 + 1
+            else:
+                int_label = int_label * 10 + 0
+    elif convertType == "binary":
+        # 二进制
+        int_label = 0
+        for l in multilabel:
+            if l > 0:
+                int_label = int_label * 2 + 1
+            else:
+                int_label = int_label * 2 + 0
+    else:
+        raise Exception("Wrong ConvertType!")
+
+    return int_label
+
+
+
 #CJY at 2019.9.26
 class ClassBalanceRandomSampler(Sampler):
     """
@@ -45,41 +94,10 @@ class ClassBalanceRandomSampler(Sampler):
             if isinstance(label, int)==True:
                 self.index_dic[label].append(index)
             elif isinstance(label, list)==True:
-                """
-                # for random
-                i_list = []
-                for i, l in enumerate(label):
-                    if l > 0:
-                        i_list.append(i)
-                if i_list != []:
-                    int_label = random.choice(i_list)
+                if max_num_categories <= 6:   #6的全组合数  2^6 = 64, 全组合数太多的话实在是分类负担，只能选择random选择其中一维类别
+                    int_label = converMultiLabel2SingleLabel(label, convertType="decimalism")
                 else:
-                    int_label = -1                    
-                """
-                #"""
-                # for max random  PACSCAL
-                max = 0
-                i_list = []
-                for i, l in enumerate(label):
-                    if l > max:
-                        max = l
-                        i_list.clear()
-                        i_list.append(i)
-                    elif l == max:
-                        i_list.append(i)
-                if i_list != []:
-                    int_label = random.choice(i_list)
-                else:
-                    int_label = -1
-                #"""
-                """
-                int_label = 0
-                for l in label:
-                    if l > 0:
-                        int_label = int_label * 10 + 1
-                    else:
-                        int_label = int_label * 10 + 0
-                #"""
+                    int_label = converMultiLabel2SingleLabel(label, convertType="max_random")
                 self.index_dic[int_label].append(index)
 
         self.categories = list(self.index_dic.keys())
@@ -213,12 +231,10 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
             if isinstance(label, int)==True:
                 self.index_dic[label].append(index)
             elif isinstance(label, list)==True:
-                int_label = 0
-                for l in label:
-                    if l > 0:
-                        int_label = int_label * 10 + 1
-                    else:
-                        int_label = int_label * 10 + 0
+                if max_num_categories <= 6:   #6的全组合数  2^6 = 64, 全组合数太多的话实在是分类负担，只能选择random选择其中一维类别
+                    int_label = converMultiLabel2SingleLabel(label, convertType="decimalism")
+                else:
+                    int_label = converMultiLabel2SingleLabel(label, convertType="max_random")
                 self.index_dic[int_label].append(index)
         self.categories = list(self.index_dic.keys())
 
