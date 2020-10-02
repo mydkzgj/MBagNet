@@ -188,17 +188,12 @@ class ClassBalanceRandomSampler(Sampler):
                     batch_idxs += batch_idxs_dict[category].pop(0)
                     if len(batch_idxs_dict[category]) == 0:
                         copy_categories.remove(category)
-                #batch_idxs1 = batch_idxs[0:len(batch_idxs)//4]
-                #batch_idxs2 = batch_idxs[len(batch_idxs)//4:len(batch_idxs)]
-                #random.shuffle(batch_idxs2)
-                #batch_idxs = batch_idxs1 + batch_idxs2
                 final_idxs.extend(batch_idxs)
         else:
             num_categories_th = 0
             while len(copy_categories) > num_categories_th:  # 若其小于每个batch需要抽取的class则停止
                 if len(copy_categories) >= self.num_categories_per_batch:
                     selected_categories = np.random.choice(copy_categories, self.num_categories_per_batch, replace=False)  # 随机挑选类别
-                    #selected_categories = np.array([0,1,2,3,4,5])   #为了测试attention加入
                 else:
                     selected_categories = np.random.choice(copy_categories, self.num_categories_per_batch, replace=True)  # 随机挑选类别
 
@@ -325,7 +320,7 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
         final_idxs = []   #迭代器核心列表
         if self.is_train == True:
             num_categories_th = self.num_categories_per_batch - 1
-            while len(copy_categories) > num_categories_th:#2:#num_categories_th:   #若其小于每个batch需要抽取的class则停止
+            while len(copy_categories) > num_categories_th:        #若其小于每个batch需要抽取的class则停止
                 if self.is_train == True:
                     sc = copy_categories.pop(0)
                     selected_categories = [sc]
@@ -337,17 +332,12 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
                     batch_idxs += batch_idxs_dict[category].pop(0)
                     if len(batch_idxs_dict[category]) == 0:
                         copy_categories.remove(category)
-                #batch_idxs1 = batch_idxs[0:len(batch_idxs)//4]
-                #batch_idxs2 = batch_idxs[len(batch_idxs)//4:len(batch_idxs)]
-                #random.shuffle(batch_idxs2)
-                #batch_idxs = batch_idxs1 + batch_idxs2
                 final_idxs.extend(batch_idxs)
         else:
             num_categories_th = 0
             while len(copy_categories) > num_categories_th:  # 若其小于每个batch需要抽取的class则停止
                 if len(copy_categories) >= self.num_categories_per_batch:
                     selected_categories = np.random.choice(copy_categories, self.num_categories_per_batch, replace=False)  # 随机挑选类别
-                    #selected_categories = np.array([0,1,2,3,4,5])   #为了测试attention加入
                 else:
                     selected_categories = np.random.choice(copy_categories, self.num_categories_per_batch, replace=True)  # 随机挑选类别
 
