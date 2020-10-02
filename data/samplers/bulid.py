@@ -5,10 +5,8 @@
 """
 from torch.utils.data.sampler import SequentialSampler
 from torch.utils.data.sampler import RandomSampler
-from torch.utils.data.sampler import BatchSampler
 from .weighted_random_sampler import AutoWeightedRandomSampler
 from .class_balance_random_sampler import ClassBalanceRandomSampler, ClassBalanceRandomSamplerForSegmentation
-
 
 
 def build_sampler(cfg, data_source, num_classes, set_name="train", is_train=True):
@@ -34,11 +32,6 @@ def build_sampler(cfg, data_source, num_classes, set_name="train", is_train=True
         sampler = ClassBalanceRandomSampler(data_source, num_categories_per_batch, num_instances_per_category, max_num_categories, is_train=is_train)
     else:
         raise Exception("Wrong Sampler Name!")
-
-    if cfg.MODEL.CLASSIFIER_OUTPUT_TYPE == "multi-label" and is_train == True:
-        batch_size = cfg.DATA.DATALOADER.IMS_PER_BATCH
-        sampler = BatchSampler(sampler, batch_size, drop_last=True)   # 由于目前multi-label metric的限制（我取巧了），不得已需要保证每个batch数量固定
-
     return sampler
 
 
@@ -50,7 +43,9 @@ def build_seg_sampler(cfg, data_source, num_classes, set_name="train", is_train=
     elif cfg.DATA.DATALOADER.SAMPLER == "weighted_random":
         sampler = AutoWeightedRandomSampler(data_source, replacement=True)
     elif cfg.DATA.DATALOADER.SAMPLER == "class_balance_random":
-        # 此处让所有分类标签的按顺序以1为单位交替进行
+        # 此处让所有分类标签的按顺序以1为单位交替进行, 其实有两个目的：
+        # 1. seg-data用作辅助数据时比较少，尽量让每个类别交替出现比较好
+        # 2. multi-label状态时，metric的计算我取巧了，但是需要保证每个batch中的数据个数保持不变（last batch可能会少）
         if set_name == "train":
             num_categories_per_batch = 1
             num_instances_per_category = 1
