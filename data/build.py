@@ -121,9 +121,9 @@ def make_data_loader_for_classic_datasets(cfg, for_train):
         classes_list = [train_set.coco.dataset["categories"][i]["name"] for i in range(len(train_set.coco.dataset["categories"]))]
         num_classes = len(classes_list)
 
-    train_sampler = build_seg_sampler(cfg, train_set, num_classes, set_name="train", is_train=for_train)
-    val_sampler = build_seg_sampler(cfg, val_set, num_classes, set_name="val", is_train=False)
-    test_sampler = build_seg_sampler(cfg, test_set, num_classes, set_name="test", is_train=False)
+    train_sampler = build_sampler(cfg, train_set, num_classes, set_name="train", is_train=for_train)
+    val_sampler = build_sampler(cfg, val_set, num_classes, set_name="val", is_train=False)
+    test_sampler = build_sampler(cfg, test_set, num_classes, set_name="test", is_train=False)
 
     train_loader = DataLoader(
         train_set, batch_size=cfg.TRAIN.DATALOADER.IMS_PER_BATCH, #shuffle=True,
