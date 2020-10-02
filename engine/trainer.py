@@ -191,11 +191,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         seg_gt_masks = seg_gt_masks.to(device) if torch.cuda.device_count() >= 1 and seg_gt_masks is not None else seg_gt_masks
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 and imgs is not None else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 and labels is not None else labels
-        # 创建multi-labels
-        if len(labels.shape) == 1:      # 如果本身是标量标签
-            one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-        else:                           # 如果本身是向量标签
-            one_hot_labels = torch.gt(labels, 0).int()
+        one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float() if len(labels.shape)==1 else torch.gt(labels, 0).int()
 
         # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:
@@ -222,16 +218,22 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         if model.classifier_output_type == "single-label":
             scores = torch.softmax(logits, dim=1)
-            regression_labels = 0
-            regression_logits = 0
-        else:
+            regression_labels = None
+            regression_logits = None
+        elif model.classifier_output_type == "multi-label":
             # CJY at 2020.9.5
             scores = torch.sigmoid(logits).round()
-            regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
-            regression_logits = model.zoom_ratio * torch.relu(logits)
-            # regression_logits = logits
-            #regression_logits = model.regression_linear(model.base.r_feature)
-            #logits = model.sigmoid_low_th - torch.relu(model.sigmoid_low_th - logits)
+            if len(labels.shape) == 1:
+                regression_labels = 0
+                regression_logits = 0
+            else:
+                regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
+                regression_logits = model.zoom_ratio * torch.relu(logits)
+                #regression_logits = logits
+                #regression_logits = model.regression_linear(model.base.r_feature)
+                #logits = model.sigmoid_low_th - torch.relu(model.sigmoid_low_th - logits)
+        else:
+            raise Exception("Wrong Classifier Output Type")
 
         # Branch 1 Segmentation
         if model.segState == True:
