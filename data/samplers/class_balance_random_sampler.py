@@ -25,16 +25,16 @@ def converMultiLabel2SingleLabel(multilabel, convertType="random"):
             int_label = -1
     elif convertType == "max_random":
         # for max random  PACSCAL
-        max = 0
+        max_l = 0
         i_list = []
         for i, l in enumerate(multilabel):
-            if l > max:
-                max = l
+            if l > max_l:
+                max_l = l
                 i_list.clear()
                 i_list.append(i)
-            elif l == max:
+            elif l == max_l:
                 i_list.append(i)
-        if i_list != [] and max != 0:
+        if i_list != [] and max_l != 0:
             int_label = random.choice(i_list)
         else:
             int_label = -1
