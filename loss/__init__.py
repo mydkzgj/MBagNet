@@ -23,8 +23,6 @@ from .forshow_loss import ForShowLoss
 from .mse_loss import MSELoss
 
 
-
-
 def make_D_loss(cfg, num_classes):
 
     sampler = cfg.DATA.DATALOADER.SAMPLER

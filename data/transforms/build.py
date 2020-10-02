@@ -8,9 +8,6 @@ import torchvision.transforms as T
 
 from .transforms import RandomErasing, PaddingToSquare
 
-from PIL import Image
-
-
 def build_transforms(cfg, is_train=True):
     normalize_transform = T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD)
     if is_train:

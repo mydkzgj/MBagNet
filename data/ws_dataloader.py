@@ -1,5 +1,3 @@
-from torch.utils.data import DataLoader
-
 class WeakSupervisionDataloader():
     def __init__(self, gra_dataloader, seg_dataloader, recycling=True):
         self.gra_dataloader = gra_dataloader
