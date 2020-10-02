@@ -6,14 +6,13 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('cifar10') #none
+  NAMES: ('cifar10') 
   SEG_NAMES:  ('none')   
-  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
   ROOT_DIR: ('D:/Research')
 
  DATALOADER:
   NUM_WORKERS: 4
-  SAMPLER: 'class'
+  SAMPLER: 'class_balance_random'
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 2
   IMS_PER_BATCH: 24

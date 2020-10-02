@@ -6,13 +6,13 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('none')#('ddr_dr_grading')
-  SEG_NAMES: ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')   #('ddr_lesion_segmentation_regroup') 
+  NAMES: ('none')
+  SEG_NAMES: ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
   ROOT_DIR: ('./data')
 
  DATALOADER:
   NUM_WORKERS: 4
-  SAMPLER: 'softmax_rank'
+  SAMPLER: 'class_balance_random'
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 2
   IMS_PER_BATCH: 24

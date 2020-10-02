@@ -6,14 +6,13 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('pascal-voc-classification') #none
-  SEG_NAMES:  ('none')   
-  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
-  ROOT_DIR: ('./data')#('D:/Research/DataBase')
+  NAMES: ('pascal-voc-classification') 
+  SEG_NAMES:  ('none') 
+  ROOT_DIR: ('./data')
 
  DATALOADER:
   NUM_WORKERS: 4
-  SAMPLER: 'softmax_rank'
+  SAMPLER: 'class_balance_random'
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 2
   IMS_PER_BATCH: 24

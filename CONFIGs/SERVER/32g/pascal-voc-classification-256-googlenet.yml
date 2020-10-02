@@ -6,10 +6,9 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('pascal-voc-classification') #none
-  SEG_NAMES:  ('none')   
-  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
-  ROOT_DIR: ('./data')#('D:/Research/DataBase')
+  NAMES: ('pascal-voc-classification') 
+  SEG_NAMES:  ('none')     
+  ROOT_DIR: ('./data')
 
  DATALOADER:
   NUM_WORKERS: 4
@@ -51,7 +50,7 @@ MODEL:
 
  # For MBagNet
  PRE_ACTIVATION: 1
- FUSION_TYPE: 'concat'                                        #"concat","add","none"
+ FUSION_TYPE: 'concat'                                                  #"concat","add","none"
  
  BRANCH_CONFIG_TYPE: "none"                   
  BRANCH_IMG_NUM: 1

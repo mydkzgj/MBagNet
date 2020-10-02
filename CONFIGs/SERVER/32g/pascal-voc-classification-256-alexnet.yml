@@ -6,14 +6,13 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('pascal-voc-classification') #none
-  SEG_NAMES:  ('none')   
-  #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
-  ROOT_DIR: ('./data')#('D:/Research/DataBase')
+  NAMES: ('pascal-voc-classification')
+  SEG_NAMES:  ('none')     
+  ROOT_DIR: ('./data')
 
  DATALOADER:
   NUM_WORKERS: 4
-  SAMPLER: 'softmax_rank'
+  SAMPLER: 'class_balance_random'
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 2
   IMS_PER_BATCH: 24
@@ -34,12 +33,12 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "alexnet"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "alexnet"                                                  #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear" 
  CLASSIFIER_OUTPUT_TYPE: "multi-label"                                #"single-label"
  CLA_NUM_CLASSES: 20  # without background
- SEGMENTER_NAME: "none"                        #fc_mbagnet
+ SEGMENTER_NAME: "none"                                                   #fc_mbagnet
  SEG_NUM_CLASSES: 4
  VISUALIZER_NAME: "none"
  VISUAL_TARGET_LAYERS: "none"
@@ -51,7 +50,7 @@ MODEL:
 
  # For MBagNet
  PRE_ACTIVATION: 1
- FUSION_TYPE: 'concat'                                        #"concat","add","none"
+ FUSION_TYPE: 'concat'                                                   #"concat","add","none"
  
  BRANCH_CONFIG_TYPE: "none"                   
  BRANCH_IMG_NUM: 1
@@ -61,7 +60,7 @@ MODEL:
  GCAM_SUPERVISED_TYPE: "none"                                 #"none", "seg_gtmask", "seg_mask" 
  GCAM_GUIDED_BP: 0
 #(3). Reload Branch
- MASKED_IMG_RELOAD_TYPE: "none"                 #"none", "seg_gtmask", "segmentation", "visualization",  "joint"
+ MASKED_IMG_RELOAD_TYPE: "none"                            #"none", "seg_gtmask", "segmentation", "visualization",  "joint"
  PRE_RELOAD: 0
 
 # -----------------------------------------------------------------------------
