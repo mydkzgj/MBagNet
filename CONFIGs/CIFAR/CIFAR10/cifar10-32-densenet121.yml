@@ -9,11 +9,11 @@ DATA:
   NAMES: ('cifar10') #none
   SEG_NAMES:  ('none')   
   #('ddr_lesion_segmentation_regroup') ('ddr_lesion_segmentation_multilabel_weaksupervision_colormask')
-  ROOT_DIR: ('D:/Research/DataBase')
+  ROOT_DIR: ('D:/Research')
 
  DATALOADER:
   NUM_WORKERS: 4
-  SAMPLER: 'softmax_rank'
+  SAMPLER: 'class'
   CATEGORIES_PER_BATCH: 6
   INSTANCES_PER_CATEGORY_IN_BATCH: 2
   IMS_PER_BATCH: 24

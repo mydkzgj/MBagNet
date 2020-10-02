@@ -10,6 +10,7 @@ import random
 import numpy as np
 from collections import defaultdict
 from torch.utils.data.sampler import Sampler
+import time
 
 
 def converMultiLabel2SingleLabel(multilabel, convertType="random"):
@@ -85,7 +86,6 @@ class ClassBalanceRandomSampler(Sampler):
         if self.num_categories_per_batch > max_num_categories:# or self.num_categories_per_batch < 2:
             raise Exception("Invalid Num_categories_per_batch!", self.num_categories_per_batch)
 
-        import time
         start_time = time.time()
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
@@ -105,8 +105,6 @@ class ClassBalanceRandomSampler(Sampler):
 
         self.categories = list(self.index_dic.keys())
 
-        end_time = time.time()
-        print("screen dataset：{}".format(end_time - start_time))
 
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
         self.targetNum_instances_per_category = {}
@@ -127,6 +125,7 @@ class ClassBalanceRandomSampler(Sampler):
 
         #设置每类的样本需要构建数量
         if self.is_train == True:
+            # 将采样最大值设置为类别中的最大值
             for category in self.index_dic.keys():
                 self.targetNum_instances_per_category[category] = self.max_num_samples
         else:
@@ -140,8 +139,17 @@ class ClassBalanceRandomSampler(Sampler):
         for category in self.index_dic.keys():
             self.length = self.length + self.targetNum_instances_per_category[category]
 
+        end_time = time.time()
+        print("Initialize Sampler by Traverse Dataset：{}".format(end_time - start_time))
+        # 遍历数据集的时间因数据集而异，调用Dataset中的getitem
+        # ddr-grading约需要5min，虽然其数据量也不大，但是图片分辨率高
+        # pascal约需要20s
+        # coco约需要
+
 
     def __iter__(self):  #核心函数，返回一个迭代器
+        start_time = time.time()
+
         # 将instances按每self.num_instances_per_category为一组存储到类别索引的字典里
         batch_idxs_dict = defaultdict(list)
 
@@ -203,6 +211,9 @@ class ClassBalanceRandomSampler(Sampler):
                         copy_categories.remove(category)
         self.epoch_num_samples = len(final_idxs)
 
+        end_time = time.time()
+        print("Reconstruct Iter for Sampler：{}".format(end_time - start_time))
+
         return iter(final_idxs)
 
     def __len__(self):
@@ -229,6 +240,8 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
         self.num_instances_per_category = num_instances_per_category
         self.batch = num_categories_per_batch * num_instances_per_category
         self.is_train = is_train
+
+        start_time = time.time()
 
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
@@ -276,8 +289,13 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
         for category in self.index_dic.keys():
             self.length = self.length + self.targetNum_instances_per_category[category]
 
+        end_time = time.time()
+        print("Initialize Seg by Traverse Seg Dataset：{}".format(end_time - start_time))
+        # 遍历数据集的时间因数据集而异，调用Dataset中的getitem
+
 
     def __iter__(self):  #核心函数，返回一个迭代器
+        start_time = time.time()
         # 将instances按每self.num_instances_per_category为一组存储到类别索引的字典里
         batch_idxs_dict = defaultdict(list)
 
@@ -341,6 +359,9 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
                     if len(batch_idxs_dict[category]) == 0:
                         copy_categories.remove(category)
         self.epoch_num_samples = len(final_idxs)
+
+        end_time = time.time()
+        print("Reconstruct Iter for Seg Sampler：{}".format(end_time - start_time))
 
         return iter(final_idxs)
 
