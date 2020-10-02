@@ -34,7 +34,7 @@ def converMultiLabel2SingleLabel(multilabel, convertType="random"):
                 i_list.append(i)
             elif l == max:
                 i_list.append(i)
-        if i_list != []:
+        if i_list != [] and max != 0:
             int_label = random.choice(i_list)
         else:
             int_label = -1
