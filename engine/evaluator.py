@@ -73,11 +73,7 @@ def create_supervised_evaluator(model, metrics, loss_fn, device=None):
 
             imgs = imgs.to(device) if torch.cuda.device_count() >= 1 else imgs
             labels = labels.to(device) if torch.cuda.device_count() >= 1 else labels
-            # 创建multi-labels以及regression_labels
-            if len(labels.shape) == 1:  # 如果本身是标量标签
-                one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float()
-            else:  # 如果本身是向量标签
-                one_hot_labels = torch.gt(labels, 0).int()
+            one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float() if len(labels.shape) == 1 else torch.gt(labels, 0).float()
 
             model.transimitBatchDistribution(0)  #不生成seg
             logits = model(imgs)
@@ -145,7 +141,7 @@ def do_inference(
                         "precision": Precision(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
                         "recall": Recall(average=True, output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True),
                         "mse": MeanSquaredError(output_transform=lambda x: (x["regression-logits"], x["regression-labels"])),
-                        "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["labels"], dim=1)[1])),
+                        "confusion_matrix": ConfusionMatrix(num_classes=num_classes, output_transform=lambda x: (x["logits"], torch.max(x["multi-labels"], dim=1)[1])),
                         }
         #"""
 

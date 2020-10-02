@@ -191,7 +191,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         seg_gt_masks = seg_gt_masks.to(device) if torch.cuda.device_count() >= 1 and seg_gt_masks is not None else seg_gt_masks
         imgs = imgs.to(device) if torch.cuda.device_count() >= 1 and imgs is not None else imgs
         labels = labels.to(device) if torch.cuda.device_count() >= 1 and labels is not None else labels
-        one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float() if len(labels.shape)==1 else torch.gt(labels, 0).int()
+        one_hot_labels = torch.nn.functional.one_hot(labels, model.num_classes).float() if len(labels.shape) == 1 else torch.gt(labels, 0).float()
 
         # Branch 3 Masked Img Reload: Pre-Reload  CJY at 2020.4.5  将需要reload的样本与第一批同时load
         if model.preReload == 1:
