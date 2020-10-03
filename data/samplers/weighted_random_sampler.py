@@ -63,6 +63,9 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
     def __init__(self, data_source, max_num_categories, replacement=True):
         self.data_source = data_source
 
+        if hasattr(self.data_source, "only_obtain_label") == True:
+            self.data_source.only_obtain_label = True
+
         # 将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  # 这种字典与普通字典的却别？
         # for single-label and multi-label  at 2020.9.15
@@ -77,8 +80,10 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
                 else:
                     int_label = converMultiLabel2SingleLabel(label, convertType="max_random")
                 self.index_dic[int_label].append(index)
-
         self.categories = list(self.index_dic.keys())
+
+        if hasattr(self.data_source, "only_obtain_label") == True:
+            self.data_source.only_obtain_label = False
 
         self.categories_weights_dict = {}
         self.num_samples = len(self.data_source)
