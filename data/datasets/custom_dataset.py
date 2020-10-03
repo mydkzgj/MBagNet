@@ -98,8 +98,8 @@ class SegmentationDataset(Dataset):
             from ..transforms.transforms import RandomErasing
             if self.is_train == True:
                 m_pad = cfg.DATA.TRANSFORM.PADDING * 4
-                prob = cfg.TRAIN.TRANSFORM.PROB
-                re_prob = cfg.TRAIN.TRANSFORM.RE_PROB
+                prob = cfg.DATA.TRANSFORM.PROB
+                re_prob = cfg.DATA.TRANSFORM.RE_PROB
                 self.shuffle_th = 0 #0.5
                 self.pick_channel_th = -1
             else:
@@ -210,26 +210,7 @@ class SegmentationDataset(Dataset):
                     mask_no_overlap = mask_no_overlap * (1 - mask[index:index + 1])
                     mask_no_overlap[index:index + 1] = mask[index:index + 1]
 
-            # 只挑选其中一个有值通道
-            """
-            if random.random() > self.pick_channel_th:
-                non_zero_channel_index = []
-                for index, lesionType in enumerate(lesionTypeList):
-                    sum = mask_no_overlap[index:index + 1].sum()
-                    if sum != 0:
-                        non_zero_channel_index.append(index)
-
-                if non_zero_channel_index != []:  # != 与 is not 有何区别，为什么用后者会和num_worker冲突，报错
-                    random.shuffle(non_zero_channel_index)
-                    #i = random.randint(0, len(non_zero_channel_index) - 1)
-                    pick_channel = non_zero_channel_index[0]
-
-                    for index, lesionType in enumerate(lesionTypeList):
-                        if index != pick_channel:
-                            mask_no_overlap[index:index + 1] = mask_no_overlap[index:index + 1] * 0
-            #"""
-
-
+            
             # 将通道随机打乱
             if random.random() > self.shuffle_th:
                 mask_no_overlap_list = [mask_no_overlap[i:i + 1] for i in range(mask_no_overlap.shape[0])]

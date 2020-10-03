@@ -48,6 +48,8 @@ _C.DATA.DATALOADER.IMS_PER_BATCH = _C.DATA.DATALOADER.CATEGORIES_PER_BATCH * _C.
 # Data.TRANSFORM
 # -----------------------------------------------------------------------------
 _C.DATA.TRANSFORM = CN()
+# Padding To Square
+_C.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE = "none"   #"none", "constant", "edge", "reflect"(mirror), "symmetric"
 # Size of the image during training
 _C.DATA.TRANSFORM.SIZE = [224, 224]
 # 掩膜缩放比例
@@ -58,8 +60,11 @@ _C.DATA.TRANSFORM.PIXEL_MEAN = [0.485, 0.456, 0.406]
 _C.DATA.TRANSFORM.PIXEL_STD = [0.229, 0.224, 0.225]
 # Value of padding size
 _C.DATA.TRANSFORM.PADDING = 10
-# Padding To Square
-_C.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE = "none"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
+# Random probability for image horizontal flip
+_C.DATA.TRANSFORM.PROB = 0.5
+# Random probability for random erasing
+_C.DATA.TRANSFORM.RE_PROB = 0.5
+
 
 
 # -----------------------------------------------------------------------------
@@ -204,10 +209,7 @@ _C.TRAIN.FEAT_NORM = 'yes'
 # Train Transform
 # -----------------------------------------------------------------------------
 _C.TRAIN.TRANSFORM = CN()
-# Random probability for image horizontal flip
-_C.TRAIN.TRANSFORM.PROB = 0.5
-# Random probability for random erasing
-_C.TRAIN.TRANSFORM.RE_PROB = 0.5
+
 # -----------------------------------------------------------------------------
 # Train Dataloader
 # -----------------------------------------------------------------------------

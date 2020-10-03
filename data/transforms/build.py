@@ -14,12 +14,12 @@ def build_transforms(cfg, is_train=True):
         transform = T.Compose([
             PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE),
-            T.RandomHorizontalFlip(p=cfg.TRAIN.TRANSFORM.PROB),
+            T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
             T.Pad(cfg.DATA.TRANSFORM.PADDING),
             T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
             T.ToTensor(),
             normalize_transform,
-            RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)  #是不是应该在归一化之前
+            RandomErasing(probability=cfg.DATA.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)  #是不是应该在归一化之前
         ])
     else:
         transform = T.Compose([
@@ -43,12 +43,12 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
         if type == "img":
             transform = T.Compose([
                 T.Resize(cfg.DATA.TRANSFORM.SIZE),
-                # T.RandomHorizontalFlip(p=cfg.TRAIN.TRANSFORM.PROB),
+                # T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
                 T.Pad(cfg.DATA.TRANSFORM.PADDING),  #暂时先去掉padding，因为有可能让mask中的病灶全部被剪切去
                 # T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
                 T.ToTensor(),
                 normalize_transform,
-                # RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
+                # RandomErasing(probability=cfg.DATA.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
             ])
         elif type == "mask":
             transform = T.Compose([
@@ -60,12 +60,12 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
         if type == "img":
             transform = T.Compose([
                 T.Resize(cfg.DATA.TRANSFORM.SIZE),
-                # T.RandomHorizontalFlip(p=cfg.TRAIN.TRANSFORM.PROB),
+                # T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
                 # T.Pad(cfg.DATA.TRANSFORM.PADDING),  #暂时先去掉padding，因为有可能让mask中的病灶全部被剪切去
                 # T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
                 T.ToTensor(),
                 normalize_transform,
-                # RandomErasing(probability=cfg.TRAIN.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
+                # RandomErasing(probability=cfg.DATA.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
             ])
         elif type == "mask":   #mask不做resize和padding，外面做
             transform = T.Compose([
