@@ -84,7 +84,7 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
         self.num_samples = len(self.data_source)
         self.weights = [0] * self.num_samples
         for key in self.index_dic.keys():
-            self.categories_weights_dict[key] = len(self.index_dic[key])/self.num_samples
+            self.categories_weights_dict[key] = self.num_samples/len(self.index_dic[key])
             for i in self.index_dic[key]:
                 self.weights[i] = self.categories_weights_dict[key]
 
