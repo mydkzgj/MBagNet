@@ -15,7 +15,7 @@ def build_sampler(cfg, data_source, num_classes, set_name="train", is_train=True
     elif cfg.DATA.DATALOADER.SAMPLER == "random":
         sampler = RandomSampler(data_source, replacement=False)
     elif cfg.DATA.DATALOADER.SAMPLER == "weighted_random":
-        sampler = AutoWeightedRandomSampler(data_source, replacement=True)
+        sampler = AutoWeightedRandomSampler(data_source, num_classes, replacement=True)
     elif cfg.DATA.DATALOADER.SAMPLER == "class_balance_random":
         if set_name == "train":
             num_categories_per_batch = cfg.TRAIN.DATALOADER.CATEGORIES_PER_BATCH
@@ -41,7 +41,7 @@ def build_seg_sampler(cfg, data_source, num_classes, set_name="train", is_train=
     elif cfg.DATA.DATALOADER.SAMPLER == "random":
         sampler = ClassBalanceRandomSampler(data_source, replacement=False)
     elif cfg.DATA.DATALOADER.SAMPLER == "weighted_random":
-        sampler = AutoWeightedRandomSampler(data_source, replacement=True)
+        sampler = AutoWeightedRandomSampler(data_source, num_classes, replacement=True)
     elif cfg.DATA.DATALOADER.SAMPLER == "class_balance_random":
         # 此处让所有分类标签的按顺序以1为单位交替进行, 其实有两个目的：
         # 1. seg-data用作辅助数据时比较少，尽量让每个类别交替出现比较好
