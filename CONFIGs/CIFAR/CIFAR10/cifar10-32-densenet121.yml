@@ -23,6 +23,8 @@ DATA:
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
   PADDING: 10
+  PROB: 0.0
+  RE_PROB: 0.0
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -115,11 +117,6 @@ TRAIN:
  RE_RANKING: 'no'
  WEIGHT: ""
  FEAT_NORM: 'yes'
-
- # Train Transform
- TRANSFORM:
-  PROB: 0.0
-  RE_PROB: 0.0
 
  # Train Dataloader
  DATALOADER:
