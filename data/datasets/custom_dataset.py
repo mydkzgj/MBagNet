@@ -210,7 +210,7 @@ class SegmentationDataset(Dataset):
                     mask_no_overlap = mask_no_overlap * (1 - mask[index:index + 1])
                     mask_no_overlap[index:index + 1] = mask[index:index + 1]
 
-            
+
             # 将通道随机打乱
             if random.random() > self.shuffle_th:
                 mask_no_overlap_list = [mask_no_overlap[i:i + 1] for i in range(mask_no_overlap.shape[0])]

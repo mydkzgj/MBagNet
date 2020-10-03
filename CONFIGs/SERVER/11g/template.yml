@@ -25,6 +25,8 @@ DATA:
   PIXEL_STD: [0.229, 0.224, 0.225]
   PADDING: 10
   PADDING_TO_SQUARE_MODE: "none"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
+  PROB: 0.0
+  RE_PROB: 0.0
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -119,11 +121,6 @@ TRAIN:
  WEIGHT: ""
  FEAT_NORM: 'yes'
 
- # Train Transform
- TRANSFORM:
-  PROB: 0.0
-  RE_PROB: 0.0
-
  # Train Dataloader
  DATALOADER:
   CATEGORIES_PER_BATCH: 3
@@ -136,7 +133,6 @@ TRAIN:
   PRETRAIN_PATH: './pretrained/densenet121-a639ec97.pth'
   IF_LABELSMOOTH: 'off'#'on'
   PRETRAINED: 1
-
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
