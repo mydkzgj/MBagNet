@@ -88,6 +88,9 @@ class ClassBalanceRandomSampler(Sampler):
 
         start_time = time.time()
 
+        if hasattr(self.data_source, "only_obtain_label") == True:
+            self.data_source.only_obtain_label = True
+
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
         # for single-label and multi-label  at 2020.9.15
@@ -102,9 +105,10 @@ class ClassBalanceRandomSampler(Sampler):
                 else:
                     int_label = converMultiLabel2SingleLabel(label, convertType="max_random")
                 self.index_dic[int_label].append(index)
-
         self.categories = list(self.index_dic.keys())
 
+        if hasattr(self.data_source, "only_obtain_label") == True:
+            self.data_source.only_obtain_label = False
 
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
         self.targetNum_instances_per_category = {}
@@ -238,10 +242,13 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
 
         start_time = time.time()
 
+        if hasattr(self.data_source, "only_obtain_label") == True:
+            self.data_source.only_obtain_label = True
+
         #将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  #这种字典与普通字典的却别？
         # for single-label and multi-label  at 2020.9.15
-        for index, (_, _, label) in enumerate(self.data_source):
+        for index, (_, _, label, _) in enumerate(self.data_source):
             if isinstance(label, int)==True:
                 self.index_dic[label].append(index)
             elif isinstance(label, list)==True:
@@ -251,6 +258,9 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
                     int_label = converMultiLabel2SingleLabel(label, convertType="max_random")
                 self.index_dic[int_label].append(index)
         self.categories = list(self.index_dic.keys())
+
+        if hasattr(self.data_source, "only_obtain_label") == True:
+            self.data_source.only_obtain_label = False
 
         #记录每类的sample数量，并找出最大sample数量的类别（用于后续平衡其他类别的标准）
         self.targetNum_instances_per_category = {}

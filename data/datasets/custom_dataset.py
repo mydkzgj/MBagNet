@@ -44,12 +44,18 @@ class ImageDataset(Dataset):
         super(ImageDataset, self).__init__()
         self.dataset = dataset
         self.transform = transform
+        self.only_obtain_label = False
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
         img_path, img_label = self.dataset[index]
+
+        # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+        if self.only_obtain_label == True:
+            return None, img_label, None
+
         img = read_image(img_path)
 
         if self.transform is not None:
@@ -71,6 +77,8 @@ class SegmentationDataset(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.is_train = is_train
+
+        self.only_obtain_label == False
 
         self.ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
         self.padding = cfg.DATA.TRANSFORM.PADDING   #不引入padding和crop
@@ -130,7 +138,11 @@ class SegmentationDataset(Dataset):
 
     def __getitem__(self, index):
         image_path, mask_path_list, img_label = self.dataset[index]
-        #print(image_path)
+
+        # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+        if self.only_obtain_label == True:
+            return None, None, img_label, None
+
         img_pil = read_image(image_path)
 
         if self.transform is not None:
