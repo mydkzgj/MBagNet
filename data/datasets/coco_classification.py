@@ -12,7 +12,6 @@ from PIL import Image
 from torchvision.datasets.utils import download_url, check_integrity, verify_str_arg
 
 
-
 class CocoClassification(VisionDataset):
     """
     CJY at 2020.9.29
@@ -71,7 +70,7 @@ class CocoClassification(VisionDataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        return img, label 
+        return img, label
 
     def __len__(self):
         return len(self.ids)
