@@ -43,6 +43,8 @@ class CocoClassification(VisionDataset):
         self.label_map = self.get_label_map()
         self.transform = self.transform  #此处用自己的函数
 
+        self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+
     def __getitem__(self, index):
         """
         Args:
@@ -57,6 +59,10 @@ class CocoClassification(VisionDataset):
         target = coco.loadAnns(ann_ids)
         label = self.createMultiLabel(target)
 
+        # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+        if self.only_obtain_label == True:
+            return None, label
+
         path = coco.loadImgs(img_id)[0]['file_name']
 
         img = Image.open(os.path.join(self.root, path)).convert('RGB')
@@ -65,7 +71,7 @@ class CocoClassification(VisionDataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        return img, label  #target
+        return img, label 
 
     def __len__(self):
         return len(self.ids)

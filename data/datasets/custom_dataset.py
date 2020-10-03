@@ -44,7 +44,7 @@ class ImageDataset(Dataset):
         super(ImageDataset, self).__init__()
         self.dataset = dataset
         self.transform = transform
-        self.only_obtain_label = False
+        self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
 
     def __len__(self):
         return len(self.dataset)
@@ -78,7 +78,7 @@ class SegmentationDataset(Dataset):
         self.target_transform = target_transform
         self.is_train = is_train
 
-        self.only_obtain_label == False
+        self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
 
         self.ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
         self.padding = cfg.DATA.TRANSFORM.PADDING   #不引入padding和crop

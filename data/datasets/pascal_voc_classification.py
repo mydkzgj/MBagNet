@@ -128,7 +128,13 @@ class VOCClassification(VisionDataset):
 
         assert (len(self.images) == len(self.annotations))
 
+        self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+
     def __getitem__(self, index):
+        # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+        if self.only_obtain_label == True:
+            return None, self.labels[index]
+
         img = Image.open(self.images[index]).convert('RGB')
         label = self.labels[index]
         if self.transform !=None:

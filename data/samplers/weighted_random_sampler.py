@@ -94,4 +94,3 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
                 self.weights[i] = self.categories_weights_dict[key]
 
         super(AutoWeightedRandomSampler, self).__init__(self.weights, self.num_samples)
-        print(1)
