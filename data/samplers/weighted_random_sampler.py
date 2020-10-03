@@ -87,6 +87,8 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
 
         self.categories_weights_dict = {}
         self.num_samples = len(self.data_source)
+        self.ratio = 1
+        self.length = self.num_samples * self.ratio
         self.weights = [0] * self.num_samples
         for key in self.index_dic.keys():
             self.categories_weights_dict[key] = self.num_samples/len(self.index_dic[key])
@@ -94,3 +96,6 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
                 self.weights[i] = self.categories_weights_dict[key]
 
         super(AutoWeightedRandomSampler, self).__init__(self.weights, self.num_samples)
+
+    def __len__(self):
+        return self.length
