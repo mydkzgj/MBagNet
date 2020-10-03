@@ -65,11 +65,85 @@ class ImageDataset(Dataset):
 
 
 
-# data.Dataset:
-
+# data.Dataset
 # 所有子类应该override__len__和__getitem__，前者提供了数据集的大小，后者支持整数索引，范围从0到len(self)
-
 class SegmentationDataset(Dataset):
+
+    # 创建LiverDataset类的实例时，就是在调用init初始化
+    def __init__(self, dataset, transform=None, target_transform=None, cfg=None, is_train=False):  # root表示图片路径
+        self.dataset = dataset
+        self.transform = transform
+        self.target_transform = target_transform
+        self.is_train = is_train
+
+        self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+
+        self.ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
+        self.padding = cfg.DATA.TRANSFORM.PADDING   #不引入padding和crop
+        if self.is_train == True:
+            self.pad_num = self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
+        else:
+            self.pad_num = 0
+        self.resizeH = cfg.DATA.TRANSFORM.SIZE[0]
+        self.resizeW = cfg.DATA.TRANSFORM.SIZE[1]
+        self.mask_resizeH = self.resizeH // self.ratio
+        self.mask_resizeW = self.resizeW // self.ratio
+        self.MaxPool = torch.nn.AdaptiveMaxPool2d((self.mask_resizeH, self.mask_resizeW))
+        self.MaskPad = torch.nn.ZeroPad2d(self.padding//self.ratio)   #padding最好是ratio的倍数
+
+        # 用于生成mask的维度
+        self.seg_num_classes = cfg.MODEL.SEG_NUM_CLASSES
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        image_path, mask_path_list, img_label = self.dataset[index]
+
+        # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+        if self.only_obtain_label == True:
+            return None, None, img_label, None
+
+        img_pil = read_image(image_path)
+
+        if self.transform is not None:
+            img = self.transform(img_pil)
+
+        mask_list = []
+        for mask_path in mask_path_list:
+            mask = Image.open(mask_path)
+            if self.target_transform is not None:
+                mask = self.target_transform(mask)
+            mask_list.append(mask[0:1])    # cjy 由于读进来的可能是3通道，所以增加[0:1]
+        mask = torch.cat(mask_list)
+
+        #上面让mask读入的为原图尺寸标签
+        mask = self.MaxPool(mask)  #mask的resize选择maxpool
+
+        # 随机剪切（不过像素级标签剪切平移是不是没什么用）  CJY 2020.8.3 目前处于关闭状态，也就是说没有数据扩增
+        #"""
+        if self.pad_num > 0:
+            mask = self.MaskPad(mask)
+            randH = random.randint(0, self.pad_num)
+            randW = random.randint(0, self.pad_num)
+        else:
+            randH = 0
+            randW = 0
+        mask_randH = randH//self.ratio
+        mask_randW = randW//self.ratio
+        img = img[:, randH:randH + self.resizeH, randW:randW + self.resizeW]
+        mask = mask[:, mask_randH:mask_randH + self.mask_resizeH, mask_randW:mask_randW + self.mask_resizeW]
+        #"""
+
+        if self.seg_num_classes == 1:
+            mask = torch.max(mask, dim=0, keepdim=True)[0]
+        elif self.seg_num_classes != mask.shape[0]:
+            raise Exception("SEG_NUM_CLASSES cannot match the channels of mask")
+
+        return img, mask, img_label, image_path  # 返回的是图片
+
+
+class ColormaskDataset(Dataset):
 
     # 创建LiverDataset类的实例时，就是在调用init初始化
     def __init__(self, dataset, transform=None, target_transform=None, cfg=None, is_train=False):  # root表示图片路径
@@ -130,7 +204,6 @@ class SegmentationDataset(Dataset):
             self.to_tensor_transform = T.Compose([
                 T.ToTensor(),
             ])
-
 
 
     def __len__(self):
@@ -245,7 +318,5 @@ class SegmentationDataset(Dataset):
             mask = mask_copy
 
         return img, mask, img_label, image_path  # 返回的是图片
-
-
 
 
