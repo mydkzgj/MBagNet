@@ -69,9 +69,11 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
         # 将data_source中的samples依照类别将同类的sample以列表的形式存入字典中
         self.index_dic = defaultdict(list)  # 这种字典与普通字典的却别？
         # for single-label and multi-label  at 2020.9.15
+        num_tuple = len(self.data_source[0])
+        label_index = 1 if num_tuple <= 3 else 2
         # for index, (_, label) in enumerate(self.data_source):
         for index, data in enumerate(self.data_source):  # 避免出现数据集返回值长度不一的情况
-            label = data[1]
+            label = data[label_index]
             if isinstance(label, int) == True:
                 self.index_dic[label].append(index)
             elif isinstance(label, list) == True:
@@ -80,6 +82,8 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
                 else:
                     int_label = converMultiLabel2SingleLabel(label, convertType="max_random")
                 self.index_dic[int_label].append(index)
+            else:
+                raise Exception("Wrong Label Type")
         self.categories = list(self.index_dic.keys())
 
         if hasattr(self.data_source, "only_obtain_label") == True:

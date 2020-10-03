@@ -107,6 +107,8 @@ class ClassBalanceRandomSampler(Sampler):
                 else:
                     int_label = converMultiLabel2SingleLabel(label, convertType="max_random")
                 self.index_dic[int_label].append(index)
+            else:
+                raise Exception("Wrong Label Type")
         self.categories = list(self.index_dic.keys())
 
         if hasattr(self.data_source, "only_obtain_label") == True:
