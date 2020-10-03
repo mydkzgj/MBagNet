@@ -4,7 +4,7 @@ import os
 from ..transforms import build_transforms, build_seg_transforms
 
 from .lib import init_dataset
-from .custom_dataset import ImageDataset, SegmentationDataset
+from .custom_dataset import ImageDataset, SegmentationDataset, ColormaskDataset
 
 from .pascal_voc_classification import VOCClassification
 from .coco_classification import CocoClassification
@@ -20,6 +20,11 @@ def make_dataset_for_custom_datasets(cfg, for_train):
     train_set = ImageDataset(dataset.train, train_transforms)
     val_set = ImageDataset(dataset.val, val_transforms)
     test_set = ImageDataset(dataset.test, test_transforms)
+
+    if "colormask" in cfg.DATA.DATASETS.NAMES:
+        train_set = ColormaskDataset(dataset.train, train_transforms)
+        val_set = ColormaskDataset(dataset.val, val_transforms)
+        test_set = ColormaskDataset(dataset.test, test_transforms)
 
     return train_set, val_set, test_set, classes_list
 
