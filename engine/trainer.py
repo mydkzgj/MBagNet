@@ -82,11 +82,6 @@ model2 = None
 global stat
 stat = []
 
-"""
-global stat
-stat.append(labels)
-stat = [torch.cat(stat, dim=0)]
-"""
 
 def transfer_weights(model_from, model_to):
     wf = copy.deepcopy(model_from.state_dict())
@@ -167,7 +162,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
 
         # 获取数据
         grade_imgs, grade_labels, seg_imgs, seg_gt_masks, seg_labels, gimg_path, simg_path = batch   #这个格式应该跟collate_fn的处理方式对应
-        #seg_gt_masks = torch.gt(seg_gt_masks, 0).float()
+
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
         seg_num = seg_gt_masks.shape[0] if seg_imgs is not None else 0
@@ -183,6 +178,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         elif grade_num == 0 and seg_num > 0:
             imgs = seg_imgs
             labels =seg_labels
+        #print(labels)
 
         # 置入cuda
         #grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 else grade_imgs
@@ -204,16 +200,14 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             # Concat MaskedImg with Original Imgs
             imgs = torch.cat([imgs, pos_masked_img, neg_masked_img])
             labels = torch.cat([labels, rlabels, rlabels * 0], dim=0)
-            # Change BatchDistribution for visulization or segmentation
+            # Change BatchDistribution for Visulization or Segmentation
             gcamBatchDistribution = (grade_num + seg_num + 2 * model.branch_img_num, 3 * model.branch_img_num)
 
         # Master 0 运行模型  (内置运行 Branch 1 Segmentation)
         # 设定有多少样本需要进行支路的运算
         model.transimitBatchDistribution(segBatchDistribution)
         model.transmitClassifierWeight()    #如果是BOF 会回传分类器权重
-        #imgs.requires_grad_(True)
-        #print(labels)
-        logits = model(imgs)                #为了减少显存，还是要区分grade和seg
+        logits = model(imgs)
         #grade_logits = logits[0:grade_num]
 
         if model.classifier_output_type == "single-label":
@@ -250,10 +244,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
         if model.gcamState == True and model.visualizer != None:
             input_size = (imgs.shape[2], imgs.shape[3])
             gcam_list, gcam_max_list, overall_gcam = model.visualizer.GenerateVisualiztions(logits, labels, input_size, visual_num=gcamBatchDistribution[1])
-            # model.visualizer.DrawVisualization(imgs[imgs.shape[0]-gcamBatchDistribution[1]:imgs.shape[0]], seg_gt_masks, savePath=r"D:\MIP\Experiment\1", imgsName=["1"])
-            # gcam_list, gcam_max_list, overall_gcam = model.generateGCAM(logits, labels, gcamBatchDistribution, device)
             model.visualization = overall_gcam
-
             if model.gcamSupervisedType == "seg_gtmask":
                 gcam_gtmasks = seg_gt_masks
                 gcam_labels = seg_labels
@@ -365,26 +356,6 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
             else:
                 loss += losses[lossKey] * weight[lossKey]
         loss = loss/model.accumulation_steps
-
-
-        """
-        if model.need_print_grad == 1:
-            print("gcam_loss")
-            if isinstance(gcam_loss, torch.Tensor):
-                print(gcam_max_list)
-                loss1 = gcam_loss * weight["gcam_mask_loss"]
-                loss1.backward(retain_graph=True)  # retain_graph=True
-            else:
-                loss1 = 0
-            print("cross_entropy_loss")
-            loss2 = losses["cross_entropy_loss"] * weight["cross_entropy_loss"]
-            loss2.backward(retain_graph=True)
-            print("all_loss")
-            print(loss1 + loss2)
-            (loss1 + loss2).backward(retain_graph=True)
-            print("llll")
-            print(loss)
-        #"""
 
         # 反向传播
         loss.backward()
@@ -513,17 +484,20 @@ def do_train(
         print("Failed to save model graph: {}".format(e))
 
     # 设置训练相关的metrics
-    metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
-                     "avg_precision": RunningAverage(Precision(output_transform=lambda x: (x["logits"], x["labels"]))),
-                     "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["logits"], x["labels"]))),  #由于训练集样本均衡后远离原始样本集，故只采用平均metric
-                     }
-    # CJY at 2020.8.10 多标签有改动
-    if model.classifier_output_type == "multi-label":
+    if model.classifier_output_type == "single-label":
+        metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
+                         "avg_precision": RunningAverage(Precision(output_transform=lambda x: (x["logits"], x["labels"]))),
+                         "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["logits"], x["labels"]))),
+                         }
+    elif model.classifier_output_type == "multi-label":
+        # CJY at 2020.8.10 多标签有改动
         # 在trainer中由于用了RunningAverage，所以用average=True, 原本会把batch输出，class-average。此处将其转置即可得到batch-average
         metrics_train = {"avg_total_loss": RunningAverage(output_transform=lambda x: x["total_loss"]),
                          "avg_precision": RunningAverage(Precision(average=False, output_transform=lambda x: (x["scores"].transpose(1,0), x["multi-labels"].transpose(1,0)), is_multilabel=True)),
                          "avg_accuracy": RunningAverage(Accuracy(output_transform=lambda x: (x["scores"], x["multi-labels"]), is_multilabel=True)), # 由于训练集样本均衡后远离原始样本集，故只采用平均metric
                          }
+    else:
+        raise Exception("Wrong Classifier Output Type")
 
     lossKeys = cfg.LOSS.TYPE.split(" ")
     # 设置loss相关的metrics
@@ -595,9 +569,6 @@ def do_train(
         y = output['labels']
         return y_pred, y  # output format is according to `Accuracy` docs
 
-    metrics_eval = {"overall_accuracy": Accuracy(output_transform=output_transform),
-                    "precision": Precision(output_transform=output_transform)}
-
     checkpointer = ModelCheckpoint(output_dir, cfg.MODEL.BACKBONE_NAME, checkpoint_period, n_saved=300, require_empty=False, start_step=start_epoch)
     checkpointer_save_graph = ModelCheckpoint(output_dir, cfg.MODEL.BACKBONE_NAME, checkpoint_period, n_saved=300, require_empty=False, start_step=-1)#, save_as_state_dict=False)
     timer = Timer(average=True)
@@ -605,12 +576,9 @@ def do_train(
     #3.将模块与engine联系起来attach
     #CJY at 2019.9.23
     trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'model': model, 'optimizer': optimizers[0]})
-
     #trainer.add_event_handler(Events.STARTED, checkpointer_save_graph, {'model': model, 'optimizer': optimizers[0]})
-
     timer.attach(trainer, start=Events.EPOCH_STARTED, resume=Events.ITERATION_STARTED,
                  pause=Events.ITERATION_COMPLETED, step=Events.ITERATION_COMPLETED)
-
 
     #4.事件处理函数
     @trainer.on(Events.STARTED)

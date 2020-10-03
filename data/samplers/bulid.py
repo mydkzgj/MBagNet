@@ -6,7 +6,7 @@
 from torch.utils.data.sampler import SequentialSampler
 from torch.utils.data.sampler import RandomSampler
 from .weighted_random_sampler import AutoWeightedRandomSampler
-from .class_balance_random_sampler import ClassBalanceRandomSampler, ClassBalanceRandomSamplerForSegmentation
+from .class_balance_random_sampler import ClassBalanceRandomSampler
 
 
 def build_sampler(cfg, data_source, num_classes, set_name="train", is_train=True):
@@ -58,7 +58,7 @@ def build_seg_sampler(cfg, data_source, num_classes, set_name="train", is_train=
         else:
             raise Exception("Wrong Set Name For Sampler!")
         max_num_categories = num_classes
-        sampler = ClassBalanceRandomSamplerForSegmentation(data_source, num_categories_per_batch, num_instances_per_category, max_num_categories, is_train=is_train)
+        sampler = ClassBalanceRandomSampler(data_source, num_categories_per_batch, num_instances_per_category, max_num_categories, is_train=is_train)
     else:
         raise Exception("Wrong Sampler Name!")
     return sampler

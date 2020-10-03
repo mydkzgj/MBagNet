@@ -185,7 +185,12 @@ class ClassBalanceRandomSampler(Sampler):
             num_categories_th = self.num_categories_per_batch - 1
             while len(copy_categories) > num_categories_th:   #若其小于每个batch需要抽取的class则停止
                 if self.is_train == True:
-                    selected_categories = random.sample(copy_categories, self.num_categories_per_batch)   #随机挑选类别
+                    if self.num_categories_per_batch == 1:  #按顺序提取类别
+                        sc = copy_categories.pop(0)
+                        selected_categories = [sc]
+                        copy_categories.append(sc)
+                    else:                                   #随机选取
+                        selected_categories = random.sample(copy_categories, self.num_categories_per_batch)   #随机挑选类别
 
                 batch_idxs = []
                 for category in selected_categories:
@@ -219,20 +224,10 @@ class ClassBalanceRandomSampler(Sampler):
         return self.length
 
 
-
+"""
 #CJY at 2019.9.26
 class ClassBalanceRandomSamplerForSegmentation(Sampler):
-    """
-    Randomly sample N identities, then for each identity,
-    randomly sample K instances, therefore batch size is N*K.
-    Args:
-    - data_source (list): list of (img_path, label).
-    - num_categories_per_batch (int): number of categories per batch.
-    - num_instances_per_category (int): number of instances per category in a batch.
-    - batch_size (int): number of examples in a batch.
-    -
-    """
-
+   
     def __init__(self, data_source, num_categories_per_batch, num_instances_per_category, max_num_categories, is_train=True):
         self.data_source = data_source
         self.num_categories_per_batch = num_categories_per_batch
@@ -361,3 +356,4 @@ class ClassBalanceRandomSamplerForSegmentation(Sampler):
 
     def __len__(self):
         return self.length
+"""

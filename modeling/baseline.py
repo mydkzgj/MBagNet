@@ -182,7 +182,6 @@ class Baseline(nn.Module):
         #"""
         #self.target_layer = [self.target_layer[-1]]
 
-
         self.visualizer = None
         self.visualization = None
         self.choose_visualizer()
@@ -191,7 +190,6 @@ class Baseline(nn.Module):
         #self.set_hooks()
 
         # CJY at 2020.9.5 regression module
-        #self.zoom_ratio = torch.tensor([1.0], requires_grad=True)
         """
         self.regression_linear = nn.Sequential(
             #nn.ReLU(),
