@@ -34,6 +34,9 @@ import cv2 as cv
 from metric.multi_pointing_game import *
 
 
+global first_create_floder
+= 0
+
 
 """
 # pytorch 转换 one-hot 方式 scatter
@@ -96,11 +99,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
         heatmapType = "visualization"
+        show_imagename_type = "number"
+        show_image_maxnum = 20
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
-        if os.path.exists(savePath) != True:
-            os.makedirs(savePath)
-        else:
-            raise Exception("Folder Exists")
+        if engine.state.iteration == 1:
+            if os.path.exists(savePath) != True:
+                os.makedirs(savePath)
+            else:
+                raise Exception("Folder Exists")
 
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
@@ -146,19 +152,22 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             else:
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
 
-            # 显示图片的数字还是原始名字
-            if hasattr(engine.state, "imgsName") != True:
-                engine.state.imgsName =[]
             #"""
-            # 数字
-            if engine.state.imgsName == []:
-                engine.state.imgsName = ["{}".format(i) for i in range(imgs.shape[0])]
-            else:
-                engine.state.imgsName = [str(int(i)+imgs.shape[0]) for i in engine.state.imgsName]
-            if int(engine.state.imgsName[0]) >= 20:
+            #if hasattr(engine.state, "imgs_name") != True:
+            #    engine.state.imgs_name = []
+            #    engine.state.imgs_index = []
+            # 显示图片的数字还是原始名字
+            start_index = (engine.state.iteration - 1) * imgs.shape[0] + 1
+            engine.state.imgs_index = [start_index + i for i in range(imgs.shape[0])]
+            if show_imagename_type == "name":  #名字
+                engine.state.imgs_name = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
+            elif show_imagename_type == "number":  # 数字
+                engine.state.imgs_name = ["{}".format(i) for i in engine.state.imgs_index]
+
+            if engine.state.imgs_index[0] >= show_image_maxnum:
                 exit(0)
             #"""
-            # 名字
+
             #engine.state.imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             # 观测类别
@@ -189,7 +198,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
                 if showFlag == 1:
                     # 绘制可视化结果
-                    model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgsName)
+                    model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgs_name)
 
                 if dataType == "seg":
                     if hasattr(engine.state, "MPG")!=True:
