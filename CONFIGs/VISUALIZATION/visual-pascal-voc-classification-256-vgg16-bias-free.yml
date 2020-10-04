@@ -156,7 +156,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/save_models/PASCAL-VOC/lr0.0001/vgg-bias-free/vgg16_model_20.pth"#"./work_space/densenet121_model_20.pth"
+ WEIGHT: "D:/Visualization/save_models/PASCAL-VOC/vgg-bias-free/vgg16_model_20.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

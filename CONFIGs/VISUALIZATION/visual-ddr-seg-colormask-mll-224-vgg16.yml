@@ -156,7 +156,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/save_models/semi-MCELoss+MSELoss/vgg/vgg16_model_20.pth" #"D:/MIP/Experiment/saved_model/lesion_multilabel/colormask-224/vgg/vgg16_model_25.pth"
+ WEIGHT: "D:/Visualization/save_models/DDR-COLORMASK/semi-MCELoss+MSELoss/vgg/vgg16_model_20.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

@@ -95,9 +95,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         seg_masks = seg_masks.to(device) if torch.cuda.device_count() >= 1 and seg_masks is not None else seg_masks
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
-        #dataType = "grade"
-        heatmapType = "visualization"  # "GradCAM"#"segmenters"#"GradCAM"#"computeSegMetric"  # "grade", "segmenters", "computeSegMetric", "GradCAM"
-        savePath = r"D:\MIP\Experiment\1"  #r"D:\graduateStudent\eyes datasets\cjy\visualization"#
+        heatmapType = "visualization"
+        savePath = r"D:\Visualization\results"
 
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
@@ -123,24 +122,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             labels = seg_labels
             masks = seg_masks
             img_paths = simg_path
-
-        """
-        if dataType == "grade":
-            imgs = grade_imgs
-            labels = torch.zeros_like(grade_labels) + 1#333#243
-            masks = None
-            img_paths = gimg_path
-        elif dataType == "seg":
-            imgs = seg_imgs
-            labels = seg_labels
-            masks = seg_masks
-            img_paths = simg_path
-        elif dataType == "joint":
-            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
-            labels = torch.cat([grade_labels, seg_labels], dim=0)
-            masks = seg_masks
-            img_paths = gimg_path + simg_path
-        """
 
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
