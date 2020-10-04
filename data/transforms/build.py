@@ -8,6 +8,7 @@ import torchvision.transforms as T
 import data.transforms.cla_transforms as CT
 import data.transforms.seg_transforms as ST
 
+
 #from .cla_transforms import RandomErasing, PaddingToSquare
 
 def build_transforms(cfg, is_train=True):
