@@ -65,8 +65,8 @@ def build_transforms_for_colormask(cfg, is_train=True):
     #mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
     if is_train:
         transform = ST.Compose([
-            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
-            T.Resize(cfg.DATA.TRANSFORM.SIZE),
+            CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            T.Resize(cfg.DATA.TRANSFORM.SIZE, interpolation=Image.BOX),
             T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
             T.Pad(cfg.DATA.TRANSFORM.PADDING),
             T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
@@ -76,7 +76,7 @@ def build_transforms_for_colormask(cfg, is_train=True):
         ])
 
         target_transform = ST.Compose([
-            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE, interpolation=Image.BOX),
             T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
             T.Pad(cfg.DATA.TRANSFORM.PADDING),
@@ -87,15 +87,15 @@ def build_transforms_for_colormask(cfg, is_train=True):
 
     else:
         transform = T.Compose([
-            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
-            T.Resize(cfg.DATA.TRANSFORM.SIZE),
+            CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            T.Resize(cfg.DATA.TRANSFORM.SIZE, interpolation=Image.BOX),
             T.ToTensor(),
             T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
         ])
 
         target_transform = T.Compose([
-            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
-            T.Resize(cfg.DATA.TRANSFORM.SIZE),
+            CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            T.Resize(cfg.DATA.TRANSFORM.SIZE, interpolation=Image.BOX),
             T.ToTensor(),
         ])
 
