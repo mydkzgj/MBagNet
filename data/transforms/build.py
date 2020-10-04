@@ -50,7 +50,7 @@ def build_seg_transforms(cfg, is_train=True):
             ST.RandomErasing(p=cfg.DATA.TRANSFORM.RE_PROB,)  # 由于之前已经做过归一化，所以v设置为0即可
         ])
     else:
-        transform = T.Compose([
+        transform = ST.Compose([
             ST.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             ST.Resize(cfg.DATA.TRANSFORM.SIZE),
             ST.ToTensor(),
@@ -64,7 +64,7 @@ def build_transforms_for_colormask(cfg, is_train=True):
     #ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
     #mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
     if is_train:
-        transform = ST.Compose([
+        transform = T.Compose([
             CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE, interpolation=Image.BOX),
             T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
@@ -75,7 +75,7 @@ def build_transforms_for_colormask(cfg, is_train=True):
             T.RandomErasing(p=cfg.DATA.TRANSFORM.RE_PROB,)  # 由于之前已经做过归一化，所以v设置为0即可
         ])
 
-        target_transform = ST.Compose([
+        target_transform = T.Compose([
             CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE, interpolation=Image.BOX),
             T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
