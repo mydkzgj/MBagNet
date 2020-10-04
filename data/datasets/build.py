@@ -13,20 +13,12 @@ def make_dataset_for_custom_datasets(cfg, for_train):
     dataset = init_dataset(cfg.DATA.DATASETS.NAMES, root=cfg.DATA.DATASETS.ROOT_DIR)
     classes_list = dataset.category  # 建立classes_list
 
-    if "colormask" in cfg.DATA.DATASETS.NAMES:
-        train_transforms, train_target_transforms = build_transforms_for_colormask(cfg, is_train=for_train)
-        val_transforms, val_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
-        test_transforms, test_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
-        train_set = DDRColormaskDataset(dataset.train, train_transforms, train_target_transforms)
-        val_set = DDRColormaskDataset(dataset.val, val_transforms, val_target_transforms)
-        test_set = DDRColormaskDataset(dataset.test, test_transforms, test_target_transforms)
-    else:
-        train_transforms = build_transforms(cfg, is_train=for_train)
-        val_transforms = build_transforms(cfg, is_train=False)
-        test_transforms = build_transforms(cfg, is_train=False)
-        train_set = ImageDataset(dataset.train, train_transforms)
-        val_set = ImageDataset(dataset.val, val_transforms)
-        test_set = ImageDataset(dataset.test, test_transforms)
+    train_transforms = build_transforms(cfg, is_train=for_train)
+    val_transforms = build_transforms(cfg, is_train=False)
+    test_transforms = build_transforms(cfg, is_train=False)
+    train_set = ImageDataset(dataset.train, train_transforms)
+    val_set = ImageDataset(dataset.val, val_transforms)
+    test_set = ImageDataset(dataset.test, test_transforms)
 
     return train_set, val_set, test_set, classes_list
 

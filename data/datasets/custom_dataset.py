@@ -246,7 +246,7 @@ class DDRColormaskDataset(Dataset):
 
 
 
-class ColormaskDataset(Dataset):
+class ColormaskDataset0000(Dataset):
     # 创建LiverDataset类的实例时，就是在调用init初始化
     def __init__(self, dataset, transform=None, target_transform=None, cfg=None, is_train=False):  # root表示图片路径
         self.dataset = dataset
