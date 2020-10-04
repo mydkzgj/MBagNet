@@ -109,9 +109,9 @@ class SegmentationDataset(Dataset):
             for mask_p in mask_path:
                 mask_pil = Image.open(mask_p)
                 if self.target_transform is not None:
-                    mask.append(mask_pil)
+                    mask.append(self.target_transform(mask_pil))              #[0:1]
                 else:
-                    mask.append(self.target_transform(mask_pil)[0:1])
+                    mask.append(mask_pil)
         else:
             raise Exception("Wrong Mask Path Type")
 
