@@ -4,6 +4,7 @@
 @contact: sherlockliao01@gmail.com
 """
 
+import os
 import os.path as osp
 from PIL import Image
 from torch.utils.data import Dataset
@@ -11,6 +12,7 @@ import torch
 import numpy as np
 import random
 import cv2 as cv
+import torchvision.transforms.functional as TF
 
 # CJY for color mask
 def computeComponents(input):
@@ -100,8 +102,8 @@ class SegmentationDataset(Dataset):
         # target
         if isinstance(mask_path, str):
             mask_pil = Image.open(mask_path)
-            if self.transform is not None:
-                mask = self.transform(mask_pil)
+            if self.target_transform is not None:
+                mask = self.target_transform(mask_pil)
             else:
                 mask = mask_pil
         elif isinstance(mask_path, list):
@@ -132,86 +134,114 @@ class SegmentationDataset(Dataset):
         return img, mask, img_label, image_path  # 返回的是图片
 
 
-# data.Dataset
-# 所有子类应该override__len__和__getitem__，前者提供了数据集的大小，后者支持整数索引，范围从0到len(self)
-class SegmentationDataset2(Dataset):
 
+class DDRColormaskDataset(Dataset):
     # 创建LiverDataset类的实例时，就是在调用init初始化
-    def __init__(self, dataset, transform=None, target_transform=None, cfg=None, is_train=False):  # root表示图片路径
+    def __init__(self, dataset, transform=None, target_transform=None, seg_transforms=None, cfg=None, is_train=False):  # root表示图片路径
         self.dataset = dataset
         self.transform = transform
         self.target_transform = target_transform
+        self.seg_transforms = seg_transforms
         self.is_train = is_train
 
-        self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+        self.only_obtain_label = False            # CJY at 2020.10.3 for sampler tranverse dataset rapidly
 
-        self.ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
-        self.padding = cfg.DATA.TRANSFORM.PADDING   #不引入padding和crop
+        self.lesionTypeList = ["MA", "EX", "SE", "HE"]
+        self.ColorMap = {
+            "MA": torch.Tensor([0, 255, 0]).unsqueeze(1).unsqueeze(1) / 255.0,
+            "EX": torch.Tensor([255, 255, 0]).unsqueeze(1).unsqueeze(1) / 255.0,
+            "SE": torch.Tensor([255, 165, 0]).unsqueeze(1).unsqueeze(1) / 255.0,
+            "HE": torch.Tensor([255, 0, 0]).unsqueeze(1).unsqueeze(1) / 255.0,
+        }
+        self.drawOrder = ["HE", "SE", "EX", "MA"]
+
         if self.is_train == True:
-            self.pad_num = self.padding * 2 - 1  #为了后面直接使用 加入 *2-1， 用于生成随机数
+            self.shuffle_th = 0  # 0.5
+            self.pick_channel_th = -1
         else:
-            self.pad_num = 0
-        self.resizeH = cfg.DATA.TRANSFORM.SIZE[0]
-        self.resizeW = cfg.DATA.TRANSFORM.SIZE[1]
-        self.mask_resizeH = self.resizeH // self.ratio
-        self.mask_resizeW = self.resizeW // self.ratio
-        self.MaxPool = torch.nn.AdaptiveMaxPool2d((self.mask_resizeH, self.mask_resizeW))
-        self.MaskPad = torch.nn.ZeroPad2d(self.padding//self.ratio)   #padding最好是ratio的倍数
-
-        # 用于生成mask的维度
-        self.seg_num_classes = cfg.MODEL.SEG_NUM_CLASSES
+            self.shuffle_th = 1
+            self.pick_channel_th = 1
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        image_path, mask_path_list, img_label = self.dataset[index]
+        image_path, mask_path, img_label = self.dataset[index]
 
         # CJY at 2020.10.3 for sampler tranverse dataset rapidly
         if self.only_obtain_label == True:
             return None, None, img_label, None
 
+        # img
         img_pil = read_image(image_path)
-
         if self.transform is not None:
             img = self.transform(img_pil)
-
-        mask_list = []
-        for mask_path in mask_path_list:
-            mask = Image.open(mask_path)
-            if self.target_transform is not None:
-                mask = self.target_transform(mask)
-            mask_list.append(mask[0:1])    # cjy 由于读进来的可能是3通道，所以增加[0:1]
-        mask = torch.cat(mask_list)
-
-        #上面让mask读入的为原图尺寸标签
-        mask = self.MaxPool(mask)  #mask的resize选择maxpool
-
-        # 随机剪切（不过像素级标签剪切平移是不是没什么用）  CJY 2020.8.3 目前处于关闭状态，也就是说没有数据扩增
-        #"""
-        if self.pad_num > 0:
-            mask = self.MaskPad(mask)
-            randH = random.randint(0, self.pad_num)
-            randW = random.randint(0, self.pad_num)
         else:
-            randH = 0
-            randW = 0
-        mask_randH = randH//self.ratio
-        mask_randW = randW//self.ratio
-        img = img[:, randH:randH + self.resizeH, randW:randW + self.resizeW]
-        mask = mask[:, mask_randH:mask_randH + self.mask_resizeH, mask_randW:mask_randW + self.mask_resizeW]
-        #"""
+            img = img_pil
 
-        if self.seg_num_classes == 1:
-            mask = torch.max(mask, dim=0, keepdim=True)[0]
-        elif self.seg_num_classes != mask.shape[0]:
-            raise Exception("SEG_NUM_CLASSES cannot match the channels of mask")
+        # target  用img筛选mask
+        mask = []
+        origin_mask = []
+        img_numpy = np.asarray(img_pil)
+        img_numpy_nonzero = np.sum(img_numpy, axis=0, keepdim=True) > 0
+        for mask_p in mask_path:
+            mask_pil = Image.open(mask_p)
+            mask_numpy = np.asarray(mask_pil)
+            mask_numpy = mask_numpy * img_numpy_nonzero
+            mask_pil = Image.fromarray(mask_numpy)
+            mk = self.target_transform(mask_pil)
+            mask.append(mk)
+            origin_mask.append(TF.to_tensor(TF.resize(mask_pil, (mk.shape[1], mk.shape[1]), Image.BOX)))
+
+        # both
+        #if self.seg_transforms is not None:
+        #    img, mask = self.seg_transforms(img, mask)
+
+        if isinstance(mask, list):
+            mask = torch.cat(mask, dim=0)
+
+        # CJY at 2020.9.2  将mask按照draw order进行重叠位置得筛除（保留后来的，使得没有重叠位置）
+        mask_no_overlap = mask.clone()
+        _, imgName = os.path.split(image_path)
+        if "HE" in imgName or "SE" in imgName or "EX" in imgName or "MA" in imgName:
+            for lesionType in self.drawOrder:
+                index = self.lesionTypeList.index(lesionType)
+                if lesionType in imgName:
+                    mask_no_overlap = mask_no_overlap * (1 - mask[index:index + 1])
+                    mask_no_overlap[index:index + 1] = mask[index:index + 1]
+                else:
+                    mask_no_overlap[index:index + 1] = mask_no_overlap[index:index + 1] * 0
+        else:
+            for lesionType in self.drawOrder:
+                index = self.lesionTypeList.index(lesionType)
+                mask_no_overlap = mask_no_overlap * (1 - mask[index:index + 1])
+                mask_no_overlap[index:index + 1] = mask[index:index + 1]
+
+        # 将通道随机打乱
+        if random.random() > self.shuffle_th:
+            mask_no_overlap_list = [mask_no_overlap[i:i + 1] for i in range(mask_no_overlap.shape[0])]
+            random.shuffle(mask_no_overlap_list)
+            mask_no_overlap = torch.cat(mask_no_overlap_list, dim=0)
+
+        # 依照mask_no_overlap进行绘制
+        canvas = torch.zeros_like(img)
+        for index, lesionType in enumerate(self.lesionTypeList):
+            # sum = mask_no_overlap[index].sum()
+            # sum = mask_no_overlap[index].sum().gt(0).int()
+            # sum = torch.nn.functional.adaptive_max_pool2d(mask_no_overlap[index:index + 1], (7, 7)).sum()  #计算7*7max-sum
+            sum = computeComponents(mask_no_overlap[index])  # 计算联通域个数
+            img_label[index] = sum  # 用于回归
+            if sum != 0:
+                canvas = canvas * (1 - mask_no_overlap[index:index + 1]) + mask_no_overlap[index:index + 1] * self.ColorMap[self.lesionTypeList[index]]
+            sum_mask = torch.sum(mask_no_overlap, dim=0, keepdim=True).ne(0).float()
+
+        img = self.norm_transform(canvas) * sum_mask
 
         return img, mask, img_label, image_path  # 返回的是图片
 
 
-class ColormaskDataset(Dataset):
 
+class ColormaskDataset(Dataset):
     # 创建LiverDataset类的实例时，就是在调用init初始化
     def __init__(self, dataset, transform=None, target_transform=None, cfg=None, is_train=False):  # root表示图片路径
         self.dataset = dataset

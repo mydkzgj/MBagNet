@@ -3,7 +3,7 @@
 @author:  chenjiayang
 @contact: sychenjiayang@163.com
 """
-
+from PIL import Image
 import torchvision.transforms as T
 from . import cla_transforms as CT
 from . import seg_transforms as ST
@@ -60,48 +60,43 @@ def build_seg_transforms(cfg, is_train=True):
     return transform
 
 
-"""
-def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素   #img, mask, together
-    mean = cfg.DATA.TRANSFORM.PIXEL_MEAN
-    std = cfg.DATA.TRANSFORM.PIXEL_STD
-    normalize_transform = T.Normalize(mean=mean, std=std)
-    ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
-    mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
+def build_transforms_for_colormask(cfg, is_train=True):
+    #ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
+    #mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
+    if is_train:
+        transform = ST.Compose([
+            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            T.Resize(cfg.DATA.TRANSFORM.SIZE),
+            T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
+            T.Pad(cfg.DATA.TRANSFORM.PADDING),
+            T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
+            T.ToTensor(),
+            T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
+            T.RandomErasing(p=cfg.DATA.TRANSFORM.RE_PROB,)  # 由于之前已经做过归一化，所以v设置为0即可
+        ])
 
-    if is_train:  #差别就在于for train img加入了Padding
-        if type == "img":
-            transform = T.Compose([
-                T.Resize(cfg.DATA.TRANSFORM.SIZE),
-                # T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
-                T.Pad(cfg.DATA.TRANSFORM.PADDING),  #暂时先去掉padding，因为有可能让mask中的病灶全部被剪切去
-                # T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
-                T.ToTensor(),
-                normalize_transform,
-                # RandomErasing(probability=cfg.DATA.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
-            ])
-        elif type == "mask":
-            transform = T.Compose([
-                # T.Resize(mask_size), #interpolation=Image.ANTIALIAS),#,Image.NEAREST),   #对于掩膜标签 应该不改变标签值，使用最邻近插值
-                # T.Pad(cfg.DATA.TRANSFORM.PADDING),
-                T.ToTensor(),
-            ])
+        target_transform = ST.Compose([
+            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            T.Resize(cfg.DATA.TRANSFORM.SIZE, interpolation=Image.BOX),
+            T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
+            T.Pad(cfg.DATA.TRANSFORM.PADDING),
+            T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
+            T.ToTensor(),
+            T.RandomErasing(p=cfg.DATA.TRANSFORM.RE_PROB,)  # 由于之前已经做过归一化，所以v设置为0即可
+        ])
+
     else:
-        if type == "img":
-            transform = T.Compose([
-                T.Resize(cfg.DATA.TRANSFORM.SIZE),
-                # T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
-                # T.Pad(cfg.DATA.TRANSFORM.PADDING),  #暂时先去掉padding，因为有可能让mask中的病灶全部被剪切去
-                # T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
-                T.ToTensor(),
-                normalize_transform,
-                # RandomErasing(probability=cfg.DATA.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)
-            ])
-        elif type == "mask":   #mask不做resize和padding，外面做
-            transform = T.Compose([
-                # T.Resize(mask_size), #interpolation=Image.ANTIALIAS),#,Image.NEAREST),   #对于掩膜标签 应该不改变标签值，使用最邻近插值
-                # T.Pad(cfg.DATA.TRANSFORM.PADDING),
-                T.ToTensor(),
-            ])
+        transform = T.Compose([
+            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            T.Resize(cfg.DATA.TRANSFORM.SIZE),
+            T.ToTensor(),
+            T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
+        ])
 
-    return transform
-"""
+        target_transform = T.Compose([
+            T.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            T.Resize(cfg.DATA.TRANSFORM.SIZE),
+            T.ToTensor(),
+        ])
+
+    return transform, target_transform

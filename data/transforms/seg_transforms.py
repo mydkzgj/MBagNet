@@ -155,6 +155,7 @@ class Resize(object):
         assert isinstance(size, int) or (isinstance(size, Iterable) and len(size) == 2)
         self.size = size
         self.interpolation = interpolation
+        self.target_interpolation = Image.BOX
 
     def __call__(self, img, target):
         """
@@ -166,9 +167,9 @@ class Resize(object):
         """
         img = TF.resize(img, self.size, self.interpolation)
         if isinstance(target, list):
-            target = [TF.resize(tar, self.size, self.interpolation) for tar in target]
+            target = [TF.resize(tar, self.size, self.target_interpolation) for tar in target]
         else:
-            target = TF.resize(target, self.size, self.interpolation)   #是否应该使用 Image.BOX
+            target = TF.resize(target, self.size, self.target_interpolation)   #是否应该使用 Image.BOX
         return img, target
 
     def __repr__(self):
