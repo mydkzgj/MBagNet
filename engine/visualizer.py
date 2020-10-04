@@ -148,10 +148,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             else:
                 p_labels = torch.argmax(logits, dim=1)  # predict_label
 
-            #"""
-            #if hasattr(engine.state, "imgs_name") != True:
-            #    engine.state.imgs_name = []
-            #    engine.state.imgs_index = []
             # 显示图片的数字还是原始名字
             start_index = (engine.state.iteration - 1) * imgs.shape[0] + 1
             engine.state.imgs_index = [start_index + i for i in range(imgs.shape[0])]
@@ -160,11 +156,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             elif show_imagename_type == "number":  # 数字
                 engine.state.imgs_name = ["{}".format(i) for i in engine.state.imgs_index]
 
-            if engine.state.imgs_index[0] >= show_image_maxnum:
+            if engine.state.imgs_index[0] > show_image_maxnum:
                 exit(0)
-            #"""
-
-            #engine.state.imgsName = [os.path.split(img_path)[1].split(".")[0] for img_path in img_paths]
 
             # 观测类别
             if model.num_classes < 30:
