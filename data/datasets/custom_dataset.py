@@ -186,7 +186,7 @@ class DDRColormaskDataset(Dataset):
         mask = []
         origin_mask = []
         img_numpy = np.asarray(img_pil)
-        img_numpy_nonzero = np.sum(img_numpy, axis=2, keepdims=True) > 0
+        img_numpy_nonzero = np.sum(img_numpy, axis=2) > 0
         for mask_p in mask_path:
             mask_pil = Image.open(mask_p)
             mask_numpy = np.asarray(mask_pil)
