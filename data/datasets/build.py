@@ -29,6 +29,7 @@ def make_dataset_for_custom_datasets(cfg, for_train):
     return train_set, val_set, test_set, classes_list
 
 def make_seg_dataset_for_custom_datasets(cfg, for_train):
+    """
     train_transforms = build_seg_transforms(cfg, is_train=for_train, type="img")
     val_transforms = build_seg_transforms(cfg, is_train=False, type="img")
     test_transforms = build_seg_transforms(cfg, is_train=False, type="img")
@@ -42,6 +43,18 @@ def make_seg_dataset_for_custom_datasets(cfg, for_train):
     train_set = SegmentationDataset(dataset.seg_train, train_transforms, train_mask_transforms, cfg, is_train=for_train)
     val_set = SegmentationDataset(dataset.seg_val, val_transforms, val_mask_transforms, cfg, is_train=False)
     test_set = SegmentationDataset(dataset.seg_test, test_transforms, test_mask_transforms, cfg, is_train=False)
+    """
+
+    train_seg_transforms = build_seg_transforms(cfg, is_train=for_train)
+    val_seg_transforms = build_seg_transforms(cfg, is_train=False)
+    test_seg_transforms = build_seg_transforms(cfg, is_train=False)
+
+    dataset = init_dataset(cfg.DATA.DATASETS.SEG_NAMES, root=cfg.DATA.DATASETS.ROOT_DIR)
+    classes_list = dataset.category  # 建立classes_list
+
+    train_set = SegmentationDataset(dataset.seg_train, seg_transforms=train_seg_transforms, is_train=for_train)
+    val_set = SegmentationDataset(dataset.seg_val, seg_transforms=val_seg_transforms, is_train=False)
+    test_set = SegmentationDataset(dataset.seg_test, seg_transforms=test_seg_transforms, is_train=False)
 
     return train_set, val_set, test_set, classes_list
 

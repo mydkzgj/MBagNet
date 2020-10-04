@@ -5,33 +5,61 @@
 """
 
 import torchvision.transforms as T
+import data.transforms.cla_transforms as CT
+import data.transforms.seg_transforms as ST
 
-from .transforms import RandomErasing, PaddingToSquare
+#from .cla_transforms import RandomErasing, PaddingToSquare
 
 def build_transforms(cfg, is_train=True):
-    normalize_transform = T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD)
     if is_train:
         transform = T.Compose([
-            PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE),
             T.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
             T.Pad(cfg.DATA.TRANSFORM.PADDING),
             T.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
             T.ToTensor(),
-            normalize_transform,
-            RandomErasing(probability=cfg.DATA.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)  #是不是应该在归一化之前
+            T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
+            T.RandomErasing(p=cfg.DATA.TRANSFORM.RE_PROB)  # 由于之前已经做过归一化，所以v设置为0即可
+            #RandomErasing(probability=cfg.DATA.TRANSFORM.RE_PROB, mean=cfg.DATA.TRANSFORM.PIXEL_MEAN)  #是不是应该在归一化之前
         ])
     else:
         transform = T.Compose([
-            PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            CT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             T.Resize(cfg.DATA.TRANSFORM.SIZE),
             T.ToTensor(),
-            normalize_transform
+            T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD)
         ])
 
     return transform
 
 
+def build_seg_transforms(cfg, is_train=True):
+    #ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
+    #mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
+    if is_train:
+        transform = ST.Compose([
+            ST.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            ST.Resize(cfg.DATA.TRANSFORM.SIZE),
+            ST.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
+            ST.Pad(cfg.DATA.TRANSFORM.PADDING),
+            ST.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
+            ST.ToTensor(),
+            ST.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
+            ST.RandomErasing(p=cfg.DATA.TRANSFORM.RE_PROB,)  # 由于之前已经做过归一化，所以v设置为0即可
+        ])
+    else:
+        transform = T.Compose([
+            ST.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            ST.Resize(cfg.DATA.TRANSFORM.SIZE),
+            ST.ToTensor(),
+            ST.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
+        ])
+
+    return transform
+
+
+"""
 def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素   #img, mask, together
     mean = cfg.DATA.TRANSFORM.PIXEL_MEAN
     std = cfg.DATA.TRANSFORM.PIXEL_STD
@@ -75,3 +103,4 @@ def build_seg_transforms(cfg, is_train=True, type="img"):  #去除随机因素  
             ])
 
     return transform
+"""

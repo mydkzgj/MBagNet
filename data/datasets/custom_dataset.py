@@ -40,7 +40,7 @@ def read_image(img_path):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, dataset, transform=None):
+    def __init__(self, dataset, transform=None, target_transform=None):
         super(ImageDataset, self).__init__()
         self.dataset = dataset
         self.transform = transform
@@ -57,17 +57,80 @@ class ImageDataset(Dataset):
             return None, img_label, None
 
         img = read_image(img_path)
-
         if self.transform is not None:
             img = self.transform(img)
 
-        return img, img_label, img_path
+        if self.target_transform is not None:
+            img_label = self.target_transform(img_label)
 
+        return img, img_label, img_path
 
 
 # data.Dataset
 # 所有子类应该override__len__和__getitem__，前者提供了数据集的大小，后者支持整数索引，范围从0到len(self)
 class SegmentationDataset(Dataset):
+    # 创建LiverDataset类的实例时，就是在调用init初始化
+    def __init__(self, dataset, transform=None, target_transform=None, seg_transforms=None, is_train=False):  # root表示图片路径
+        self.dataset = dataset
+        self.transform = transform
+        self.target_transform = target_transform
+        self.seg_transforms = seg_transforms
+        self.is_train = is_train
+
+        self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        image_path, mask_path, img_label = self.dataset[index]
+
+        # CJY at 2020.10.3 for sampler tranverse dataset rapidly
+        if self.only_obtain_label == True:
+            return None, None, img_label, None
+
+        # img
+        img_pil = read_image(image_path)
+        if self.transform is not None:
+            img = self.transform(img_pil)
+        else:
+            img = img_pil
+
+        # target
+        if isinstance(mask_path, str):
+            mask_pil = Image.open(mask_path)
+            if self.transform is not None:
+                mask = self.transform(mask_pil)
+            else:
+                mask = mask_pil
+        elif isinstance(mask_path, list):
+            mask = []
+            for mask_p in mask_path:
+                mask_pil = Image.open(mask_p)
+                if self.target_transform is not None:
+                    mask.append(mask_pil)
+                else:
+                    mask.append(self.target_transform(mask_pil)[0:1])
+        else:
+            raise Exception("Wrong Mask Path Type")
+
+        # both
+        if self.seg_transforms is not None:
+            img, mask = self.seg_transforms(img, mask)
+
+        """
+        if self.seg_num_classes == 1:
+            mask = torch.max(mask, dim=0, keepdim=True)[0]
+        elif self.seg_num_classes != mask.shape[0]:
+            raise Exception("SEG_NUM_CLASSES cannot match the channels of mask")
+        #"""
+
+        return img, mask, img_label, image_path  # 返回的是图片
+
+
+# data.Dataset
+# 所有子类应该override__len__和__getitem__，前者提供了数据集的大小，后者支持整数索引，范围从0到len(self)
+class SegmentationDataset2(Dataset):
 
     # 创建LiverDataset类的实例时，就是在调用init初始化
     def __init__(self, dataset, transform=None, target_transform=None, cfg=None, is_train=False):  # root表示图片路径
@@ -177,7 +240,7 @@ class ColormaskDataset(Dataset):
             normalize_transform = T.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD)
             self.norm_transform = T.Compose([normalize_transform])
 
-            from ..transforms.transforms import RandomErasing
+            from ..transforms.cla_transforms import RandomErasing
             if self.is_train == True:
                 m_pad = cfg.DATA.TRANSFORM.PADDING * 4
                 prob = cfg.DATA.TRANSFORM.PROB
