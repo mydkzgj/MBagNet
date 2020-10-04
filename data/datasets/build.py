@@ -38,9 +38,9 @@ def make_seg_dataset_for_custom_datasets(cfg, for_train):
         train_transforms, train_target_transforms = build_transforms_for_colormask(cfg, is_train=for_train)
         val_transforms, val_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
         test_transforms, test_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
-        train_set = DDRColormaskDataset(dataset.train, train_transforms, train_target_transforms)
-        val_set = DDRColormaskDataset(dataset.val, val_transforms, val_target_transforms)
-        test_set = DDRColormaskDataset(dataset.test, test_transforms, test_target_transforms)
+        train_set = DDRColormaskDataset(dataset.seg_train, train_transforms, train_target_transforms)
+        val_set = DDRColormaskDataset(dataset.seg_val, val_transforms, val_target_transforms)
+        test_set = DDRColormaskDataset(dataset.seg_test, test_transforms, test_target_transforms)
     else:
         train_seg_transforms = build_seg_transforms(cfg, is_train=for_train)
         val_seg_transforms = build_seg_transforms(cfg, is_train=False)
