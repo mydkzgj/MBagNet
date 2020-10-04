@@ -119,6 +119,9 @@ class SegmentationDataset(Dataset):
         if self.seg_transforms is not None:
             img, mask = self.seg_transforms(img, mask)
 
+        if isinstance(mask, list):
+            mask = torch.cat(mask, dim=0)
+
         """
         if self.seg_num_classes == 1:
             mask = torch.max(mask, dim=0, keepdim=True)[0]
