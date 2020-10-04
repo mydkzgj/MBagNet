@@ -131,10 +131,7 @@ class Normalize(object):
         Returns:
             Tensor: Normalized Tensor image.
         """
-        if isinstance(target, list):
-            tensor = [TF.normalize(ten, self.mean, self.std, self.inplace) for ten in tensor]
-        else:
-            tensor = TF.normalize(tensor, self.mean, self.std, self.inplace)
+        tensor = TF.normalize(tensor, self.mean, self.std, self.inplace)
         return tensor, target
 
     def __repr__(self):
