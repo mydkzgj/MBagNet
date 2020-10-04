@@ -96,7 +96,11 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         seg_labels = seg_labels.to(device) if torch.cuda.device_count() >= 1 and seg_labels is not None else seg_labels
 
         heatmapType = "visualization"
-        savePath = r"D:\Visualization\results"
+        savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
+        if os.path.exists(savePath) != True:
+            os.makedirs(savePath)
+        else:
+            raise Exception("Folder Exists")
 
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
