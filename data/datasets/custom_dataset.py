@@ -193,8 +193,9 @@ class DDRColormaskDataset(Dataset):
             mask_numpy = mask_numpy * img_numpy_nonzero
             mask_pil = Image.fromarray(mask_numpy)
             mk = self.target_transform(mask_pil)
-            mask.append(mk)
-            origin_mask.append(TF.to_tensor(TF.resize(mask_pil, (mk.shape[1], mk.shape[1]), Image.BOX)))
+            mask.append(mk.gt(0).float())
+            o_mk = TF.to_tensor(TF.resize(mask_pil, (mk.shape[1], mk.shape[1]), Image.BOX))
+            origin_mask.append(o_mk.gt(0).float())
 
         # both
         #if self.seg_transforms is not None:
