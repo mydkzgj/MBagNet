@@ -34,7 +34,7 @@ def make_seg_dataset_for_custom_datasets(cfg, for_train):
     dataset = init_dataset(cfg.DATA.DATASETS.SEG_NAMES, root=cfg.DATA.DATASETS.ROOT_DIR)
     classes_list = dataset.category  # 建立classes_list
 
-    if "colormask" in cfg.DATA.DATASETS.NAMES:
+    if "colormask" in cfg.DATA.DATASETS.SEG_NAMES:
         train_transforms, train_target_transforms = build_transforms_for_colormask(cfg, is_train=for_train)
         val_transforms, val_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
         test_transforms, test_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
