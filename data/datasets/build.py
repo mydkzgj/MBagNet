@@ -4,7 +4,7 @@ import os
 from ..transforms import build_transforms, build_seg_transforms, build_transforms_for_colormask
 
 from .lib import init_dataset
-from .custom_dataset import ImageDataset, SegmentationDataset, ColormaskDataset
+from .custom_dataset import ImageDataset, SegmentationDataset, DDRColormaskDataset
 
 from .pascal_voc_classification import VOCClassification
 from .coco_classification import CocoClassification
@@ -17,9 +17,9 @@ def make_dataset_for_custom_datasets(cfg, for_train):
         train_transforms, train_target_transforms = build_transforms_for_colormask(cfg, is_train=for_train)
         val_transforms, val_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
         test_transforms, test_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
-        train_set = ColormaskDataset(dataset.train, train_transforms, train_target_transforms)
-        val_set = ColormaskDataset(dataset.val, val_transforms, val_target_transforms)
-        test_set = ColormaskDataset(dataset.test, test_transforms, test_target_transforms)
+        train_set = DDRColormaskDataset(dataset.train, train_transforms, train_target_transforms)
+        val_set = DDRColormaskDataset(dataset.val, val_transforms, val_target_transforms)
+        test_set = DDRColormaskDataset(dataset.test, test_transforms, test_target_transforms)
     else:
         train_transforms = build_transforms(cfg, is_train=for_train)
         val_transforms = build_transforms(cfg, is_train=False)
@@ -38,9 +38,9 @@ def make_seg_dataset_for_custom_datasets(cfg, for_train):
         train_transforms, train_target_transforms = build_transforms_for_colormask(cfg, is_train=for_train)
         val_transforms, val_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
         test_transforms, test_target_transforms = build_transforms_for_colormask(cfg, is_train=False)
-        train_set = ColormaskDataset(dataset.train, train_transforms, train_target_transforms)
-        val_set = ColormaskDataset(dataset.val, val_transforms, val_target_transforms)
-        test_set = ColormaskDataset(dataset.test, test_transforms, test_target_transforms)
+        train_set = DDRColormaskDataset(dataset.train, train_transforms, train_target_transforms)
+        val_set = DDRColormaskDataset(dataset.val, val_transforms, val_target_transforms)
+        test_set = DDRColormaskDataset(dataset.test, test_transforms, test_target_transforms)
     else:
         train_seg_transforms = build_seg_transforms(cfg, is_train=for_train)
         val_seg_transforms = build_seg_transforms(cfg, is_train=False)
@@ -48,7 +48,7 @@ def make_seg_dataset_for_custom_datasets(cfg, for_train):
         train_set = SegmentationDataset(dataset.seg_train, seg_transforms=train_seg_transforms, is_train=for_train)
         val_set = SegmentationDataset(dataset.seg_val, seg_transforms=val_seg_transforms, is_train=False)
         test_set = SegmentationDataset(dataset.seg_test, seg_transforms=test_seg_transforms, is_train=False)
-        
+
     return train_set, val_set, test_set, classes_list
 
 
