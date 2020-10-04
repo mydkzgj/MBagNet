@@ -12,6 +12,7 @@ import torch
 import numpy as np
 import random
 import cv2 as cv
+import torchvision.transforms as T
 import torchvision.transforms.functional as TF
 
 # CJY for color mask
@@ -162,6 +163,8 @@ class DDRColormaskDataset(Dataset):
             self.shuffle_th = 1
             self.pick_channel_th = 1
 
+        self.norm_transform = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
     def __len__(self):
         return len(self.dataset)
 
@@ -236,6 +239,7 @@ class DDRColormaskDataset(Dataset):
             sum_mask = torch.sum(mask_no_overlap, dim=0, keepdim=True).ne(0).float()
 
         img = self.norm_transform(canvas) * sum_mask
+        mask = torch.cat(origin_mask, dim=0)
 
         return img, mask, img_label, image_path  # 返回的是图片
 
