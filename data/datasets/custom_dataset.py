@@ -44,6 +44,7 @@ class ImageDataset(Dataset):
         super(ImageDataset, self).__init__()
         self.dataset = dataset
         self.transform = transform
+        self.target_transform = target_transform
         self.only_obtain_label = False  # CJY at 2020.10.3 for sampler tranverse dataset rapidly
 
     def __len__(self):
