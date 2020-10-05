@@ -159,7 +159,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 exit(0)
 
             # 观测类别
-            num_th = 5
+            num_th = 3
             if model.num_classes == 4 and model.classifier_output_type == "multi-label":
                 # DDR-LESION
                 s_labels = labels
@@ -174,21 +174,22 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 # PASCAL-VOC
                 num_labels = labels.gt(0).sum().item()
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_labels]
-                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_th]
+                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_labels+num_th]
                 oblabelList = []
                 for i in range(s_labels.shape[0]):
                     for j in range(s_labels.shape[1]):
-                        oblabelList.append(s_labels[i][j])
-                        oblabelList.append(s_p_labels[i][j])
+                        oblabelList.append(s_labels[i:i+1, j])
+                        oblabelList.append(s_p_labels[i:i+1, j])
             elif model.num_classes == 80 and model.classifier_output_type == "multi-label":
                 # PASCAL-VOC
-                s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_th]
-                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_th]
+                num_labels = labels.gt(0).sum().item()
+                s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_labels]
+                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_labels+num_th]
                 oblabelList = []
                 for i in range(s_labels.shape[0]):
                     for j in range(s_labels.shape[1]):
-                        oblabelList.append(s_labels[i][j])
-                        oblabelList.append(s_p_labels[i][j])
+                        oblabelList.append(s_labels[i:i + 1, j])
+                        oblabelList.append(s_p_labels[i:i + 1, j])
             elif model.num_classes == 1000:
                 # ImageNet
                 # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
