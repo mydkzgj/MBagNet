@@ -116,10 +116,9 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             img_paths = gimg_path + simg_path
         elif grade_num > 0 and seg_num == 0:    # grade
             dataType = "grade"
-            # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
+
             imgs = grade_imgs
-            labels = torch.zeros_like(grade_labels) + 1  # 333#243
-            #labels = grade_labels
+            labels = grade_labels
             masks = None
             img_paths = gimg_path
         elif grade_num == 0 and seg_num > 0:    # seg
@@ -144,9 +143,9 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             logits = model(imgs)
 
             if model.classifier_output_type == "multi-label":
-                p_labels = (logits.relu() * model.lesion_area_std_dev).int()
+                p_labels = torch.sort(logits, dim=1, descending=True)
             else:
-                p_labels = torch.argmax(logits, dim=1)  # predict_label
+                p_labels = torch.argmax(logits, dim=1)    # predict_label
 
             # 显示图片的数字还是原始名字
             start_index = (engine.state.iteration - 1) * imgs.shape[0] + 1
@@ -160,10 +159,41 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 exit(0)
 
             # 观测类别
-            if model.num_classes < 30:
-                oblabelList = [labels*0 + i for i in range(model.num_classes)] if len(labels.shape)==1 else [labels.sum(1)*0 + i for i in range(model.num_classes)]
+            num_th = 5
+            if model.num_classes == 4 and model.classifier_output_type == "multi-label":
+                # DDR-LESION
+                s_labels = labels
+                s_p_labels = (logits.relu() * model.lesion_area_std_dev).int()
+                oblabelList = [labels.sum(1)*0 + i for i in range(model.num_classes)]
+            elif model.num_classes == 6 and model.classifier_output_type == "single-label":
+                # DDR
+                s_labels = labels
+                s_p_labels = torch.argmax(logits, dim=1)
+                oblabelList = [labels * 0 + i for i in range(model.num_classes)]
+            elif model.num_classes == 20 and model.classifier_output_type == "multi-label":
+                # PASCAL-VOC
+                s_labels = torch.sort(labels, dim=1, descending=True)[1][0:num_th]
+                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][0:num_th]
+                oblabelList = []
+                for i in s_labels.shape[0]:
+                    for j in s_labels.shape[1]:
+                        oblabelList.append(s_labels[i][j])
+                        oblabelList.append(s_p_labels[i][j])
+            elif model.num_classes == 80 and model.classifier_output_type == "multi-label":
+                # PASCAL-VOC
+                s_labels = torch.sort(labels, dim=1, descending=True)[1][0:num_th]
+                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][0:num_th]
+                oblabelList = []
+                for i in s_labels.shape[0]:
+                    for j in s_labels.shape[1]:
+                        oblabelList.append(s_labels[i][j])
+                        oblabelList.append(s_p_labels[i][j])
             elif model.num_classes == 1000:
-                oblabelList = [labels*243, labels*250, labels*281, labels*333]
+                # ImageNet
+                # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
+                s_labels = labels * 0 + 1
+                s_p_labels = torch.argmax(logits, dim=1)
+                oblabelList = [s_labels*243, s_labels*250, s_labels*281, s_labels*333]
             #oblabelList = [labels]
             #oblabelList = [p_labels]
             #oblabelList = [labels, p_labels]
@@ -171,9 +201,9 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             # 可视化
             showFlag = 1
             for oblabels in oblabelList:
-                binary_threshold = 0#0.25#0.5
+                binary_threshold = 0  #0.25#0.5
                 if model.visualizer.reservePos != True:
-                    binary_threshold = binary_threshold*0.5 + 0.5
+                    binary_threshold = binary_threshold * 0.5 + 0.5
 
                 input_size = (imgs.shape[2], imgs.shape[3])
                 visual_num = imgs.shape[0]
@@ -181,8 +211,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
                 # 用于visualizaztion的数据
                 vimgs = imgs[imgs.shape[0] - visual_num:imgs.shape[0]]
-                vlabels = labels[imgs.shape[0] - visual_num:imgs.shape[0]]
-                vplabels = p_labels[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vlabels = s_labels[imgs.shape[0] - visual_num:imgs.shape[0]]
+                vplabels = s_p_labels[imgs.shape[0] - visual_num:imgs.shape[0]]
                 vmasks = masks[masks.shape[0] - visual_num:masks.shape[0]] if masks is not None else None
 
                 if showFlag == 1:
@@ -248,8 +278,6 @@ def do_visualization(
     def combineTensor(engine, y_pred, y_label):
         scores = engine.state.output["logits"].cpu().numpy().tolist()
         labels = engine.state.output["labels"].cpu().numpy().tolist()
-        #acc = (engine.state.output["logits"].max(1)[1] == engine.state.output["labels"]).float().mean()
-        #print(acc.item())
         y_pred = y_pred.extend(scores)   #注意，此处要用extend，否则+会产生新列表
         y_label = y_label.extend(labels)
 
