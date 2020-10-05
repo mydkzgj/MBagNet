@@ -102,7 +102,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             if os.path.exists(savePath) != True:
                 os.makedirs(savePath)
             else:
-                raise Exception("Folder Exists")
+                pass
+                #raise Exception("Folder Exists")
 
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
