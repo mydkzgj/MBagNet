@@ -172,8 +172,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 oblabelList = [labels * 0 + i for i in range(model.num_classes)]
             elif model.num_classes == 20 and model.classifier_output_type == "multi-label":
                 # PASCAL-VOC
-                s_labels = torch.sort(labels, dim=1, descending=True)[1][0:num_th]
-                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][0:num_th]
+                s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_th]
+                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_th]
                 oblabelList = []
                 for i in range(s_labels.shape[0]):
                     for j in range(s_labels.shape[1]):
@@ -181,8 +181,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                         oblabelList.append(s_p_labels[i][j])
             elif model.num_classes == 80 and model.classifier_output_type == "multi-label":
                 # PASCAL-VOC
-                s_labels = torch.sort(labels, dim=1, descending=True)[1][0:num_th]
-                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][0:num_th]
+                s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_th]
+                s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_th]
                 oblabelList = []
                 for i in range(s_labels.shape[0]):
                     for j in range(s_labels.shape[1]):
