@@ -176,11 +176,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 num_labels = labels.gt(0).sum().item()
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_labels]
                 s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_labels+num_th]
-                oblabelList = []
-                for i in range(s_labels.shape[0]):
-                    for j in range(s_labels.shape[1]):
-                        oblabelList.append(s_labels[i:i+1, j])
-                        oblabelList.append(s_p_labels[i:i+1, j])
+                o_labels = torch.cat([s_labels, s_p_labels], dim=1)
+                oblabelList = [o_labels[:, j:j+1] for j in range(o_labels.shape[1])]
             elif model.num_classes == 80 and model.classifier_output_type == "multi-label":
                 # PASCAL-VOC
                 num_labels = labels.gt(0).sum().item()
