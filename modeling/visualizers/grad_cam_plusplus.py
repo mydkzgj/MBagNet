@@ -303,6 +303,7 @@ class GradCAMpp():
             elif len(labels.shape) == 2:
                 for k in range(labels.shape[1]):
                     labels_str = labels_str + "-" + str(labels[j][k].item())
+                for k in range(plabels.shape[1]):
                     plabels_str = plabels_str + "-" + str(plabels[j][k].item())
                 labels_str = labels_str.strip("-")
                 plabels_str = plabels_str.strip("-")
