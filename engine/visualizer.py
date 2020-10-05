@@ -175,8 +175,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][0:num_th]
                 s_p_labels = torch.sort(logits, dim=1, descending=True)[1][0:num_th]
                 oblabelList = []
-                for i in s_labels.shape[0]:
-                    for j in s_labels.shape[1]:
+                for i in range(s_labels.shape[0]):
+                    for j in range(s_labels.shape[1]):
                         oblabelList.append(s_labels[i][j])
                         oblabelList.append(s_p_labels[i][j])
             elif model.num_classes == 80 and model.classifier_output_type == "multi-label":
@@ -184,8 +184,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][0:num_th]
                 s_p_labels = torch.sort(logits, dim=1, descending=True)[1][0:num_th]
                 oblabelList = []
-                for i in s_labels.shape[0]:
-                    for j in s_labels.shape[1]:
+                for i in range(s_labels.shape[0]):
+                    for j in range(s_labels.shape[1]):
                         oblabelList.append(s_labels[i][j])
                         oblabelList.append(s_p_labels[i][j])
             elif model.num_classes == 1000:
