@@ -177,14 +177,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_labels]
                 s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_labels+num_th]
                 o_labels = torch.cat([s_labels, s_p_labels], dim=1)
-                oblabelList = [o_labels[:, j:j+1] for j in range(o_labels.shape[1])]
+                oblabelList = [o_labels[:, j] for j in range(o_labels.shape[1])]
             elif model.num_classes == 80 and model.classifier_output_type == "multi-label":
                 # PASCAL-VOC
                 num_labels = labels.gt(0).sum().item()
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_labels]
                 s_p_labels = torch.sort(logits, dim=1, descending=True)[1][:, 0:num_labels + num_th]
                 o_labels = torch.cat([s_labels, s_p_labels], dim=1)
-                oblabelList = [o_labels[:, j:j + 1] for j in range(o_labels.shape[1])]
+                oblabelList = [o_labels[:, j] for j in range(o_labels.shape[1])]
             elif model.num_classes == 1000:
                 # ImageNet
                 # grade_labels  #242 boxer, 243 bull mastiff p, 281 tabby cat p,282 tiger cat, 250 Siberian husky, 333 hamster
