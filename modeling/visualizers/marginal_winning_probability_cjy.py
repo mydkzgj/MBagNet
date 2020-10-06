@@ -232,9 +232,9 @@ class MWP_CJY():
                 z_c = torch.nn.functional.linear(y_c, new_weight_c.permute(1, 0))
 
                 new_grad_in_c = linear_input * z_c
-                new_grad_in = -new_grad_in_c #new_grad_in - new_grad_in_c
-                self.contrastive_first_state = 0
+                new_grad_in = -new_grad_in_c #new_grad_in - new_grad_in_c                
                 """
+                self.contrastive_first_state = 0
 
             return (grad_in[0], new_grad_in, grad_in[2])
 
@@ -264,10 +264,10 @@ class MWP_CJY():
             else:
                 weight = module.weight
 
-            """
-            new_weight = weight
+            #"""
+            new_weight = weight.relu()
             x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
-            x_nonzero = x.ne(0).int()
+            x_nonzero = x.ne(0).float()
             y = grad_out[0]/(x + (1-x_nonzero)) * x_nonzero   # 文章中并没有说应该怎么处理分母为0的情况
 
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
@@ -276,9 +276,10 @@ class MWP_CJY():
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
 
             new_grad_in = conv_input * z
-            """
+            #"""
 
             # 版本二
+            """
             contribution_backprop = grad_out[0]
             print(1)
             print(contribution_backprop.sum())
@@ -320,6 +321,7 @@ class MWP_CJY():
             print("min:{}".format(contribution_assignment.min()))
 
             new_grad_in = contribution_assignment
+            """
 
             if self.contrastive_first_state == 1:
                 new_weight_c = (-weight).relu()
