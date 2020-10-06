@@ -172,17 +172,19 @@ class MWP_CJY():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            """
-            new_weight = module.weight
+            #"""
+            # 版本一
+            new_weight = module.weight.relu()
             x = torch.nn.functional.linear(linear_input, new_weight)
             x_nonzero = x.ne(0).int()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
             new_grad_in = linear_input * z
-            """
+            #"""
 
             # 版本二
+            """
             contribution_backprop = grad_out[0]
             bias_current = module.bias.unsqueeze(0).expand_as(contribution_backprop) if module.bias is not None else 0
             # (1)
@@ -209,9 +211,20 @@ class MWP_CJY():
 
             contribution_assignment = contribution_assignment1 + contribution_assignment2
             new_grad_in = contribution_assignment
-
+            #"""
 
             if self.contrastive_first_state == 1:
+                # 版本一
+                new_weight = module.weight
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                x_nonzero = x.ne(0).int()
+                y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+
+                new_grad_in = linear_input * z
+
+
+                """
                 new_weight_c = (-module.weight).relu()
                 x_c = torch.nn.functional.linear(linear_input, new_weight_c)
                 x_c_nonzero = x_c.gt(0).int()
@@ -221,6 +234,7 @@ class MWP_CJY():
                 new_grad_in_c = linear_input * z_c
                 new_grad_in = -new_grad_in_c #new_grad_in - new_grad_in_c
                 self.contrastive_first_state = 0
+                """
 
             return (grad_in[0], new_grad_in, grad_in[2])
 
