@@ -215,6 +215,7 @@ class MWP_CJY():
 
             if self.contrastive_first_state == 1:
                 # 版本一
+                """
                 new_weight = module.weight
                 x = torch.nn.functional.linear(linear_input, new_weight)
                 x_nonzero = x.ne(0).float()
@@ -222,18 +223,19 @@ class MWP_CJY():
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
                 new_grad_in = linear_input * z
+                #"""
 
 
-                """
+                #"""
                 new_weight_c = (-module.weight).relu()
                 x_c = torch.nn.functional.linear(linear_input, new_weight_c)
-                x_c_nonzero = x_c.gt(0).int()
+                x_c_nonzero = x_c.gt(0).float()
                 y_c = grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
                 z_c = torch.nn.functional.linear(y_c, new_weight_c.permute(1, 0))
 
                 new_grad_in_c = linear_input * z_c
-                new_grad_in = -new_grad_in_c #new_grad_in - new_grad_in_c                
-                """
+                new_grad_in = new_grad_in - new_grad_in_c
+                #"""
                 self.contrastive_first_state = 0
 
             return (grad_in[0], new_grad_in, grad_in[2])
