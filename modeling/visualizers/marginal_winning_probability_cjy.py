@@ -176,7 +176,7 @@ class MWP_CJY():
             # 版本一
             new_weight = module.weight.relu()
             x = torch.nn.functional.linear(linear_input, new_weight)
-            x_nonzero = x.ne(0).int()
+            x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
@@ -217,7 +217,7 @@ class MWP_CJY():
                 # 版本一
                 new_weight = module.weight
                 x = torch.nn.functional.linear(linear_input, new_weight)
-                x_nonzero = x.ne(0).int()
+                x_nonzero = x.ne(0).float()
                 y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
