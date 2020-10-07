@@ -497,15 +497,17 @@ class CJY():
         self.gcam_max_list = [] # 记录每个Grad-CAM的归一化最大值
 
         if self.double_input == True:
-            visual_num = visual_num * 2
+            visual_ratio = 2
+        else:
+            visual_ratio = 1
 
         # obtain gradients
         self.ObtainGradient(logits, labels)
 
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
-            batch_num = logits.shape[0]
-            visual_num = visual_num #gcamBatchDistribution[1]
+            batch_num = logits.shape[0] * visual_ratio
+            visual_num = visual_num * visual_ratio
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
 
@@ -525,12 +527,6 @@ class CJY():
 
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
-
-        # Normalization
-        if self.normFlag == True:
-            for index in range(len(self.gcam_list)):
-                self.gcam_list[index], _ = self.gcamNormalization(self.gcam_list[index])
-            self.overall_gcam, _ = self.gcamNormalization(self.overall_gcam)
 
         # Clear Reservation
         #self.inter_output.clear()

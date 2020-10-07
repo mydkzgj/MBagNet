@@ -476,12 +476,6 @@ class Template():
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
 
-        # Normalization
-        if self.normFlag == True:
-            for index in range(len(self.gcam_list)):
-                self.gcam_list[index], _ = self.gcamNormalization(self.gcam_list[index])
-            self.overall_gcam, _ = self.gcamNormalization(self.overall_gcam)
-
         # Clear Reservation
         #self.inter_output.clear()
         self.inter_gradient.clear()
