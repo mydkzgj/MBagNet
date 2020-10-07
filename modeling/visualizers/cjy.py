@@ -495,6 +495,9 @@ class CJY():
         # obtain gradients
         self.ObtainGradient(logits, labels)
 
+        if self.double_input == True:
+            visual_num = visual_num * 2
+
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
             batch_num = logits.shape[0]
