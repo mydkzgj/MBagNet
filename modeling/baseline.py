@@ -35,6 +35,7 @@ from .visualizers.marginal_winning_probability import *
 from .visualizers.xgrad_cam import *
 from .visualizers.dual_backpropagation import *
 from .visualizers.marginal_winning_probability_cjy import *
+from .visualizers.cjy import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -518,6 +519,8 @@ class Baseline(nn.Module):
             self.visualizer = XGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
         elif self.visualizer_name == "dual-backpropagation":
             self.visualizer = DualBackprogation(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "cjy":
+            self.visualizer = CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")

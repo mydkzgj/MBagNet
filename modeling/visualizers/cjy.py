@@ -8,7 +8,7 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class Template():
+class CJY():
     def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
@@ -19,7 +19,7 @@ class Template():
         self.inter_gradient = []
         self.targetHookIndex = 0
 
-        self.useGuidedReLU = True   #True  #False  # GuideBackPropagation的变体
+        self.useGuidedReLU = False   #True  #False  # GuideBackPropagation的变体
         self.guidedReLUstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_relu_layers = 0
         self.relu_output = []
@@ -45,7 +45,7 @@ class Template():
         self.conv_input = []
         self.conv_current_index = 0
 
-        self.useGuidedBN = True    #True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedBN = False    #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
 
@@ -185,7 +185,7 @@ class Template():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_weight = module.weight
+            new_weight = module.weight.relu()
             new_grad_in = torch.nn.functional.linear(grad_out[0], new_weight.permute(1, 0))
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
@@ -210,7 +210,7 @@ class Template():
                     module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
-            new_weight = module.weight
+            new_weight = module.weight.relu()
             new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
                                                                padding=new_padding, output_padding=output_padding)
 
