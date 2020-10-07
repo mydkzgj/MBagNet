@@ -525,7 +525,7 @@ class Baseline(nn.Module):
             self.visualizer = DualBackprogation(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-dual-gradient":
             self.visualizer = CJY_DUAL_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-        elif self.visualizer_name == "cjy-dual-gradient":
+        elif self.visualizer_name == "cjy":
             self.visualizer = CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
