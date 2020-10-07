@@ -145,7 +145,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
             if hasattr(model.visualizer, "double_input"):
                 if model.visualizer.double_input == True:
-                    labels = torch.cat([labels, labels], dim=0)
+                    logits = logits[0: logits.shape[0]//2]
 
             if model.classifier_output_type == "multi-label":
                 p_labels = torch.sort(logits, dim=1, descending=True)

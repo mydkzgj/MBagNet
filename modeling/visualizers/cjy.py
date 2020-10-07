@@ -336,6 +336,10 @@ class CJY():
         self.pool_output_obtain_index = len(self.pool_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+
+        if self.double_input == True:
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels*0], dim=0)
+
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
@@ -492,11 +496,11 @@ class CJY():
         self.gcam_list = []
         self.gcam_max_list = [] # 记录每个Grad-CAM的归一化最大值
 
-        # obtain gradients
-        self.ObtainGradient(logits, labels)
-
         if self.double_input == True:
             visual_num = visual_num * 2
+
+        # obtain gradients
+        self.ObtainGradient(logits, labels)
 
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
