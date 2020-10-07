@@ -142,6 +142,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         elif heatmapType == "visualization":
             # 由于需要用到梯度进行可视化计算，所以就不加入with torch.no_grad()了
             logits = model(imgs)
+            
+            if hasattr(model.visualizer, "double_input"):
+                if model.visualizer.double_input == True:
+                    labels = torch.cat([labels, labels], dim=0)
 
             if model.classifier_output_type == "multi-label":
                 p_labels = torch.sort(logits, dim=1, descending=True)
