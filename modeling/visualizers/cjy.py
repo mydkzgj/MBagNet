@@ -185,8 +185,25 @@ class CJY():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_weight = module.weight.relu()
-            new_grad_in = torch.nn.functional.linear(grad_out[0], new_weight.permute(1, 0))
+            num_batch = grad_out[0].shape[0]
+            pos_gard_out = grad_out[0][0:num_batch//2]
+            neg_gard_out = grad_out[0][num_batch // 2, num_batch]
+
+            pos_weight = module.weight.relu()
+            neg_weight = -(-module.weight).relu()
+
+            pp_new_grad_in = torch.nn.functional.linear(pos_gard_out, pos_weight.permute(1, 0))
+
+            pn_new_grad_in = torch.nn.functional.linear(pos_gard_out, neg_weight.permute(1, 0))
+
+            np_new_grad_in = torch.nn.functional.linear(neg_gard_out, pos_weight.permute(1, 0))
+
+            nn_new_grad_in = torch.nn.functional.linear(neg_gard_out, neg_weight.permute(1, 0))
+
+            pos_new_grad_in = pp_new_grad_in + nn_new_grad_in
+            neg_new_grad_in = pn_new_grad_in + np_new_grad_in
+
+            new_grad_in = torch.cat([pos_new_grad_in, neg_new_grad_in], dim=0)
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -204,15 +221,36 @@ class CJY():
             self.conv_input_obtain_index = self.conv_input_obtain_index - 1
             conv_input = self.conv_input[self.conv_input_obtain_index]
 
+            num_batch = grad_out[0].shape[0]
+            pos_gard_out = grad_out[0][0:num_batch//2]
+            neg_gard_out = grad_out[0][num_batch // 2, num_batch]
+
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
             output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
                     module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
-            new_weight = module.weight.relu()
-            new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
+
+            pos_weight = module.weight.relu()
+            neg_weight = -(-module.weight).relu()
+
+            pp_new_grad_in = torch.nn.functional.conv_transpose2d(pos_gard_out, pos_weight, stride=module.stride,
                                                                padding=new_padding, output_padding=output_padding)
+
+            pn_new_grad_in = torch.nn.functional.conv_transpose2d(pos_gard_out, neg_weight, stride=module.stride,
+                                                               padding=new_padding, output_padding=output_padding)
+
+            np_new_grad_in = torch.nn.functional.conv_transpose2d(neg_gard_out, pos_weight, stride=module.stride,
+                                                               padding=new_padding, output_padding=output_padding)
+
+            nn_new_grad_in = torch.nn.functional.conv_transpose2d(neg_gard_out, neg_weight, stride=module.stride,
+                                                               padding=new_padding, output_padding=output_padding)
+
+            pos_new_grad_in = pp_new_grad_in + nn_new_grad_in
+            neg_new_grad_in = pn_new_grad_in + np_new_grad_in
+
+            new_grad_in = torch.cat([pos_new_grad_in, neg_new_grad_in], dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -381,8 +419,11 @@ class CJY():
         #gcam = inter_output[:, 435:436,]
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-
+        gcam_all = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+        num_batch = gcam_all.shape[0]
+        pos_gcam = gcam_all[0: num_batch//2]
+        neg_gcam = gcam_all[num_batch//2, num_batch]
+        gcam = pos_gcam + neg_gcam
         return gcam
 
     # Generate Overall CAM
