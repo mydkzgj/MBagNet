@@ -475,6 +475,7 @@ class Template():
 
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
+        print("logits:{} label:{}".format(logits[0][labels].item(), labels.item()))
 
         # Clear Reservation
         #self.inter_output.clear()
