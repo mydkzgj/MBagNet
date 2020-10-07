@@ -189,7 +189,7 @@ class CJY():
 
             num_batch = grad_out[0].shape[0]
             pos_gard_out = grad_out[0][0:num_batch//2]
-            neg_gard_out = grad_out[0][num_batch // 2, num_batch]
+            neg_gard_out = grad_out[0][num_batch // 2:num_batch]
 
             pos_weight = module.weight.relu()
             neg_weight = -(-module.weight).relu()
@@ -225,7 +225,7 @@ class CJY():
 
             num_batch = grad_out[0].shape[0]
             pos_gard_out = grad_out[0][0:num_batch//2]
-            neg_gard_out = grad_out[0][num_batch // 2, num_batch]
+            neg_gard_out = grad_out[0][num_batch // 2:num_batch]
 
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
