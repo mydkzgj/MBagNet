@@ -221,6 +221,9 @@ class Baseline(nn.Module):
     def forward(self, x):
         if self.visualizer != None:
             x.requires_grad_(True)   #设置了这个，显存会随轮数增长，是因为无法释放吗?
+            if hasattr(self.visualizer, "double_input"):
+                if self.visualizer.double_input == True:
+                    x = torch.cat([x, x], dim=0)
 
         # 分为两种情况：
         if self.classifier_name != "none":

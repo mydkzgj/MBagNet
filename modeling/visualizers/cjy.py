@@ -55,6 +55,8 @@ class CJY():
 
         self.normFlag = True
 
+        self.double_input = True
+
         self.setHook(model)
 
     def setHook(self, model):
