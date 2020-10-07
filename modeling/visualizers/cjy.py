@@ -424,7 +424,7 @@ class CJY():
         gcam_all = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         num_batch = gcam_all.shape[0]
         pos_gcam = gcam_all[0: num_batch//2]
-        neg_gcam = gcam_all[num_batch//2, num_batch]
+        neg_gcam = gcam_all[num_batch//2: num_batch]
         gcam = pos_gcam + neg_gcam
         return gcam
 
