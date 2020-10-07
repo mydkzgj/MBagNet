@@ -8,7 +8,13 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class CJY():
+class CJY_DUAL_GRADIENT():
+    """
+    说明：将每个特征activation的gradient分为正负两部分，可以分别观测这两部分的作用
+    gcam = pos_gcam + neg_gcam 即为 pgrad-cam
+    单独观察pos-gcam和neg-gcam并没有明显的类别差别
+    而由于pos和neg的值越来越大，导致误差越来越大，所以前几层的gcam不再保持pgcam
+    """
     def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
@@ -19,7 +25,7 @@ class CJY():
         self.inter_gradient = []
         self.targetHookIndex = 0
 
-        self.useGuidedReLU = True   #True  #False  # GuideBackPropagation的变体
+        self.useGuidedReLU = False   #True  #False  # GuideBackPropagation的变体
         self.guidedReLUstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_relu_layers = 0
         self.relu_output = []
@@ -33,13 +39,13 @@ class CJY():
         self.pool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_pool_index_list = []
 
-        self.useGuidedLINEAR = False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.useGuidedLINEAR = True  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
         self.num_linear_layers = 0
         self.linear_input = []
         self.linear_current_index = 0
 
-        self.useGuidedCONV = False  # True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedCONV = True  # True  # True#False  # GuideBackPropagation的变体
         self.guidedCONVstate = 0
         self.num_conv_layers = 0
         self.conv_input = []
@@ -52,6 +58,10 @@ class CJY():
         self.firstCAM = 1
 
         self.reservePos = False  #True
+
+        self.normFlag = True
+
+        self.double_input = True
 
         self.setHook(model)
 
@@ -183,8 +193,25 @@ class CJY():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_weight = module.weight
-            new_grad_in = torch.nn.functional.linear(grad_out[0], new_weight.permute(1, 0))
+            num_batch = grad_out[0].shape[0]
+            pos_gard_out = grad_out[0][0:num_batch//2]
+            neg_gard_out = grad_out[0][num_batch // 2:num_batch]
+
+            pos_weight = module.weight.relu()
+            neg_weight = -(-module.weight).relu()
+
+            pp_new_grad_in = torch.nn.functional.linear(pos_gard_out, pos_weight.permute(1, 0))
+
+            pn_new_grad_in = torch.nn.functional.linear(pos_gard_out, neg_weight.permute(1, 0))
+
+            np_new_grad_in = torch.nn.functional.linear(neg_gard_out, pos_weight.permute(1, 0))
+
+            nn_new_grad_in = torch.nn.functional.linear(neg_gard_out, neg_weight.permute(1, 0))
+
+            pos_new_grad_in = pp_new_grad_in + nn_new_grad_in
+            neg_new_grad_in = pn_new_grad_in + np_new_grad_in
+
+            new_grad_in = torch.cat([pos_new_grad_in, neg_new_grad_in], dim=0)
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -202,15 +229,36 @@ class CJY():
             self.conv_input_obtain_index = self.conv_input_obtain_index - 1
             conv_input = self.conv_input[self.conv_input_obtain_index]
 
+            num_batch = grad_out[0].shape[0]
+            pos_gard_out = grad_out[0][0:num_batch//2]
+            neg_gard_out = grad_out[0][num_batch // 2:num_batch]
+
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
             output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
                     module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
-            new_weight = module.weight
-            new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
+
+            pos_weight = module.weight.relu()
+            neg_weight = -(-module.weight).relu()
+
+            pp_new_grad_in = torch.nn.functional.conv_transpose2d(pos_gard_out, pos_weight, stride=module.stride,
                                                                padding=new_padding, output_padding=output_padding)
+
+            pn_new_grad_in = torch.nn.functional.conv_transpose2d(pos_gard_out, neg_weight, stride=module.stride,
+                                                               padding=new_padding, output_padding=output_padding)
+
+            np_new_grad_in = torch.nn.functional.conv_transpose2d(neg_gard_out, pos_weight, stride=module.stride,
+                                                               padding=new_padding, output_padding=output_padding)
+
+            nn_new_grad_in = torch.nn.functional.conv_transpose2d(neg_gard_out, neg_weight, stride=module.stride,
+                                                               padding=new_padding, output_padding=output_padding)
+
+            pos_new_grad_in = pp_new_grad_in + nn_new_grad_in
+            neg_new_grad_in = pn_new_grad_in + np_new_grad_in
+
+            new_grad_in = torch.cat([pos_new_grad_in, neg_new_grad_in], dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -228,12 +276,8 @@ class CJY():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
-            #pos_grad_out = grad_out[0].gt(0).float()
-            #new_grad_in = pos_grad_out * grad_in[0]
-
-            gcam = self.GenerateCAM(relu_output, grad_out[0])
-            mask = gcam.gt(0).float()
-            new_grad_in = mask * grad_in[0]
+            pos_grad_out = grad_out[0].gt(0).float()
+            new_grad_in = pos_grad_out * grad_in[0]
 
             return (new_grad_in,)
 
@@ -298,6 +342,10 @@ class CJY():
         self.pool_output_obtain_index = len(self.pool_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+
+        if self.double_input == True:
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels*0], dim=0)
+
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
@@ -383,8 +431,11 @@ class CJY():
         #gcam = inter_output[:, 435:436,]
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-
+        gcam_all = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+        num_batch = gcam_all.shape[0]
+        pos_gcam = gcam_all[0: num_batch//2]
+        neg_gcam = gcam_all[num_batch//2: num_batch]
+        gcam = pos_gcam + neg_gcam
         return gcam
 
     # Generate Overall CAM
@@ -451,13 +502,18 @@ class CJY():
         self.gcam_list = []
         self.gcam_max_list = [] # 记录每个Grad-CAM的归一化最大值
 
+        if self.double_input == True:
+            visual_ratio = 2
+        else:
+            visual_ratio = 1
+
         # obtain gradients
         self.ObtainGradient(logits, labels)
 
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
             batch_num = logits.shape[0]
-            visual_num = visual_num #gcamBatchDistribution[1]
+            visual_num = visual_num * visual_ratio
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
 

@@ -35,6 +35,7 @@ from .visualizers.marginal_winning_probability import *
 from .visualizers.xgrad_cam import *
 from .visualizers.dual_backpropagation import *
 from .visualizers.marginal_winning_probability_cjy import *
+from .visualizers.cjy_dual_gradient import *
 from .visualizers.cjy import *
 
 
@@ -522,7 +523,9 @@ class Baseline(nn.Module):
             self.visualizer = XGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
         elif self.visualizer_name == "dual-backpropagation":
             self.visualizer = DualBackprogation(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-        elif self.visualizer_name == "cjy":
+        elif self.visualizer_name == "cjy-dual-gradient":
+            self.visualizer = CJY_DUAL_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "cjy-dual-gradient":
             self.visualizer = CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None

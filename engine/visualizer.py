@@ -143,10 +143,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             # 由于需要用到梯度进行可视化计算，所以就不加入with torch.no_grad()了
             logits = model(imgs)
 
-            if hasattr(model.visualizer, "double_input"):
-                if model.visualizer.double_input == True:
-                    logits = logits[0: logits.shape[0]//2]
-
             if model.classifier_output_type == "multi-label":
                 p_labels = torch.sort(logits, dim=1, descending=True)
             else:
@@ -233,6 +229,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                             engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
 
             labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
+
+            if hasattr(model.visualizer, "double_input"):
+                if model.visualizer.double_input == True:
+                    logits = logits[0: logits.shape[0]//2]
 
             return {"logits": logits.detach(), "labels": labels, }
 
