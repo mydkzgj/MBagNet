@@ -242,8 +242,8 @@ class CJY_CAM_SCREEN():
                 pass
             elif grad_out[0].ndimension() == 4:
                 gcam = self.GenerateCAM(relu_output, grad_out[0])
-                #mask = gcam.gt(0).float()
-                mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
+                mask = gcam.gt(0).float()
+                #mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
                 new_grad_in = mask * grad_in[0]
 
                 return (new_grad_in,)
