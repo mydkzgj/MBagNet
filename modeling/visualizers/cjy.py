@@ -251,7 +251,23 @@ class CJY():
             self.pool_output_obtain_index = self.pool_output_obtain_index - 1
             pool_output = self.pool_output[self.pool_output_obtain_index]
 
-            new_grad_in = grad_in[0]
+            gcam = self.GenerateCAM(pool_output, grad_out[0])
+            mask = gcam.gt(0).float()
+
+            # prepare for transposed conv
+            channels = grad_out[0].shape[1]
+            kernel_size = module.kernel_size[0]
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
+                    module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+
+            new_weight = torch.ones((channels, 1, kernel_size, kernel_size))
+            new_weight = new_weight.cuda()
+            mask = torch.nn.functional.conv_transpose2d(mask, new_weight, stride=module.stride,
+                                                               padding=new_padding, output_padding=output_padding)
+
+            new_grad_in = mask * grad_in[0]
             return (new_grad_in,)
 
 
