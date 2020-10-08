@@ -27,16 +27,17 @@ from .visualizers.backpropagation import *
 from .visualizers.deconvolution import *
 from .visualizers.guided_backpropagation import *
 from .visualizers.guided_grad_cam import *
-from .visualizers.pgrad_back_cam import *
 from .visualizers.visual_backpropagation import *
 from .visualizers.visualbplemma3 import *
 from .visualizers.guided_deconv_pgrad_cam import *
 from .visualizers.marginal_winning_probability import *
 from .visualizers.xgrad_cam import *
 from .visualizers.dual_backpropagation import *
-from .visualizers.marginal_winning_probability_cjy import *
+
+from .visualizers.cjy_marginal_winning_probability import *
 from .visualizers.cjy_dual_gradient import *
-from .visualizers.cjy import *
+from .visualizers.cjy_conv_pos_gradient import *
+from .visualizers.cjy_cam_screen import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -180,7 +181,7 @@ class Baseline(nn.Module):
                         self.target_layer.append(module_name)
                     elif "vgg" in self.base_name:
                         self.target_layer.append(module_name)
-            #self.target_layer.append("")
+            self.target_layer.append("")
         #"""
         #self.target_layer = [self.target_layer[-1]]
 
@@ -503,8 +504,6 @@ class Baseline(nn.Module):
             self.visualizer = VisualBackpropagation(model=self, num_classes=self.num_classes)
         elif self.visualizer_name == "guided-grad-cam":
             self.visualizer = GuidedGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
-        elif self.visualizer_name == "pgrad-back-cam":
-            self.visualizer = PGradBackCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "vbp-l3":
             self.visualizer = VisualBPLemma3(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "guided-deconv-pgrad-cam":
@@ -513,20 +512,24 @@ class Baseline(nn.Module):
             self.visualizer = MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=False)
         elif self.visualizer_name == "c-mwp":
             self.visualizer = MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=True)
-        elif self.visualizer_name == "mwp-cjy":
-            self.visualizer = MWP_CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=False)
-        elif self.visualizer_name == "c-mwp-cjy":
-            self.visualizer = MWP_CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=True)
+
         if self.visualizer_name == "xgrad-cam":
             self.visualizer = XGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=False)
         elif self.visualizer_name == "xgrad-cam-GBP":
             self.visualizer = XGradCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, useGuidedBP=True)
         elif self.visualizer_name == "dual-backpropagation":
             self.visualizer = DualBackprogation(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+
+        elif self.visualizer_name == "cjy-mwp":
+            self.visualizer = CJY_MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=False)
+        elif self.visualizer_name == "cjy-c-mwp":
+            self.visualizer = CJY_MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=True)
         elif self.visualizer_name == "cjy-dual-gradient":
             self.visualizer = CJY_DUAL_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "cjy-conv-pos-gradient":
+            self.visualizer = CJY_CONV_POS_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy":
-            self.visualizer = CJY(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+            self.visualizer = CJY_CAM_SCREEN(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")

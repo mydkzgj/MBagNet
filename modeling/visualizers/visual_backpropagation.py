@@ -88,7 +88,7 @@ class VisualBackpropagation():
 
     def relu_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBPstate == True:
-            pos_grad_out = grad_out[0].gt(0)
+            pos_grad_out = grad_out[0].gt(0).float()
             result_grad = grad_in[0] * pos_grad_out
             return (result_grad,)
         else:
