@@ -257,7 +257,7 @@ class CJY():
             # prepare for transposed conv
             channels = grad_out[0].shape[1]
             kernel_size = module.kernel_size
-            new_padding = (kernel_size - module.padding - 1, module.kernel_size - module.padding - 1)
+            new_padding = kernel_size - module.padding - 1
             output_size = (grad_out[0].shape[3] - 1) * module.stride - 2 * new_padding + module.dilation * (
                     module.kernel_size - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
