@@ -48,10 +48,64 @@ class GuidedGradCAM():
             else:
                 raise Exception("Wrong process type!")
             ggcam = resized_cam * gbp
-            norm_ggcam, ggcam_max = self.guidedBP.gcamNormalization(ggcam)  #使用guidedBP的归一化，即reserve-pos为False
+            norm_ggcam, ggcam_max = self.gcamNormalization(ggcam)  #使用guidedBP的归一化，即reserve-pos为False
             self.gcam_list.append(norm_ggcam)
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam
+
+    def gcamNormalization(self, gcam):
+        # 归一化 v1 使用均值，方差
+        """
+        gcam_flatten = gcam.view(gcam.shape[0], -1)
+        gcam_var = torch.var(gcam_flatten, dim=1).detach()
+        gcam = gcam/gcam_var
+        gcam = torch.sigmoid(gcam)
+        #"""
+        # 归一化 v2 正负分别用最大值归一化
+        """        
+        pos = torch.gt(gcam, 0).float()
+        gcam_pos = gcam * pos
+        gcam_neg = gcam * (1 - pos)
+        gcam_pos_abs_max = torch.max(gcam_pos.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        gcam_neg_abs_max = torch.max(gcam_neg.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+            -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        sigma = 1  # 0.8
+        gcam = gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + gcam_neg / gcam_neg_abs_max.clamp(
+            min=1E-12).detach()  # [-1,+1]
+        #"""
+        # 归一化 v3 正负统一用绝对值最大值归一化
+        gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0]
+        for i in range(gcam.ndimension()-1):
+            gcam_abs_max = gcam_abs_max.unsqueeze(-1)
+        gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).expand_as(gcam)
+        gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  # [-1,+1]
+        if self.reservePos != True:
+            gcam = gcam * 0.5 + 0.5                                    # [0, 1]
+        # print("gcam_max{}".format(gcam_abs_max.mean().item()))
+        return gcam, gcam_abs_max  # .mean().item()
+
+        # 其他
+        # gcam = torch.relu(torch.tanh(gcam))
+        # gcam = gcam/gcam_abs_max
+        # gcam_abs_max = torch.max(gcam.abs().view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(
+        #    -1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+
+        # gcam_pos_mean = (torch.sum(gcam_pos) / torch.sum(pos).clamp(min=1E-12))
+        # gcam_neg_mean = (torch.sum(gcam_neg) / torch.sum(1-pos).clamp(min=1E-12))
+
+        # gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_abs_max.clamp(min=1E-12).detach() * sigma) + 1)) #+ gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()  # cjy
+        # gcam = (1 - torch.relu(-gcam_pos / (gcam_pos_mean.clamp(min=1E-12).detach()) + 1)) + gcam_neg / gcam_neg_abs_max.clamp(min=1E-12).detach()
+        # gcam = torch.tanh(gcam_pos/gcam_pos_mean.clamp(min=1E-12).detach()) + gcam_neg/gcam_neg_abs_max.clamp(min=1E-12).detach()
+        # gcam = gcam_pos / gcam_pos_mean.clamp(min=1E-12).detach() #+ gcam_neg / gcam_neg_mean.clamp(min=1E-12).detach()
+        # gcam = gcam/2 + 0.5
+
+        # gcam_max = torch.max(torch.relu(gcam).view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        # gcam_min = torch.min(gcam.view(gcam.shape[0], -1), dim=1)[0].clamp(1E-12).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(gcam)
+        # gcam = torch.relu(gcam) / gcam_max.detach()
+
+        # gcam = torch.tanh(gcam*4)
+        # gcam = torch.relu(gcam)
 
     def DrawVisualization(self, imgs, labels, plabels, gtmasks, threshold, savePath, imgsName):
         """
