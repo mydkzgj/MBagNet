@@ -230,10 +230,17 @@ class CJY():
 
             #pos_grad_out = grad_out[0].gt(0).float()
             #new_grad_in = pos_grad_out * grad_in[0]
-
-            if grad_out[0].ndimension() == 4:
+            if grad_out[0].ndimension() == 2:
+                """
+                pos_grad_out = grad_out[0].gt(0).float()
+                new_grad_in = pos_grad_out * grad_in[0]
+                return (new_grad_in,)
+                #"""
+                pass
+            elif grad_out[0].ndimension() == 4:
                 gcam = self.GenerateCAM(relu_output, grad_out[0])
                 mask = gcam.gt(0).float()
+                mask, _ = self.gcamNormalization(gcam, reservePos=True)
                 new_grad_in = mask * grad_in[0]
 
                 return (new_grad_in,)
@@ -331,7 +338,7 @@ class CJY():
         self.guidedReLUstate = 0
 
 
-    def gcamNormalization(self, gcam):
+    def gcamNormalization(self, gcam, reservePos=True):
         # 归一化 v1 使用均值，方差
         """
         gcam_flatten = gcam.view(gcam.shape[0], -1)
@@ -358,7 +365,7 @@ class CJY():
             gcam_abs_max = gcam_abs_max.unsqueeze(-1)
         gcam_abs_max_expand = gcam_abs_max.clamp(1E-12).expand_as(gcam)
         gcam = gcam / (gcam_abs_max_expand.clamp(min=1E-12).detach())  # [-1,+1]
-        if self.reservePos != True:
+        if reservePos != True:
             gcam = gcam * 0.5 + 0.5                                    # [0, 1]
         # print("gcam_max{}".format(gcam_abs_max.mean().item()))
         return gcam, gcam_abs_max  # .mean().item()
@@ -488,7 +495,7 @@ class CJY():
 
             # 3.Post Process
             # Amplitude Normalization
-            norm_gcam, gcam_max = self.gcamNormalization(gcam)
+            norm_gcam, gcam_max = self.gcamNormalization(gcam, self.reservePos)
             # Resize Interpolation
             # gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
 
