@@ -231,9 +231,9 @@ class CJY():
             #pos_grad_out = grad_out[0].gt(0).float()
             #new_grad_in = pos_grad_out * grad_in[0]
             if grad_out[0].ndimension() == 2:
-                """
-                pos_grad_out = grad_out[0].gt(0).float()
-                new_grad_in = pos_grad_out * grad_in[0]
+                #"""
+                gcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
+                new_grad_in = gcam.gt(0).float() * grad_in[0]
                 return (new_grad_in,)
                 #"""
                 pass
@@ -262,6 +262,8 @@ class CJY():
             gcam = self.GenerateCAM(pool_output, grad_out[0])
             mask = gcam.gt(0).float()
 
+            mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
+
             # prepare for transposed conv
             channels = grad_out[0].shape[1]
 
@@ -276,10 +278,10 @@ class CJY():
             new_weight = torch.ones((channels, 1, kernel_size, kernel_size))
             new_weight = new_weight.cuda()
 
-            mask2 = torch.nn.functional.conv_transpose2d(mask.expand_as(grad_out[0]), new_weight, stride=stride, padding=padding,
+            mask = torch.nn.functional.conv_transpose2d(mask.expand_as(grad_out[0]), new_weight, stride=stride, padding=padding,
                                                      output_padding=output_padding, groups=channels)
 
-            new_grad_in = mask2 * grad_in[0]
+            new_grad_in = mask * grad_in[0]
             return (new_grad_in,)
 
 
