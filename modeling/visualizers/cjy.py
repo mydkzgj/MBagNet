@@ -256,18 +256,22 @@ class CJY():
 
             # prepare for transposed conv
             channels = grad_out[0].shape[1]
+
+            stride = module.stride
             kernel_size = module.kernel_size
-            new_padding = kernel_size - module.padding - 1
-            output_size = (grad_out[0].shape[3] - 1) * module.stride - 2 * new_padding + module.dilation * (
-                    module.kernel_size - 1) + 1
+            padding = module.padding
+
+
+            output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
             output_padding = grad_in[0].shape[3] - output_size
 
             new_weight = torch.ones((channels, 1, kernel_size, kernel_size))
             new_weight = new_weight.cuda()
-            mask = torch.nn.functional.conv_transpose2d(mask.expand_as(grad_out[0]), new_weight, stride=module.stride,
-                                                               padding=new_padding, output_padding=output_padding)
 
-            new_grad_in = mask * grad_in[0]
+            mask2 = torch.nn.functional.conv_transpose2d(mask.expand_as(grad_out[0]), new_weight, stride=stride, padding=padding,
+                                                     output_padding=output_padding, groups=channels)
+
+            new_grad_in = mask2 * grad_in[0]
             return (new_grad_in,)
 
 
