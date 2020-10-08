@@ -264,7 +264,7 @@ class CJY():
 
             new_weight = torch.ones((channels, 1, kernel_size, kernel_size))
             new_weight = new_weight.cuda()
-            mask = torch.nn.functional.conv_transpose2d(mask, new_weight, stride=module.stride,
+            mask = torch.nn.functional.conv_transpose2d(mask.expand_as(grad_out[0]), new_weight, stride=module.stride,
                                                                padding=new_padding, output_padding=output_padding)
 
             new_grad_in = mask * grad_in[0]
