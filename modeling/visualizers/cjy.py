@@ -262,7 +262,7 @@ class CJY():
             padding = module.padding
 
 
-            output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
+            output_size = (grad_out[0].shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
             output_padding = grad_in[0].shape[3] - output_size
 
             new_weight = torch.ones((channels, 1, kernel_size, kernel_size))
