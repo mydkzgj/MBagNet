@@ -231,11 +231,12 @@ class CJY():
             #pos_grad_out = grad_out[0].gt(0).float()
             #new_grad_in = pos_grad_out * grad_in[0]
 
-            gcam = self.GenerateCAM(relu_output, grad_out[0])
-            mask = gcam.gt(0).float()
-            new_grad_in = mask * grad_in[0]
+            if grad_out[0].ndimension() == 4:
+                gcam = self.GenerateCAM(relu_output, grad_out[0])
+                mask = gcam.gt(0).float()
+                new_grad_in = mask * grad_in[0]
 
-            return (new_grad_in,)
+                return (new_grad_in,)
 
 
     def pool_forward_hook_fn(self, module, input, output):
