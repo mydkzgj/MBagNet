@@ -165,11 +165,13 @@ class Baseline(nn.Module):
         # 4.visualizer
         # "grad-cam", "grad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
         # "backpropagation", "deconvolution", "guided-backpropagation", "visual-backpropagation" “vbp-l3”
-        # "mwp", "c-mwp", "mwp-cjy"
+        # "mwp", "c-mwp",
         # "xgrad-cam", "xgrad-cam-GBP"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
         # "dual-backpropagation"
-        self.visualizer_name = "cjy"#"guided-deconv-pgrad-cam"#"guided-backpropagation"
+        # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient", "cjy-cam-screen"
+
+        self.visualizer_name = "cjy-cam-screen" #"guided-deconv-pgrad-cam"#"guided-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
@@ -528,7 +530,7 @@ class Baseline(nn.Module):
             self.visualizer = CJY_DUAL_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-conv-pos-gradient":
             self.visualizer = CJY_CONV_POS_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-        elif self.visualizer_name == "cjy":
+        elif self.visualizer_name == "cjy-cam-screen":
             self.visualizer = CJY_CAM_SCREEN(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
