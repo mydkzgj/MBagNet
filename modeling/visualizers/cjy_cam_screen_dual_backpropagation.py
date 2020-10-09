@@ -187,6 +187,11 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
+            if self.double_input == True:
+                num_batch = linear_input.shape[0]
+                linear_input = linear_input[0:num_batch//2]
+                grad_output = grad_out[0][0:num_batch//2]
+
             new_weight = module.weight
 
             bias = module.bias.unsqueeze(0).expand_as(grad_out[0]) if module.bias is not None else 0
@@ -196,9 +201,18 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             linear_output = linear_output_without_bias + bias
 
             non_zero = linear_output_without_bias.eq(0).float()
-            y = grad_out[0] * linear_output / (linear_output_without_bias + non_zero) * (1 - non_zero)
+            y = grad_output * linear_output / (linear_output_without_bias + non_zero) * (1 - non_zero)
 
             new_grad_in = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+
+            if self.double_input == True:
+                new_weight = module.weight/(module.weight.sum())
+
+                bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_out
+
+                bias_input = torch.nn.functional.linear(bias_output, new_weight.permute(1, 0))
+
+                new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -220,7 +234,6 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 num_batch = conv_input.shape[0]
                 conv_input = conv_input[0:num_batch//2]
                 grad_output = grad_out[0][0:num_batch//2]
-
 
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
@@ -245,12 +258,15 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             if self.double_input == True:
                 new_weight = module.weight/(module.weight.sum())
 
-                bias_output = grad_out[0][num_batch // 2: num_batch]
+                bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_out
 
                 bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride,
                                                                    padding=new_padding, output_padding=output_padding)
 
                 new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
+
+            print(grad_in[0].shape)
+            print(new_grad_in.shape)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
