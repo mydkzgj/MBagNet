@@ -219,7 +219,6 @@ class CJY_CAM_SCREEN():
             conv_output = conv_output_without_bias + bias
 
             non_zero = conv_output_without_bias.eq(0).float()
-
             y = grad_out[0] * conv_output / (conv_output_without_bias + non_zero) * (1-non_zero)
 
             new_grad_in = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride,
@@ -330,7 +329,8 @@ class CJY_CAM_SCREEN():
             #bn_output_without_bias = bn_input / (var + eps).sqrt() * weight
             bn_output = (bn_input - mean) / (var + eps).sqrt() * weight + bias
 
-            new_grad_in = grad_in[0] * bn_output / bn_input
+            non_zero = bn_input.eq(0).float()
+            new_grad_in = grad_in[0] * bn_output / (bn_input + non_zero) * (1-non_zero)
             return (new_grad_in, grad_in[1], grad_in[2])
 
     # Obtain Gradient
