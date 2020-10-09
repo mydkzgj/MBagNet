@@ -186,7 +186,17 @@ class CJY_CAM_SCREEN():
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
             new_weight = module.weight
-            new_grad_in = torch.nn.functional.linear(grad_out[0], new_weight.permute(1, 0))
+
+            bias = module.bias.unsqueeze(0).expand_as(grad_out[0]) if module.bias is not None else 0
+
+            linear_output_without_bias = torch.nn.functional.linear(linear_input, new_weight.permute(1, 0))
+
+            linear_output = linear_output_without_bias + bias
+
+            non_zero = linear_output_without_bias.eq(0).float()
+            y = grad_out[0] * linear_output / (linear_output_without_bias + non_zero) * (1 - non_zero)
+
+            new_grad_in = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
