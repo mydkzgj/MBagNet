@@ -330,7 +330,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             else:
                 new_grad_in = grad_in[0]
 
-            """
+            #"""
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.CAM = self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0])
                 CAM = self.CAM
