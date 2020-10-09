@@ -270,6 +270,8 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride,
                                                                    padding=new_padding, output_padding=output_padding)
 
+                self.rest = self.rest + bias_input.sum() - bias_output.sum()
+
                 if self.original_gradient == True:  # 不改变原始梯度
                     new_grad_in = torch.cat([grad_input, bias_input], dim=0)
                 else:
@@ -310,7 +312,6 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                     # pos_grad_out = grad_out[0].gt(0).float()
                     # new_grad_in = pos_grad_out * grad_in[0]
-
 
 
             if self.double_input == True:
@@ -456,6 +457,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
         self.bn_input_obtain_index = len(self.bn_input)
 
         if self.double_input == True:
+            self.rest = 0
             gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels*0], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
