@@ -22,7 +22,7 @@ class CJY_CAM_SCREEN():
         self.inter_gradient = []
         self.targetHookIndex = 0
 
-        self.useGuidedReLU = False   #True  #False  # GuideBackPropagation的变体
+        self.useGuidedReLU = True   #True  #False  # GuideBackPropagation的变体
         self.guidedReLUstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_relu_layers = 0
         self.relu_output = []
@@ -36,19 +36,19 @@ class CJY_CAM_SCREEN():
         self.pool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_pool_index_list = []
 
-        self.useGuidedLINEAR = True  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.useGuidedLINEAR = False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
         self.num_linear_layers = 0
         self.linear_input = []
         self.linear_current_index = 0
 
-        self.useGuidedCONV = True  # True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedCONV = False  # True  # True#False  # GuideBackPropagation的变体
         self.guidedCONVstate = 0
         self.num_conv_layers = 0
         self.conv_input = []
         self.conv_current_index = 0
 
-        self.useGuidedBN = True    #True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedBN = False    #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
         self.bn_input = []
