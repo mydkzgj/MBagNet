@@ -191,6 +191,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 num_batch = linear_input.shape[0]
                 linear_input = linear_input[0:num_batch//2]
                 grad_output = grad_out[0][0:num_batch//2]
+                grad_input = grad_in[0][0:num_batch // 2]
 
             new_weight = module.weight
 
@@ -234,6 +235,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 num_batch = conv_input.shape[0]
                 conv_input = conv_input[0:num_batch//2]
                 grad_output = grad_out[0][0:num_batch//2]
+                grad_input = grad_in[0][0:num_batch // 2]
 
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
@@ -254,6 +256,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
             new_grad_in = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride,
                                                                padding=new_padding, output_padding=output_padding)
+
 
             if self.double_input == True:
                 new_weight = module.weight/(module.weight.sum())
@@ -504,7 +507,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
         gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
 
         gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-        gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)  
+        gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)
         print("linear:{}, bias:{}, sum:{}".format(gcam_l.sum(), gcam_b.sum(), gcam.sum()))
         print("linear_max:{}, bias_max:{}, sum_max:{}".format(gcam_l.max(), gcam_b.max(), gcam.max()))
 
