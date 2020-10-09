@@ -78,7 +78,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             for tl in self.target_layer:
                 for module_name, module in model.named_modules():
                     #print(module_name)
-                    if tl == "": # 对输入图像进行hook
+                    if tl == "" and isinstance(module, torch.nn.Conv2d) == True: # 对输入图像进行hook
                         module.register_forward_hook(self.reserve_input_for_firstLayer_hook_fn)
                         self.num_target_layer = self.num_target_layer + 1
                         break
