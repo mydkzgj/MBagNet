@@ -212,7 +212,16 @@ class CJY_CAM_SCREEN():
             output_padding = grad_in[0].shape[3] - output_size
 
             new_weight = module.weight
-            new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
+
+            bias = module.bias.unsqueeze(0).expand_as(grad_out[0]) if module.bias is not None else 0
+
+            conv_output_without_bias = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+
+            conv_output = conv_output_without_bias + bias
+            
+            y = grad_out[0] * conv_output / conv_output_without_bias
+
+            new_grad_in = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride,
                                                                padding=new_padding, output_padding=output_padding)
 
             return (new_grad_in, grad_in[1], grad_in[2])
@@ -231,22 +240,26 @@ class CJY_CAM_SCREEN():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
-            #pos_grad_out = grad_out[0].gt(0).float()
-            #new_grad_in = pos_grad_out * grad_in[0]
+            if self.relu_output_obtain_index in self.stem_relu_index_list:
+                self.CAM = self.GenerateCAM(relu_output, grad_out[0])
+                CAM = self.CAM
+            else:
+                CAM = self.CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+
             if grad_out[0].ndimension() == 2:
-                #"""
                 gcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
                 new_grad_in = gcam.gt(0).float() * grad_in[0]
-                return (new_grad_in,)
-                #"""
                 pass
             elif grad_out[0].ndimension() == 4:
-                gcam = self.GenerateCAM(relu_output, grad_out[0])
+                gcam = CAM
                 mask = gcam.gt(0).float()
                 #mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
                 new_grad_in = mask * grad_in[0]
 
-                return (new_grad_in,)
+                # pos_grad_out = grad_out[0].gt(0).float()
+                # new_grad_in = pos_grad_out * grad_in[0]
+
+            return (new_grad_in,)
 
 
     def pool_forward_hook_fn(self, module, input, output):
