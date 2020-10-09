@@ -189,7 +189,7 @@ class CJY_CAM_SCREEN():
 
             bias = module.bias.unsqueeze(0).expand_as(grad_out[0]) if module.bias is not None else 0
 
-            linear_output_without_bias = torch.nn.functional.linear(linear_input, new_weight.permute(1, 0))
+            linear_output_without_bias = torch.nn.functional.linear(linear_input, new_weight)
 
             linear_output = linear_output_without_bias + bias
 
