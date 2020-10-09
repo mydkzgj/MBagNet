@@ -286,6 +286,12 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
+            if self.double_input == True:
+                num_batch = relu_output.shape[0]
+                relu_output = relu_output[0:num_batch//2]
+                grad_output = grad_out[0][0:num_batch//2]
+                grad_input = grad_in[0][0:num_batch // 2]
+
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.CAM = self.GenerateCAM(relu_output, grad_out[0])
                 CAM = self.CAM
@@ -304,6 +310,14 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                 # pos_grad_out = grad_out[0].gt(0).float()
                 # new_grad_in = pos_grad_out * grad_in[0]
+
+            if self.double_input == True:
+                bias_output = grad_out[0][num_batch // 2: num_batch]
+
+                bias_input = bias_output
+
+                # new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
+                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
 
             return (new_grad_in,)
 
