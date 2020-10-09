@@ -218,7 +218,7 @@ class CJY_CAM_SCREEN():
 
             conv_output = conv_output_without_bias + bias
 
-            non_zero = conv_output_without_bias.eq(0)
+            non_zero = conv_output_without_bias.eq(0).float()
 
             y = grad_out[0] * conv_output / (conv_output_without_bias + non_zero) * (1-non_zero)
 
