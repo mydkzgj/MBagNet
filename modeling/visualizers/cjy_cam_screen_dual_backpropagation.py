@@ -194,7 +194,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
             new_weight = module.weight
 
-            bias = module.bias.unsqueeze(0).expand_as(grad_out[0]) if module.bias is not None else 0
+            bias = module.bias.unsqueeze(0).expand_as(grad_output) if module.bias is not None else 0
 
             linear_output_without_bias = torch.nn.functional.linear(linear_input, new_weight)
 
@@ -208,7 +208,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             if self.double_input == True:
                 new_weight = module.weight/(module.weight.sum())
 
-                bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_outout
+                bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_output
 
                 bias_input = torch.nn.functional.linear(bias_output, new_weight.permute(1, 0))
 
@@ -243,7 +243,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
             new_weight = module.weight
 
-            bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(grad_out[0]) if module.bias is not None else 0
+            bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(grad_output) if module.bias is not None else 0
 
             conv_output_without_bias = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
 
