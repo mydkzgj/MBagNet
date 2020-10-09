@@ -270,7 +270,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride,
                                                                    padding=new_padding, output_padding=output_padding)
 
-                self.rest = self.rest + bias_input.sum() - bias_output.sum()
+                self.rest = self.rest +  bias_output.sum() - bias_input.sum()
 
                 if self.original_gradient == True:  # 不改变原始梯度
                     new_grad_in = torch.cat([grad_input, bias_input], dim=0)
