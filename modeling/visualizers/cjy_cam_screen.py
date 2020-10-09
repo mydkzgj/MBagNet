@@ -218,8 +218,10 @@ class CJY_CAM_SCREEN():
             conv_output_without_bias = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
 
             conv_output = conv_output_without_bias + bias
-            
-            y = grad_out[0] * conv_output / conv_output_without_bias
+
+            non_zero = conv_output_without_bias.eq(0)
+
+            y = grad_out[0] * conv_output / (conv_output_without_bias + non_zero) * (1-non_zero)
 
             new_grad_in = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride,
                                                                padding=new_padding, output_padding=output_padding)
