@@ -366,6 +366,12 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             self.bn_input_obtain_index = self.bn_input_obtain_index - 1
             bn_input = self.bn_input[self.bn_input_obtain_index]
 
+            if self.double_input == True:
+                num_batch = bn_input.shape[0]
+                bn_input = bn_input[0:num_batch//2]
+                grad_output = grad_out[0][0:num_batch//2]
+                grad_input = grad_in[0][0:num_batch // 2]
+
             eps = module.eps
             mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
             var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
@@ -377,6 +383,17 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
             non_zero = bn_input.eq(0).float()
             new_grad_in = grad_in[0] * bn_output / (bn_input + non_zero) * (1-non_zero)
+
+            if self.double_input == True:
+                bias_current = - (mean * weight)/(var + eps).sqrt() + bias
+
+                bias_output = grad_out[0][num_batch // 2: num_batch] + bias_current * grad_output
+
+                bias_input = bias_output
+
+                # new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
+                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+
             return (new_grad_in, grad_in[1], grad_in[2])
 
     # Obtain Gradient
