@@ -191,7 +191,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 num_batch = linear_input.shape[0]
                 linear_input = linear_input[0:num_batch//2]
                 grad_output = grad_out[0][0:num_batch//2]
-                grad_input = grad_in[0][0:num_batch // 2]
+                grad_input = grad_in[1][0:num_batch // 2]
 
             new_weight = module.weight
 
@@ -213,7 +213,8 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                 bias_input = torch.nn.functional.linear(bias_output, new_weight.permute(1, 0))
 
-                new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
+                #new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
+                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -266,7 +267,8 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride,
                                                                    padding=new_padding, output_padding=output_padding)
 
-                new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
+                #new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
+                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
