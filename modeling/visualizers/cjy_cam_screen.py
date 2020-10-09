@@ -213,7 +213,7 @@ class CJY_CAM_SCREEN():
 
             new_weight = module.weight
 
-            bias = module.bias.unsqueeze(0).expand_as(grad_out[0]) if module.bias is not None else 0
+            bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(grad_out[0]) if module.bias is not None else 0
 
             conv_output_without_bias = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
 
