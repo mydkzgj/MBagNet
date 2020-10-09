@@ -209,9 +209,13 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
             if self.double_input == True:
                 bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_output
+                """
+                # 1
                 #new_weight = module.weight / (torch.sum(module.weight, dim=1, keepdim=True))
                 #bias_input = torch.nn.functional.linear(bias_output, new_weight.permute(1, 0))
-
+                """
+                """
+                # 2
                 new_weight = torch.ones_like(module.weight)
                 # x为0的点为死点，不将bias分给这种点
                 activation_map = linear_input.ne(0).float()
@@ -220,6 +224,15 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 y = bias_output / (activation_num_map + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_input = z * activation_map
+                """
+                #"""
+                new_weight = module.weight
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                x_nonzero = x.ne(0).float()
+                y = bias_output / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                bias_input = linear_input * z
+                #"""
 
                 #print("linear")
                 #print(grad_out[0][num_batch // 2: num_batch].sum())
@@ -276,11 +289,14 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
 
             if self.double_input == True:
-                #new_weight = module.weight/(module.weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
-
                 bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_output
-                # bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
-
+                """
+                # 1
+                new_weight = module.weight/(module.weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
+                bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                #"""
+                """
+                # 2
                 new_weight = torch.ones_like(module.weight)
                 # x为0的点为死点，不将bias分给这种点
                 activation_map = conv_input.ne(0).float()
@@ -289,6 +305,16 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 y = bias_output / (activation_num_map + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 bias_input = z * activation_map
+                """
+                #"""
+                # 3
+                new_weight = module.weight
+                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+                x_nonzero = x.ne(0).float()
+                y = bias_output / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+                bias_input = conv_input * z
+                #"""
 
                 #print("conv")
                 #print(grad_out[0][num_batch // 2: num_batch].sum())
