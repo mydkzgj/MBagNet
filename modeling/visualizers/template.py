@@ -48,6 +48,8 @@ class Template():
         self.useGuidedBN = True    #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
+        self.bn_input = []
+        self.bn_current_index = 0
 
         self.firstCAM = 1
 
@@ -254,15 +256,26 @@ class Template():
 
 
     def bn_forward_hook_fn(self, module, input, output):
+        """
         eps = module.eps
         mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         output = (input[0] - mean) / (var+eps).sqrt() * weight + bias
+        """
+        if self.bn_current_index == 0:
+            self.bn_input.clear()
+        self.bn_input.append(input[0])
+        self.bn_current_index = self.bn_current_index + 1
+        if self.bn_current_index % self.num_bn_layers == 0:
+            self.bn_current_index = 0
 
     def bn_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBNstate == True:
+            self.bn_input_obtain_index = self.bn_input_obtain_index - 1
+            bn_input = self.bn_input[self.bn_input_obtain_index]
+
             new_grad_in = grad_in[0]
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -296,6 +309,7 @@ class Template():
         self.pool_output_obtain_index = len(self.pool_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+        self.bn_input_obtain_index = len(self.bn_input)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph

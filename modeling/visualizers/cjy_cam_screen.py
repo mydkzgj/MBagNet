@@ -22,14 +22,14 @@ class CJY_CAM_SCREEN():
         self.inter_gradient = []
         self.targetHookIndex = 0
 
-        self.useGuidedReLU = True   #True  #False  # GuideBackPropagation的变体
+        self.useGuidedReLU = False   #True  #False  # GuideBackPropagation的变体
         self.guidedReLUstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_relu_layers = 0
         self.relu_output = []
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
-        self.useGuidedPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.useGuidedPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_pool_layers = 0
         self.pool_output = []
@@ -51,6 +51,8 @@ class CJY_CAM_SCREEN():
         self.useGuidedBN = False    #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
+        self.bn_input = []
+        self.bn_current_index = 0
 
         self.firstCAM = 1
 
@@ -302,16 +304,36 @@ class CJY_CAM_SCREEN():
 
 
     def bn_forward_hook_fn(self, module, input, output):
+        """
         eps = module.eps
         mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         output = (input[0] - mean) / (var+eps).sqrt() * weight + bias
+        """
+        if self.bn_current_index == 0:
+            self.bn_input.clear()
+        self.bn_input.append(input[0])
+        self.bn_current_index = self.bn_current_index + 1
+        if self.bn_current_index % self.num_bn_layers == 0:
+            self.bn_current_index = 0
 
     def bn_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBNstate == True:
-            new_grad_in = grad_in[0]
+            self.bn_input_obtain_index = self.bn_input_obtain_index - 1
+            bn_input = self.bn_input[self.bn_input_obtain_index]
+
+            eps = module.eps
+            mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+
+            #bn_output_without_bias = bn_input / (var + eps).sqrt() * weight
+            bn_output = (bn_input - mean) / (var + eps).sqrt() * weight + bias
+
+            new_grad_in = grad_in[0] * bn_output / bn_input
             return (new_grad_in, grad_in[1], grad_in[2])
 
     # Obtain Gradient
@@ -344,6 +366,7 @@ class CJY_CAM_SCREEN():
         self.pool_output_obtain_index = len(self.pool_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+        self.bn_input_obtain_index = len(self.bn_input)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
