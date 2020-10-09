@@ -22,7 +22,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
         self.inter_gradient = []
         self.targetHookIndex = 0
 
-        self.useGuidedReLU = False   #True  #False  # GuideBackPropagation的变体
+        self.useGuidedReLU = True   #True  #False  # GuideBackPropagation的变体
         self.guidedReLUstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_relu_layers = 0
         self.relu_output = []
@@ -59,6 +59,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
         self.reservePos = False  #True
 
         self.double_input = True
+        self.original_gradient = True
 
         self.setHook(model)
 
@@ -213,8 +214,10 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                 bias_input = torch.nn.functional.linear(bias_output, new_weight.permute(1, 0))
 
-                #new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
-                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                if self.original_gradient == True:  # 不改变原始梯度
+                    new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                else:
+                    new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -267,8 +270,10 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride,
                                                                    padding=new_padding, output_padding=output_padding)
 
-                #new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
-                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                if self.original_gradient == True:  # 不改变原始梯度
+                    new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                else:
+                    new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -316,8 +321,10 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                 bias_input = bias_output
 
-                # new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
-                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                if self.original_gradient == True:  # 不改变原始梯度
+                    new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                else:
+                    new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
 
             return (new_grad_in,)
 
@@ -405,8 +412,10 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                 bias_input = bias_output
 
-                # new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
-                new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                if self.original_gradient == True:  # 不改变原始梯度
+                    new_grad_in = torch.cat([grad_input, bias_input], dim=0)
+                else:
+                    new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
