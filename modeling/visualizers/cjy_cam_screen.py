@@ -36,19 +36,19 @@ class CJY_CAM_SCREEN():
         self.pool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_pool_index_list = []
 
-        self.useGuidedLINEAR = False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.useGuidedLINEAR = True  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
         self.num_linear_layers = 0
         self.linear_input = []
         self.linear_current_index = 0
 
-        self.useGuidedCONV = False  # True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedCONV = True  # True  # True#False  # GuideBackPropagation的变体
         self.guidedCONVstate = 0
         self.num_conv_layers = 0
         self.conv_input = []
         self.conv_current_index = 0
 
-        self.useGuidedBN = False    #True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedBN = True    #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
         self.bn_input = []
