@@ -146,11 +146,8 @@ class Template():
             print("Set GuidedBP Hook on BN")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.BatchNorm2d) == True and "segmenter" not in module_name:
-                    if "resnet" in self.model.base_name and "bn3" in module_name:
-                        module.register_backward_hook(self.bn_backward_hook_fn_with_zero_input)
-                    else:
-                        module.register_backward_hook(self.bn_backward_hook_fn)
-                    #module.register_forward_hook(self.bn_forward_hook_fn)
+                    module.register_forward_hook(self.bn_forward_hook_fn)
+                    module.register_backward_hook(self.bn_backward_hook_fn)
                     self.num_bn_layers = self.num_bn_layers + 1
 
 
