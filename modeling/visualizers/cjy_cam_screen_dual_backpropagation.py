@@ -82,7 +82,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                         module.register_forward_hook(self.reserve_input_for_firstLayer_hook_fn)
                         self.num_target_layer = self.num_target_layer + 1
                         break
-                    if module_name == tl:
+                    if tl != "" and module_name == tl:
                         print("Visualization Hook on ", module_name)
                         module.register_forward_hook(self.reserve_output_for_targetLayer_hook_fn)
                         #module.register_backward_hook(self.backward_hook_fn_for_targetLayer)    #不以backward求取gcam了，why，因为这种回传会在模型中保存梯度，然后再清零会出问题
