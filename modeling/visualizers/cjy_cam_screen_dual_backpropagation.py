@@ -332,14 +332,15 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                     CAM = self.CAM * self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0]).gt(0).float()
 
                 if grad_out[0].ndimension() == 2:
-                    gcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
-                    new_grad_in = gcam.gt(0).float() * grad_in[0]
+                    gcam = CAM #torch.sum(relu_output * grad_output, dim=1, keepdim=True)
+                    mask = gcam.gt(0).float()
+                    new_grad_in = mask * grad_input
                     pass
                 elif grad_out[0].ndimension() == 4:
                     gcam = CAM
                     mask = gcam.gt(0).float()
                     # mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
-                    new_grad_in = mask * grad_in[0]
+                    new_grad_in = mask * grad_input
 
                     # pos_grad_out = grad_out[0].gt(0).float()
                     # new_grad_in = pos_grad_out * grad_in[0]
