@@ -287,7 +287,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride, padding=module.padding)  # 计算非死点个数之和
                 x_nonzero = (activation_num_map).ne(0).float()
                 y = bias_output / (activation_num_map + (1 - x_nonzero)) * x_nonzero
-                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 bias_input = z * activation_map
 
                 print("conv")
