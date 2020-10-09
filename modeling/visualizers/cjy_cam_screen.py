@@ -255,8 +255,12 @@ class CJY_CAM_SCREEN():
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.CAM = self.GenerateCAM(relu_output, grad_out[0])
                 CAM = self.CAM
+                if self.CAM.shape[-1] != grad_out[0].shape[-1]:
+                    CAM = torch.nn.functional.interpolate(CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
             else:
                 CAM = self.CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                if self.CAM.shape[-1] != grad_out[0].shape[-1]:
+                    CAM = torch.nn.functional.interpolate(CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
 
             if grad_out[0].ndimension() == 2:
                 gcam = CAM  # torch.sum(relu_output * grad_output, dim=1, keepdim=True)
