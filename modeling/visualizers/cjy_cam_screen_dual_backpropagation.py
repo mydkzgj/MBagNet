@@ -324,26 +324,27 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 grad_output = grad_out[0][0:num_batch//2]
                 grad_input = grad_in[0][0:num_batch // 2]
 
-            if self.original_gradient != True:
-                if self.relu_output_obtain_index in self.stem_relu_index_list:
-                    self.CAM = self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0])
-                    CAM = self.CAM
-                else:
-                    CAM = self.CAM * self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0]).gt(0).float()
+            if self.relu_output_obtain_index in self.stem_relu_index_list:
+                self.CAM = self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0])
+                CAM = self.CAM
+            else:
+                CAM = self.CAM * self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0]).gt(
+                    0).float()
 
-                if grad_out[0].ndimension() == 2:
-                    gcam = CAM #torch.sum(relu_output * grad_output, dim=1, keepdim=True)
-                    mask = gcam.gt(0).float()
-                    new_grad_in = mask * grad_input
-                    pass
-                elif grad_out[0].ndimension() == 4:
-                    gcam = CAM
-                    mask = gcam.gt(0).float()
-                    # mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
-                    new_grad_in = mask * grad_input
+            if grad_out[0].ndimension() == 2:
+                gcam = CAM  # torch.sum(relu_output * grad_output, dim=1, keepdim=True)
+                mask = gcam.gt(0).float()
+                new_grad_in = mask * grad_input
+                pass
+            elif grad_out[0].ndimension() == 4:
+                gcam = CAM
+                mask = gcam.gt(0).float()
+                # mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
+                new_grad_in = mask * grad_input
 
-                    # pos_grad_out = grad_out[0].gt(0).float()
-                    # new_grad_in = pos_grad_out * grad_in[0]
+                # pos_grad_out = grad_out[0].gt(0).float()
+                # new_grad_in = pos_grad_out * grad_in[0]
+
 
             if self.double_input == True:
                 bias_output = grad_out[0][num_batch // 2: num_batch]
