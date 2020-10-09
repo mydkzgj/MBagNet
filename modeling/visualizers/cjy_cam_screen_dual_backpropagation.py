@@ -221,10 +221,10 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_input = z * activation_map
 
-                print("linear")
-                print(grad_out[0][num_batch // 2: num_batch].sum())
-                print(bias_output.sum())
-                print(bias_input.sum())
+                #print("linear")
+                #print(grad_out[0][num_batch // 2: num_batch].sum())
+                #print(bias_output.sum())
+                #print(bias_input.sum())
 
                 if self.original_gradient == True:  # 不改变原始梯度
                     new_grad_in = torch.cat([grad_input, bias_input], dim=0)
@@ -290,10 +290,10 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 bias_input = z * activation_map
 
-                print("conv")
-                print(grad_out[0][num_batch // 2: num_batch].sum())
-                print(bias_output.sum())
-                print(bias_input.sum())
+                #print("conv")
+                #print(grad_out[0][num_batch // 2: num_batch].sum())
+                #print(bias_output.sum())
+                #print(bias_input.sum())
 
                 self.rest = self.rest + bias_output.sum() - bias_input.sum()
 
@@ -330,7 +330,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             else:
                 new_grad_in = grad_in[0]
 
-            #"""
+            """
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.CAM = self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0])
                 CAM = self.CAM
