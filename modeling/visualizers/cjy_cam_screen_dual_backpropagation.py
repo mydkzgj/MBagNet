@@ -265,9 +265,6 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                 new_grad_in = torch.cat([new_grad_in, bias_input], dim=0)
 
-            print(grad_in[0].shape)
-            print(new_grad_in.shape)
-
             return (new_grad_in, grad_in[1], grad_in[2])
 
 
@@ -505,6 +502,11 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
         inter_gradient = inter_gradient[0: num_batch // 2]
 
         gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
+
+        gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+        gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)  
+        print("linear:{}, bias:{}, sum:{}".format(gcam_l.sum(), gcam_b.sum(), gcam.sum()))
+        print("linear_max:{}, bias_max:{}, sum_max:{}".format(gcam_l.max(), gcam_b.max(), gcam.max()))
 
         if self.reservePos == True:
             gcam = torch.relu(gcam)  # CJY at 2020.4.18
