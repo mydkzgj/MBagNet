@@ -318,12 +318,18 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
+            if self.double_input == True:
+                num_batch = relu_output.shape[0]
+                relu_output = relu_output[0:num_batch//2]
+                grad_output = grad_out[0][0:num_batch//2]
+                grad_input = grad_in[0][0:num_batch // 2]
+
             if self.original_gradient != True:
                 if self.relu_output_obtain_index in self.stem_relu_index_list:
                     self.CAM = self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0])
                     CAM = self.CAM
                 else:
-                    CAM = self.CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                    CAM = self.CAM * self.GenerateCAM(self.relu_output[self.relu_output_obtain_index], grad_out[0]).gt(0).float()
 
                 if grad_out[0].ndimension() == 2:
                     gcam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
@@ -337,14 +343,6 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
                     # pos_grad_out = grad_out[0].gt(0).float()
                     # new_grad_in = pos_grad_out * grad_in[0]
-
-
-            if self.double_input == True:
-                num_batch = relu_output.shape[0]
-                relu_output = relu_output[0:num_batch//2]
-                grad_output = grad_out[0][0:num_batch//2]
-                grad_input = grad_in[0][0:num_batch // 2]
-
 
             if self.double_input == True:
                 bias_output = grad_out[0][num_batch // 2: num_batch]
