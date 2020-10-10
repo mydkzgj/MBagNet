@@ -51,6 +51,10 @@ def googlenet(pretrained=False, progress=True, **kwargs):
 
 
 class GoogLeNet(nn.Module):
+    """
+    CJY at 2020.10.10
+    增加 stem relu， 并修改basic conv
+    """
 
     def __init__(self, num_classes=1000, aux_logits=True, transform_input=False, init_weights=True, with_classifier=True):
         super(GoogLeNet, self).__init__()
@@ -76,6 +80,18 @@ class GoogLeNet(nn.Module):
 
         self.inception5a = Inception(832, 256, 160, 320, 32, 128, 128)
         self.inception5b = Inception(832, 384, 192, 384, 48, 128, 128)
+
+        self.relu3a = torch.nn.ReLU(inplace=True)
+        self.relu3b = torch.nn.ReLU(inplace=True)
+
+        self.relu4a = torch.nn.ReLU(inplace=True)
+        self.relu4b = torch.nn.ReLU(inplace=True)
+        self.relu4c = torch.nn.ReLU(inplace=True)
+        self.relu4d = torch.nn.ReLU(inplace=True)
+        self.relu4e = torch.nn.ReLU(inplace=True)
+
+        self.relu5a = torch.nn.ReLU(inplace=True)
+        self.relu5b = torch.nn.ReLU(inplace=True)
 
         if aux_logits:
             self.aux1 = InceptionAux(512, num_classes)
@@ -129,32 +145,41 @@ class GoogLeNet(nn.Module):
 
         # N x 192 x 28 x 28
         x = self.inception3a(x)
+        x = self.relu3a(x)
         # N x 256 x 28 x 28
         x = self.inception3b(x)
+        x = self.relu3b(x)
         # N x 480 x 28 x 28
         x = self.maxpool3(x)
         # N x 480 x 14 x 14
         x = self.inception4a(x)
+        x = self.relu4a(x)
         # N x 512 x 14 x 14
         if self.training and self.aux_logits:
             aux1 = self.aux1(x)
 
         x = self.inception4b(x)
+        x = self.relu4b(x)
         # N x 512 x 14 x 14
         x = self.inception4c(x)
+        x = self.relu4c(x)
         # N x 512 x 14 x 14
         x = self.inception4d(x)
+        x = self.relu4d(x)
         # N x 528 x 14 x 14
         if self.training and self.aux_logits:
             aux2 = self.aux2(x)
 
         x = self.inception4e(x)
+        x = self.relu4e(x)
         # N x 832 x 14 x 14
         x = self.maxpool4(x)
         # N x 832 x 7 x 7
         x = self.inception5a(x)
+        x = self.relu5a(x)
         # N x 832 x 7 x 7
         x = self.inception5b(x)
+        x = self.relu5b(x)
         # N x 1024 x 7 x 7
 
         x = self.avgpool(x)
