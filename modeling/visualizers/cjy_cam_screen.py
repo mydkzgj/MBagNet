@@ -300,11 +300,9 @@ class CJY_CAM_SCREEN():
 
             # prepare for transposed conv
             channels = grad_out[0].shape[1]
-
             stride = module.stride
             kernel_size = module.kernel_size
             padding = module.padding
-
 
             output_size = (grad_out[0].shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
             output_padding = grad_in[0].shape[3] - output_size

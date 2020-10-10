@@ -211,10 +211,11 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_output
                 """
                 # 1
-                #new_weight = module.weight / (torch.sum(module.weight, dim=1, keepdim=True))
-                #bias_input = torch.nn.functional.linear(bias_output, new_weight.permute(1, 0))
+                new_weight = torch.ones_like(module.weight)
+                new_weight = module.weight / (torch.sum(module.weight, dim=1, keepdim=True))
+                bias_input = torch.nn.functional.linear(bias_output, new_weight.permute(1, 0))
                 """
-                """
+                #"""
                 # 2
                 new_weight = torch.ones_like(module.weight)
                 # x为0的点为死点，不将bias分给这种点
@@ -224,8 +225,8 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 y = bias_output / (activation_num_map + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_input = z * activation_map
-                """
                 #"""
+                """
                 new_weight = module.weight
                 x = torch.nn.functional.linear(linear_input, new_weight)
                 x_nonzero = x.ne(0).float()
@@ -292,10 +293,11 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 bias_output = grad_out[0][num_batch // 2: num_batch] + bias * grad_output
                 """
                 # 1
+                new_weight = torch.ones_like(module.weight)
                 new_weight = module.weight/(module.weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
                 bias_input = torch.nn.functional.conv_transpose2d(bias_output, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 #"""
-                """
+                #"""
                 # 2
                 new_weight = torch.ones_like(module.weight)
                 # x为0的点为死点，不将bias分给这种点
@@ -305,8 +307,8 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 y = bias_output / (activation_num_map + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
                 bias_input = z * activation_map
-                """
                 #"""
+                """
                 # 3
                 new_weight = module.weight
                 x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
@@ -421,6 +423,29 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                                                      output_padding=output_padding, groups=channels)
 
             new_grad_in = mask * grad_in[0]
+
+            if self.double_input == True:
+                input_size = (pool_input.shape[2], pool_input.shape[3])
+                channels = grad_out[0].shape[1]
+
+                stride = ((input_size[0] // module.output_size[0]) if module.output_size[0] != 1 else 1) if hasattr(
+                    module, "stride") == False else module.stride
+                kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module,
+                                                                                              "kernel_size") == False else module.kernel_size
+                padding = 0 if hasattr(module, "padding") == False else module.padding
+
+                new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / (kernel_size * kernel_size)
+                new_weight = new_weight.cuda()
+                x = torch.nn.functional.conv2d(pool_input, new_weight, stride=stride, padding=padding, groups=channels)
+                x_nonzero = x.ne(0).float()
+                y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+
+                output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
+                output_padding = pool_input.shape[3] - output_size
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding,
+                                                         output_padding=output_padding, groups=channels)
+                result_grad = pool_input * z
+
             return (new_grad_in,)
 
 
