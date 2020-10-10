@@ -109,25 +109,25 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
         seg_num = seg_masks.shape[0] if seg_imgs is not None else 0
         # 将grade和seg样本concat起来
-        if grade_num > 0 and seg_num > 0:       # joint
-            dataType = "joint"
-            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
-            labels = torch.cat([grade_labels, seg_labels], dim=0)
-            masks = seg_masks
-            img_paths = gimg_path + simg_path
-        elif grade_num > 0 and seg_num == 0:    # grade
+        if grade_num > 0 and seg_num == 0:    # grade
             dataType = "grade"
-
             imgs = grade_imgs
             labels = grade_labels
             masks = None
             img_paths = gimg_path
-        elif grade_num == 0 and seg_num > 0:    # seg
+        elif grade_num >= 0 and seg_num > 0:    # seg
             dataType = "seg"
             imgs = seg_imgs
             labels = seg_labels
             masks = seg_masks
             img_paths = simg_path
+        elif 0:#grade_num > 0 and seg_num > 0:       # joint
+            dataType = "joint"
+            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
+            labels = torch.cat([grade_labels, seg_labels], dim=0)
+            masks = seg_masks
+            img_paths = gimg_path + simg_path
+
 
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
