@@ -60,6 +60,7 @@ class CJY_CAM_SCREEN():
 
         self.ConvMask = torch.nn.Conv2d(kernel_size=3, in_channels=1, out_channels=1, padding=1, bias=False)
         torch.nn.init.constant_(self.ConvMask.weight, 1)
+        self.ConvMask = self.ConvMask.cuda()
 
         self.setHook(model)
 
@@ -265,12 +266,11 @@ class CJY_CAM_SCREEN():
 
             new_grad_in = grad_in[0]
 
-            CAM = self.ConvMask(CAM).gt(0)
-
             if grad_out[0].ndimension() == 2:
                 new_grad_in = CAM * new_grad_in
                 pass
             elif grad_out[0].ndimension() == 4:
+                CAM = self.ConvMask(CAM).gt(0)
                 new_grad_in = CAM * new_grad_in
 
                 #pos_grad_out = grad_out[0].gt(0).float()
