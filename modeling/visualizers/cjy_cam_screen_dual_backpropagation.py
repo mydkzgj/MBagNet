@@ -348,8 +348,7 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
 
             if self.double_input == True:
                 num_batch = relu_output.shape[0]
-                relu_output = relu_output[0:num_batch//2]
-                grad_output = grad_out[0][0:num_batch//2]
+                grad_output = grad_out[0][0:num_batch // 2]
                 grad_input = grad_in[0][0:num_batch // 2]
 
                 bias_output = grad_out[0][num_batch // 2: num_batch]
@@ -371,7 +370,6 @@ class CJY_CAM_SCREEN_DUAL_BACKPROPAGATION():
                 CAM = CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
 
             CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-            new_grad_in = grad_in[0]
 
             if grad_out[0].ndimension() == 2:
                 new_grad_in = CAM * new_grad_in
