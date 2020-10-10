@@ -250,8 +250,6 @@ class CJY_CAM_SCREEN():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
-            new_grad_in = grad_in[0]
-
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.CAM = self.GenerateCAM(relu_output, grad_out[0])
                 if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
@@ -265,19 +263,20 @@ class CJY_CAM_SCREEN():
                     CAM = self.CAM
                 CAM = CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
 
+            new_grad_in = grad_in[0]
+
             if grad_out[0].ndimension() == 2:
-                gcam = CAM  # torch.sum(relu_output * grad_output, dim=1, keepdim=True)
+                gcam = CAM
                 mask = gcam.gt(0).float()
                 new_grad_in = mask * new_grad_in
                 pass
             elif grad_out[0].ndimension() == 4:
                 gcam = CAM
                 mask = gcam.gt(0).float()
-                # mask, _ = self.gcamNormalization(gcam.relu(), reservePos=True)
                 new_grad_in = mask * new_grad_in
 
-                # pos_grad_out = grad_out[0].gt(0).float()
-                # new_grad_in = pos_grad_out * grad_in[0]
+                #pos_grad_out = grad_out[0].gt(0).float()
+                #new_grad_in = pos_grad_out * new_grad_in   #grad_in[0]
 
             return (new_grad_in,)
 
