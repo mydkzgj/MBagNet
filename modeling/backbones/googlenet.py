@@ -237,8 +237,10 @@ class BasicConv2d(nn.Module):
         super(BasicConv2d, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
         self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
+        self.relu = torch.nn.ReLU(inplace=True)  #CJY
 
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
-        return F.relu(x, inplace=True)
+        x = self.relu(x)
+        return x #F.relu(x, inplace=True)
