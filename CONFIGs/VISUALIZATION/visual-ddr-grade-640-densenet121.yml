@@ -6,8 +6,8 @@
 # -----------------------------------------------------------------------------
 DATA:
  DATASETS:
-  NAMES: ('ddr_DRgrading')
-  SEG_NAMES: ("ddr_DRgrading_WeakSupervision")
+  NAMES: ('ddr_dr_grading')
+  SEG_NAMES: ("ddr_lesion_segmentation_regroup")
   ROOT_DIR: ('./data')
 
  DATALOADER:
