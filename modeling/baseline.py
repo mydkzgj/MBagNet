@@ -186,8 +186,6 @@ class Baseline(nn.Module):
                         self.target_layer.append(module_name)
                     elif "googlenet" in self.base_name and "branch" not in module_name:
                         self.target_layer.append(module_name)
-                    else:
-                        self.target_layer.append(module_name)
             self.target_layer.append("")
         #"""
         #self.target_layer = [self.target_layer[-1]]
