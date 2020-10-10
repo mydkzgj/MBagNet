@@ -270,7 +270,7 @@ class CJY_CAM_SCREEN():
                 new_grad_in = CAM * new_grad_in
                 pass
             elif grad_out[0].ndimension() == 4:
-                CAM = self.ConvMask(CAM).gt(0)
+                CAM = self.ConvMask(CAM).gt(0).float()
                 new_grad_in = CAM * new_grad_in
 
                 #pos_grad_out = grad_out[0].gt(0).float()
