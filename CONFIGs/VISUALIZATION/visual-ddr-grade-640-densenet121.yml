@@ -151,7 +151,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/Visualization/save_models/DDR-GRADE/densenet/densenet121_model_20.pth"
+ WEIGHT: "D:/Visualization/save_models/DDR-GRADE/densenet/densenet121_model_21.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader
