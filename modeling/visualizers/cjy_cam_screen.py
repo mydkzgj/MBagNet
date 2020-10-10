@@ -58,6 +58,9 @@ class CJY_CAM_SCREEN():
 
         self.reservePos = False  #True
 
+        self.ConvMask = torch.nn.Conv2d(kernel_size=3, in_channels=1, out_channels=1, padding=1, bias=False)
+        torch.nn.init.constant_(self.ConvMask.weight, 1)
+
         self.setHook(model)
 
     def setHook(self, model):
@@ -251,11 +254,8 @@ class CJY_CAM_SCREEN():
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
             if self.relu_output_obtain_index in self.stem_relu_index_list:
-                self.CAM = self.GenerateCAM(relu_output, grad_out[0])
-                if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
-                    CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
-                else:
-                    CAM = self.CAM
+                self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                CAM = self.CAM
             else:
                 if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
                     CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
@@ -265,15 +265,13 @@ class CJY_CAM_SCREEN():
 
             new_grad_in = grad_in[0]
 
+            CAM = self.ConvMask(CAM).gt(0)
+
             if grad_out[0].ndimension() == 2:
-                gcam = CAM
-                mask = gcam.gt(0).float()
-                new_grad_in = mask * new_grad_in
+                new_grad_in = CAM * new_grad_in
                 pass
             elif grad_out[0].ndimension() == 4:
-                gcam = CAM
-                mask = gcam.gt(0).float()
-                new_grad_in = mask * new_grad_in
+                new_grad_in = CAM * new_grad_in
 
                 #pos_grad_out = grad_out[0].gt(0).float()
                 #new_grad_in = pos_grad_out * new_grad_in   #grad_in[0]
