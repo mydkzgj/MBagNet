@@ -250,6 +250,7 @@ class CJY_CAM_SCREEN():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
+            """"
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
                 CAM = self.CAM
@@ -259,7 +260,9 @@ class CJY_CAM_SCREEN():
                 else:
                     CAM = self.CAM
                 CAM = CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+            """
 
+            CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
             new_grad_in = grad_in[0]
 
             if grad_out[0].ndimension() == 2:
