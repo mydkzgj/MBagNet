@@ -272,6 +272,26 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             pos_grad_out = grad_out[0].gt(0).float()
             new_grad_in = grad_in[0] * pos_grad_out
 
+            num_batch = relu_output.shape[0]
+            relu_output1 = relu_output[0:num_batch // 2]
+            o_grad_input1 = grad_in[0][0:num_batch // 2]
+            o_grad_input2 = grad_in[0][num_batch // 2:num_batch]
+            n_grad_input1 = new_grad_in[0:num_batch // 2]
+            n_grad_input2 = new_grad_in[num_batch // 2:num_batch]
+
+            o_sum1 = torch.sum(relu_output1 * o_grad_input1)
+            o_sum2 = torch.sum(relu_output1 * o_grad_input2)
+            n_sum1 = torch.sum(relu_output1 * n_grad_input1)
+            n_sum2 = torch.sum(relu_output1 * n_grad_input2)
+
+            ratio1 = o_sum1 / n_sum1
+            ratio2 = o_sum2 / n_sum2
+
+            n_grad_input1 = n_grad_input1 * ratio1
+            n_grad_input2 = n_grad_input2 * ratio2
+
+            new_grad_in = torch.cat([n_grad_input1, n_grad_input2], dim=0)
+
             """
             if self.firstCAM == True:
                 num_batch = relu_output.shape[0]
