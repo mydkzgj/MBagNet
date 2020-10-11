@@ -270,7 +270,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
             pos_grad_out = grad_out[0].gt(0).float()
-            new_grad_in = pos_grad_out * grad_in[0]
+            new_grad_in = grad_in[0] * pos_grad_out
 
             """
             if self.firstCAM == True:
