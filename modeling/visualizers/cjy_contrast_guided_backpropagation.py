@@ -39,7 +39,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         self.pool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_pool_index_list = []
 
-        self.useGuidedLINEAR = False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.useGuidedLINEAR = True#False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
         self.num_linear_layers = 0
         self.linear_input = []
@@ -192,6 +192,8 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         if self.guidedLINEARstate == True:
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
+
+            new_grad_in = grad_in
 
             if self.firstCAM == True:
                 num_batch = linear_input.shape[0]
