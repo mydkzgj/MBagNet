@@ -172,6 +172,7 @@ class Baseline(nn.Module):
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
         # "dual-backpropagation"
         # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient", "cjy-cam-screen", "cjy-cam-screen-dual-backpropagation"
+        # "cjy-contrast-guided-backpropagation"
 
         self.visualizer_name = "cjy-cam-screen-dual-backpropagation" #"guided-deconv-pgrad-cam"#"guided-backpropagation"
         #"""
