@@ -193,25 +193,16 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            num_batch = grad_out[0].shape[0]
-            pos_gard_out = grad_out[0][0:num_batch//2]
-            neg_gard_out = grad_out[0][num_batch // 2:num_batch]
+            if self.firstCAM == True:
+                num_batch = linear_input.shape[0]
+                grad_input = grad_in[0][0:num_batch // 2]
 
-            pos_weight = module.weight.relu()
-            neg_weight = -(-module.weight).relu()
+                new_grad_in1 = grad_input * grad_input.gt(0).float()
+                new_grad_in2 = (-grad_input) * grad_input.lt(0).float()
 
-            pp_new_grad_in = torch.nn.functional.linear(pos_gard_out, pos_weight.permute(1, 0))
+                new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
-            pn_new_grad_in = torch.nn.functional.linear(pos_gard_out, neg_weight.permute(1, 0))
-
-            np_new_grad_in = torch.nn.functional.linear(neg_gard_out, pos_weight.permute(1, 0))
-
-            nn_new_grad_in = torch.nn.functional.linear(neg_gard_out, neg_weight.permute(1, 0))
-
-            pos_new_grad_in = pp_new_grad_in + nn_new_grad_in
-            neg_new_grad_in = pn_new_grad_in + np_new_grad_in
-
-            new_grad_in = torch.cat([pos_new_grad_in, neg_new_grad_in], dim=0)
+                self.firstCAM = 0
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -279,6 +270,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             pos_grad_out = grad_out[0].gt(0).float()
             new_grad_in = pos_grad_out * grad_in[0]
 
+            """
             if self.firstCAM == True:
                 num_batch = relu_output.shape[0]
                 grad_input = grad_in[0][0:num_batch // 2]
@@ -289,6 +281,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
                 new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
                 self.firstCAM = 0
+            """
 
             return (new_grad_in,)
 
