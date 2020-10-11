@@ -193,7 +193,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_grad_in = grad_in
+            new_grad_in = grad_in[1]
 
             if self.firstCAM == True:
                 num_batch = linear_input.shape[0]
