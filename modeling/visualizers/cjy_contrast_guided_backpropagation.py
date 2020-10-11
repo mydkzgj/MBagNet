@@ -284,7 +284,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
                 grad_input = grad_in[0][0:num_batch // 2]
 
                 new_grad_in1 = grad_input * grad_input.gt(0).float()
-                new_grad_in2 = grad_input * grad_input.lt(0).float()
+                new_grad_in2 = (-grad_input) * grad_input.lt(0).float()
 
                 new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
