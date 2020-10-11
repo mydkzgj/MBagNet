@@ -344,7 +344,7 @@ class CJY_DUAL_GRADIENT():
         self.linear_input_obtain_index = len(self.linear_input)
 
         if self.double_input == True:
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels*0], dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
