@@ -288,6 +288,8 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
                 new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
+                self.firstCAM = 0
+
             return (new_grad_in,)
 
 
