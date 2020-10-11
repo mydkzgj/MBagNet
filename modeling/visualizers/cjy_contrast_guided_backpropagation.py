@@ -197,7 +197,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
             if self.firstCAM == True:
                 num_batch = linear_input.shape[0]
-                grad_input = grad_in[0][0:num_batch // 2]
+                grad_input = grad_in[1][0:num_batch // 2]
 
                 new_grad_in1 = grad_input * grad_input.gt(0).float()
                 new_grad_in2 = (-grad_input) * grad_input.lt(0).float()
