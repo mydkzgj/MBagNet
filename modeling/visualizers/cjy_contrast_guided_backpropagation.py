@@ -61,7 +61,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
         self.normFlag = True
 
-        self.double_input = True
+        self.multiply_input = 3
 
         self.setHook(model)
 
@@ -196,13 +196,15 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             new_grad_in = grad_in[1]
 
             if self.firstCAM == True:
-                num_batch = linear_input.shape[0]
-                grad_input = grad_in[1][0:num_batch // 2]
+                num_sub_batch = linear_input.shape[0]//self.multiply_input
+                grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-                new_grad_in1 = grad_input * grad_input.gt(0).float()
-                new_grad_in2 = (-grad_input) * grad_input.lt(0).float()
+                new_grad_in0 = grad_in_sub[0]
+                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
+                new_grad_in2 = (-grad_in_sub[2]) * grad_in_sub[2].lt(0).float()
 
-                new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
+                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
                 self.firstCAM = 0
 
@@ -269,9 +271,20 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
-            pos_grad_out = grad_out[0].gt(0).float()
-            new_grad_in = grad_in[0] * pos_grad_out
+            num_sub_batch = relu_output.shape[0]//self.multiply_input
+            relu_out_sub = [relu_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
+            #pos_grad_out = grad_out[0].gt(0).float()
+            #new_grad_in = grad_in[0] * pos_grad_out
+
+            new_grad_in0 = grad_in_sub[0]
+            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
+            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
+
+            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
 
             """
@@ -351,8 +364,8 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
 
-        if self.double_input == True:
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels], dim=0)
+        if self.multiply_input >= 1:
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
@@ -397,8 +410,8 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
 
-        if self.double_input == True:
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels], dim=0)
+        if self.multiply_input >= 1:
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
@@ -468,7 +481,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
 
     # Generate Single CAM (backward)
-    def GenerateCAM(self, inter_output, inter_gradient, inter_original_gradient):
+    def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
         """
         avg_gradient = torch.nn.functional.adaptive_max_pool2d(inter_gradient, 1).squeeze(-1).squeeze(-1).squeeze(0)
@@ -485,20 +498,16 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         #gcam = inter_output[:, 435:436,]
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam_all = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-        num_batch = gcam_all.shape[0]
-        pos_gcam = gcam_all[0: num_batch//2]
-        neg_gcam = gcam_all[num_batch//2: num_batch]
+
+        num_sub_batch = inter_output.shape[0] // self.multiply_input
+        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+        gcam_all = torch.sum(torch.relu(inter_output_sub * inter_gradient_sub), dim=1, keepdim=True)
+        ori_gcam = gcam_all[0: num_sub_batch]
+        pos_gcam = gcam_all[num_sub_batch: 2 * num_sub_batch]
+        neg_gcam = gcam_all[2 * num_sub_batch: 3 * num_sub_batch]
         gcam = pos_gcam - neg_gcam
-
-
-        ogcam_all = torch.sum(inter_original_gradient * inter_output, dim=1, keepdim=True)
-        num_batch = ogcam_all.shape[0]
-        pos_ogcam = ogcam_all[0: num_batch//2]
-        neg_ogcam = ogcam_all[num_batch//2: num_batch]
-        ogcam = pos_ogcam
-
-        gcam = ogcam * gcam.gt(0)
 
         return gcam
 
@@ -566,12 +575,10 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         self.gcam_list = []
         self.gcam_max_list = [] # 记录每个Grad-CAM的归一化最大值
 
-        if self.double_input == True:
+        if self.multiply_input == True:
             visual_ratio = 2
         else:
             visual_ratio = 1
-
-        self.ObtainOriginalGradient(logits, labels)   #获取原始梯度
 
         # obtain gradients
         self.ObtainGradient(logits, labels)
@@ -582,8 +589,6 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             visual_num = visual_num * visual_ratio
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
-
-            inter_original_gradient = self.inter_original_gradient[i][batch_num - visual_num:batch_num]
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient, inter_original_gradient)

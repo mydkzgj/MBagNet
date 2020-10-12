@@ -140,14 +140,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 return {"logits": logits, "labels": labels}
 
         elif heatmapType == "visualization":
-            if hasattr(model.visualizer, "double_input"):
-                if model.visualizer.double_input == True:
-                    imgs = torch.cat([imgs, imgs], dim=0)
+            if hasattr(model.visualizer, "multiply_input"):
+                if model.visualizer.multiply_input > 1:
+                    imgs = torch.cat([imgs] * model.visualizer.multiply_input, dim=0)
             # 由于需要用到梯度进行可视化计算，所以就不加入with torch.no_grad()了
             logits = model(imgs)
-            if hasattr(model.visualizer, "double_input"):
-                if model.visualizer.double_input == True:
-                    imgs = imgs[0:imgs.shape[0]//2]
+            if hasattr(model.visualizer, "multiply_input"):
+                if model.visualizer.multiply_input > 1:
+                    imgs = imgs[0:imgs.shape[0]//model.visualizer.multiply_input]
 
             if model.classifier_output_type == "multi-label":
                 p_labels = torch.sort(logits, dim=1, descending=True)
@@ -236,9 +236,9 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
             labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
 
-            if hasattr(model.visualizer, "double_input"):
-                if model.visualizer.double_input == True:
-                    logits = logits[0: logits.shape[0]//2]
+            if hasattr(model.visualizer, "multiply_input"):
+                if model.visualizer.multiply_input > 1:
+                    logits = logits[0: logits.shape[0]//model.visualizer.multiply_input]
 
             return {"logits": logits.detach(), "labels": labels, }
 
