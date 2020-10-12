@@ -503,7 +503,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
         inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-        gcam_all = torch.sum(torch.relu(inter_output_sub * inter_gradient_sub), dim=1, keepdim=True)
+        gcam_all = torch.sum(torch.relu(inter_output * inter_gradient), dim=1, keepdim=True)
         ori_gcam = gcam_all[0: num_sub_batch]
         pos_gcam = gcam_all[num_sub_batch: 2 * num_sub_batch]
         neg_gcam = gcam_all[2 * num_sub_batch: 3 * num_sub_batch]
