@@ -530,10 +530,8 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         self.gcam_list = []
         self.gcam_max_list = [] # 记录每个Grad-CAM的归一化最大值
 
-        if self.multiply_input == True:
-            visual_ratio = 2
-        else:
-            visual_ratio = 1
+        if self.multiply_input >= 1:
+            visual_num = visual_num * self.multiply_input
 
         # obtain gradients
         self.ObtainGradient(logits, labels)
@@ -541,7 +539,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
             batch_num = logits.shape[0]
-            visual_num = visual_num * visual_ratio
+            visual_num = visual_num
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
 
