@@ -464,10 +464,10 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         neg_gcam = gcam_all[2 * num_sub_batch: 3 * num_sub_batch]
         gcam = pos_gcam - neg_gcam
 
-        Remainder2 = torch.sum((inter_output_sub[0] * inter_gradient_sub[0]), dim=1, keepdim=True)
-        Remainder0 = -torch.sum((-inter_output_sub[1] * inter_gradient_sub[1]).relu(), dim=1, keepdim=True)
-        Remainder1 = -torch.sum((-inter_output_sub[2] * inter_gradient_sub[2]).relu(), dim=1, keepdim=True)
-        Remainder = Remainder0 + Remainder1 + Remainder2
+        Remainder0 = torch.sum((inter_output_sub[0] * inter_gradient_sub[0]), dim=1, keepdim=True)
+        Remainder1 = -torch.sum((-inter_output_sub[1] * inter_gradient_sub[1]).relu(), dim=1, keepdim=True)
+        Remainder2 = -torch.sum((-inter_output_sub[2] * inter_gradient_sub[2]).relu(), dim=1, keepdim=True)
+        Remainder = Remainder0 + Remainder1 - Remainder2
 
         #gcam = gcam + ori_gcam
         gcam = gcam + Remainder
