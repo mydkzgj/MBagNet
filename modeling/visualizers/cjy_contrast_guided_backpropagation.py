@@ -471,10 +471,16 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
         #gcam = gcam + ori_gcam
         gcam = gcam + Remainder
+        # gcam = gcam + Remainder * gcam.gt(th).float()
+
+        th = 0.05
+        th = th if self.reservePos == True else th * 0.5 + 0.5
+        norm_gcam, _ = self.gcamNormalization(gcam)
+        gcam = gcam * norm_gcam.gt(th).float()
 
         if self.reservePos == True:
             gcam = torch.relu(gcam)
-            
+
         return gcam
 
     # Generate Overall CAM
