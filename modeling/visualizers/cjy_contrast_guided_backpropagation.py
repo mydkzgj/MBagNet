@@ -279,7 +279,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             #pos_grad_out = grad_out[0].gt(0).float()
             #new_grad_in = grad_in[0] * pos_grad_out
 
-            new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+            new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() + grad_in_sub[2] * grad_in_sub[2].lt(0).float()
             new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
             new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
 
