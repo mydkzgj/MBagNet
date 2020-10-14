@@ -286,6 +286,12 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
+            cam_output = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
+            cam_input = torch.sum(relu_output * new_grad_in, dim=1, keepdim=True)
+            ratio = cam_output/cam_input.clamp(1E-12)
+
+            new_grad_in = new_grad_in * ratio
+
 
             """
             if self.firstCAM == True:
