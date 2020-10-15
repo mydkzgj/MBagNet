@@ -278,6 +278,8 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
             """
             #1.
+            if relu_output.ndimension() == 2:
+                new_grad_in = grad_in[0]            
             new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
             new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
             new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
@@ -305,6 +307,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
                 new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                new_grad_in = grad_in[0]
             else:
                 cam_old = torch.sum(relu_output * grad_in[0], dim=1, keepdim=True)
                 new_grad_in = (cam_old.gt(0).float() * grad_in[0].gt(0).float() + cam_old.lt(0).float() * grad_in[0].lt(0).float()) * grad_in[0]
