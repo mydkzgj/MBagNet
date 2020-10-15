@@ -313,7 +313,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
                 ratio = cam_old.abs() / cam_new.clamp(1E-12)
                 new_grad_in = new_grad_in * ratio
 
-                new_grad_in_sub = [new_grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+                new_grad_in_sub = [new_grad_in[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
                 new_grad_in_sub[0] = new_grad_in_sub[0] * 0
                 new_grad_in_sub[1] = new_grad_in_sub[1] * new_grad_in_sub[1].gt(0).float() - new_grad_in_sub[2] * new_grad_in_sub[2].lt(0).float()
