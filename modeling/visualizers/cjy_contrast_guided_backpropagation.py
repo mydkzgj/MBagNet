@@ -276,34 +276,42 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            #pos_grad_out = grad_out[0].gt(0).float()
-            #new_grad_in = grad_in[0] * pos_grad_out
-
+            #"""
+            #1.
             new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
             new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
             new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
 
             new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            #"""
 
-            cam_output = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
-            cam_input = torch.sum(relu_output * new_grad_in, dim=1, keepdim=True)
-            ratio = cam_output/cam_input.clamp(1E-12)
+            #"""
+            #2.
+            new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(0).float()
 
-            new_grad_in = new_grad_in * ratio
-
+            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            #"""
 
             """
-            if self.firstCAM == True:
-                num_batch = relu_output.shape[0]
-                grad_input = grad_in[0][0:num_batch // 2]
+            #3. consider negtive
+            cam_old = torch.sum(relu_output * grad_in[0], dim=1, keepdim=True)
+            new_grad_in = (cam_old.gt(0).float() * grad_in[0].gt(0).float() + cam_old.lt(0).float() * grad_in[0].lt(0).float()) * grad_in[0] 
+            
+            cam_new = torch.sum(relu_output * new_grad_in.abs(), dim=1, keepdim=True)
+            ratio = cam_old.abs()/cam_new.clamp(1E-12)
+            new_grad_in = new_grad_in * ratio
+            
+            new_grad_in_sub = [new_grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            
+            new_grad_in_sub[0] = new_grad_in_sub[0] * 0
+            new_grad_in_sub[1] = new_grad_in_sub[1] * new_grad_in_sub[1].gt(0).float() - new_grad_in_sub[2] * new_grad_in_sub[2].lt(0).float()
+            new_grad_in_sub[2] = new_grad_in_sub[2] * new_grad_in_sub[2].gt(0).float() - new_grad_in_sub[1] * new_grad_in_sub[1].lt(0).float()
 
-                new_grad_in1 = grad_input * grad_input.gt(0).float()
-                new_grad_in2 = (-grad_input) * grad_input.lt(0).float()
-
-                new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
-
-                self.firstCAM = 0
+            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             """
 
             return (new_grad_in,)
@@ -476,13 +484,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         Remainder = Remainder0 + Remainder1 - Remainder2
 
         #gcam = gcam + ori_gcam
-        gcam = gcam + Remainder
-        # gcam = gcam + Remainder * gcam.gt(th).float()
-
-        th = 0.05
-        th = th if self.reservePos == True else th * 0.5 + 0.5
-        norm_gcam, _ = self.gcamNormalization(gcam)
-        gcam = gcam * norm_gcam.gt(th).float()
+        #gcam = gcam + Remainder
 
         if self.reservePos == True:
             gcam = torch.relu(gcam)
