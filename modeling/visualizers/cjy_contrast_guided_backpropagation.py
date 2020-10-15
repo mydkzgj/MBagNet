@@ -318,10 +318,11 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
                 new_grad_in_sub = [new_grad_in[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-                new_grad_in_sub[0] = new_grad_in_sub[0] * 0
-                new_grad_in_sub[1] = new_grad_in_sub[1] * new_grad_in_sub[1].gt(0).float() - new_grad_in_sub[2] * new_grad_in_sub[2].lt(0).float()
-                new_grad_in_sub[2] = new_grad_in_sub[2] * new_grad_in_sub[2].gt(0).float() - new_grad_in_sub[1] * new_grad_in_sub[1].lt(0).float()
+                new_grad_in0 = new_grad_in_sub[0] * 0
+                new_grad_in1 = new_grad_in_sub[1] * new_grad_in_sub[1].gt(0).float() - new_grad_in_sub[2] * new_grad_in_sub[2].lt(0).float()
+                new_grad_in2 = new_grad_in_sub[2] * new_grad_in_sub[2].gt(0).float() - new_grad_in_sub[1] * new_grad_in_sub[1].lt(0).float()
 
+                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             #"""
