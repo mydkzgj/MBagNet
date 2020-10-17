@@ -113,10 +113,10 @@ def make_dataset_for_classic_datasets(cfg, for_train):
         year = "2017"
         annotation_path = os.path.join(root_path, "annotations")
         train_image_path = os.path.join(root_path, "{}{}".format("train", year))
-        train_annfile =os.path.join(annotation_path, "captions_{}{}.json".format("train", year))
+        train_annfile =os.path.join(annotation_path, "instances_{}{}.json".format("train", year))
         train_set = torchvision.datasets.CocoCaptions(root=train_image_path, annFile=train_annfile, transform=train_transforms)
         val_image_path = os.path.join(root_path, "{}{}".format("val", year))
-        val_annfile = os.path.join(annotation_path, "captions_{}{}.json".format("val", year))
+        val_annfile = os.path.join(annotation_path, "instances_{}{}.json".format("val", year))
         val_set = torchvision.datasets.CocoCaptions(root=val_image_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
         classes_list = [train_set.coco.dataset["categories"][i]["name"] for i in range(len(train_set.coco.dataset["categories"]))]
