@@ -40,7 +40,7 @@ def make_data_loader(cfg, for_train):
     # torchvision数据集（部分修改）
     torchvision_dataset_list = ["cifar10", "cifar100",
                                 "pascal-voc-classification", "pascal-voc-detection", "pascal-voc-segmentation",
-                                "coco-classification"]
+                                "coco-classification", "coco-detection"]
     # 自定义数据集
     custom_dataset_list = ["ddr_dr_grading", "ddr_lesion_segmentation_regroup",
                            "ddr_lesion_segmentation_multilabel_weaksupervision",
