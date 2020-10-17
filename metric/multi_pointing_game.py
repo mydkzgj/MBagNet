@@ -228,7 +228,48 @@ class MultiPointingGame(object):
 
     def saveXLS(self, savePath):
         # 1.生成总表，详细记录每一项
-        sheetName = "SUMMARY"
+        if self.visual_class_list == self.seg_class_list:
+            sheetName = "SUMMARY"
+            op_list = ["Visulization Method", "Observation Module", "Threshold",
+                       "Metric Type", "Metric Name", "Visual Label", "Value"]
+            DF = pd.DataFrame(columns=op_list)
+
+            for key in self.state:
+                method_key, layer_key, th_key = key.split("+")
+                for metric_type in self.state[key].keys():
+                    for metric_name in self.state[key][metric_type].keys():
+                        metric_numpy = self.state[key][metric_type][metric_name]
+                        mean_value = 0
+                        for vi, vclass in enumerate(self.visual_class_list):
+                            for si, sclass in enumerate(self.seg_class_list):
+                                if vi == si:
+                                    mean_value = mean_value + metric_numpy[vi][si]
+                                    DF_NewLine = pd.DataFrame([[method_key, layer_key, th_key, metric_type, metric_name,
+                                                                vclass, metric_numpy[vi][si]]], columns=op_list)
+                                    DF = pd.concat([DF, DF_NewLine], ignore_index=True)
+
+                        mean_value = mean_value/len(self.visual_class_list)
+                        DF_NewLine = pd.DataFrame([[method_key, layer_key, th_key, metric_type, metric_name,
+                                                    "mean", mean_value]], columns=op_list)
+                        DF = pd.concat([DF, DF_NewLine], ignore_index=True)
+
+            xls_filename = os.path.join(savePath, method_key + ".xlsx")
+            """
+            if os.path.exists(xls_filename) == True:
+                with pd.ExcelWriter(xls_filename, mode='a') as writer:
+                    DF.to_excel(writer, sheet_name=sheetName)
+            else:
+                with pd.ExcelWriter(xls_filename, mode='w') as writer:
+                    DF.to_excel(writer, sheet_name=sheetName)
+            """
+            with pd.ExcelWriter(xls_filename, mode='w') as writer:
+                DF.to_excel(writer, sheet_name=sheetName)
+
+            # DF.to_excel(model.visualizer_name + ".xlsx")
+
+
+        # 2.生成总表，详细记录每一项
+        sheetName = "SUMMARY-CLASSWISE"
         op_list = ["Visulization Method", "Observation Module", "Threshold",
                    "Metric Type", "Metric Name", "Visual Label", "Segmentation Label", "Value"]
         DF = pd.DataFrame(columns=op_list)
@@ -254,8 +295,12 @@ class MultiPointingGame(object):
             with pd.ExcelWriter(xls_filename, mode='w') as writer:
                 DF.to_excel(writer, sheet_name=sheetName)
         """
-        with pd.ExcelWriter(xls_filename, mode='w') as writer:
-            DF.to_excel(writer, sheet_name=sheetName)
+        if os.path.exists(xls_filename) == True:
+            with pd.ExcelWriter(xls_filename, mode='a') as writer:
+                DF.to_excel(writer, sheet_name=sheetName)
+        else:
+            with pd.ExcelWriter(xls_filename, mode='w') as writer:
+                DF.to_excel(writer, sheet_name=sheetName)
 
         #DF.to_excel(model.visualizer_name + ".xlsx")
 
