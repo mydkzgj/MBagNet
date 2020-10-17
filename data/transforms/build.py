@@ -7,6 +7,7 @@ from PIL import Image
 import torchvision.transforms as T
 from . import cla_transforms as CT
 from . import seg_transforms as ST
+from . import det_transforms as DT
 
 
 #from .cla_transforms import RandomErasing, PaddingToSquare
@@ -55,6 +56,31 @@ def build_seg_transforms(cfg, is_train=True):
             ST.Resize(cfg.DATA.TRANSFORM.SIZE),
             ST.ToTensor(),
             ST.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
+        ])
+
+    return transform
+
+
+def build_det_transforms(cfg, is_train=True):
+    #ratio = cfg.DATA.TRANSFORM.MASK_SIZE_RATIO
+    #mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
+    if is_train:
+        transform = DT.Compose([
+            DT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            DT.Resize(cfg.DATA.TRANSFORM.SIZE),
+            DT.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
+            DT.Pad(cfg.DATA.TRANSFORM.PADDING),
+            DT.RandomCrop(cfg.DATA.TRANSFORM.SIZE),
+            DT.ToTensor(),
+            DT.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
+            DT.RandomErasing(p=cfg.DATA.TRANSFORM.RE_PROB,)  # 由于之前已经做过归一化，所以v设置为0即可
+        ])
+    else:
+        transform = DT.Compose([
+            DT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
+            DT.Resize(cfg.DATA.TRANSFORM.SIZE),
+            DT.ToTensor(),
+            DT.Normalize(mean=cfg.DATA.TRANSFORM.PIXEL_MEAN, std=cfg.DATA.TRANSFORM.PIXEL_STD),
         ])
 
     return transform

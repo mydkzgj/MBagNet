@@ -1,7 +1,7 @@
 import torchvision
 import os
 
-from ..transforms import build_transforms, build_seg_transforms, build_transforms_for_colormask
+from ..transforms import build_transforms, build_seg_transforms, build_det_transforms, build_transforms_for_colormask
 
 from .lib import init_dataset
 from .custom_dataset import ImageDataset, SegmentationDataset, DDRColormaskDataset
@@ -109,11 +109,14 @@ def make_dataset_for_classic_datasets(cfg, for_train):
         test_set = val_set
         classes_list = None
     elif cfg.DATA.DATASETS.NAMES == "coco-detection":
+        train_transforms = build_det_transforms(cfg, is_train=for_train)
+        val_transforms = build_det_transforms(cfg, is_train=False)
+        test_transforms = build_det_transforms(cfg, is_train=False)
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
         year = "2017"
         annotation_path = os.path.join(root_path, "annotations")
         train_image_path = os.path.join(root_path, "{}{}".format("train", year))
-        train_annfile =os.path.join(annotation_path, "instances_{}{}.json".format("train", year))
+        train_annfile = os.path.join(annotation_path, "instances_{}{}.json".format("train", year))
         train_set = torchvision.datasets.CocoDetection(root=train_image_path, annFile=train_annfile, transform=train_transforms)
         val_image_path = os.path.join(root_path, "{}{}".format("val", year))
         val_annfile = os.path.join(annotation_path, "instances_{}{}.json".format("val", year))

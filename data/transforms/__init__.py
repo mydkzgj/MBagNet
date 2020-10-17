@@ -4,4 +4,4 @@
 @contact: sherlockliao01@gmail.com
 """
 
-from .build import build_transforms, build_seg_transforms, build_transforms_for_colormask
+from .build import build_transforms, build_seg_transforms, build_det_transforms, build_transforms_for_colormask
