@@ -226,11 +226,11 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                     if hasattr(engine.state, "MPG")!=True:
                         engine.state.MPG = MultiPointingGame(visual_class_list=range(4), seg_class_list=range(4))
 
-                    binary_gtmasks = torch.max(vmasks, dim=1, keepdim=True)[0]
-                    gtmasks = torch.cat([vmasks, 1 - binary_gtmasks, binary_gtmasks], dim=1)
+                    #binary_gtmasks = torch.max(vmasks, dim=1, keepdim=True)[0]
+                    #gtmasks = torch.cat([vmasks, 1 - binary_gtmasks, binary_gtmasks], dim=1)
+                    gtmasks = vmasks
                     for i, v in enumerate(gcam_list):
-                        rv = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
-                        segmentations = rv  # .gt(binary_threshold)
+                        segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
                         if segmentations.shape[1] == 1:
                             engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
 
