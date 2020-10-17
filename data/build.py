@@ -27,7 +27,8 @@ def collate_fn(batch):
         imgs_path = [""] * len(batch)
     elif len(batch[0]) == 3:
         imgs, labels, imgs_path, = zip(*batch)
-    labels = torch.tensor(labels, dtype=torch.int64)   # for continuous var CJY at 2020.9.5
+    if isinstance(labels[0], dict) == False:
+        labels = torch.tensor(labels, dtype=torch.int64)   # for continuous var CJY at 2020.9.5
     return torch.stack(imgs, dim=0), labels, imgs_path
 
 
