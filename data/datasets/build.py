@@ -71,6 +71,9 @@ def make_dataset_for_classic_datasets(cfg, for_train):
         test_set = val_set
         classes_list = train_set.classes
     elif cfg.DATA.DATASETS.NAMES == "pascal-voc-detection":
+        train_transforms = build_det_transforms(cfg, is_train=for_train)
+        val_transforms = build_det_transforms(cfg, is_train=False)
+        test_transforms = build_det_transforms(cfg, is_train=False)
         root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
         train_set = torchvision.datasets.VOCDetection(root=root_path, year="2012", image_set="train", download=False, transform=train_transforms)
         val_set = torchvision.datasets.VOCDetection(root=root_path, year="2012", image_set="val", download=False, transform=val_transforms)
