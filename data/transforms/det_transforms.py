@@ -43,7 +43,7 @@ def _get_image_size(img):
         raise TypeError("Unexpected type {}".format(type(img)))
 
 
-def ConvertTargetToStandard(object):
+class ConvertTargetToStandard(object):
     """
     将不同的target形式转化为统一标准
     """
