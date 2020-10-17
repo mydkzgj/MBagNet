@@ -33,6 +33,7 @@ _pil_interpolation_to_str = {
 }
 
 
+
 def _get_image_size(img):
     if TF._is_pil_image(img):
         return img.size
@@ -40,6 +41,18 @@ def _get_image_size(img):
         return img.shape[-2:][::-1]
     else:
         raise TypeError("Unexpected type {}".format(type(img)))
+
+
+def ConvertTargetToStandard(onject):
+    """
+    将不同的target形式转化为统一标准
+    """
+    def __call__(self, image, target):
+        standard_target = ()
+        for tar in target:
+            print(1)
+
+        return image, target
 
 
 """
