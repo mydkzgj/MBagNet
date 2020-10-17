@@ -583,7 +583,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
-            print("{}: {}".format(self.target_layer[i], gcam.sum()))
+            #print("{}: {}".format(self.target_layer[i], gcam.sum()))
 
             # 3.Post Process
             # Amplitude Normalization
@@ -597,7 +597,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
 
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
-        print("logits:{} label:{}".format(logits[0][labels].item(), labels.item()))
+        #print("logits:{} label:{}".format(logits[0][labels].item(), labels.item()))
 
         # Clear Reservation
         #self.inter_output.clear()

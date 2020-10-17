@@ -98,6 +98,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         show_imagename_type = "number"
         show_image_maxnum = 20
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
+        showFlag = 1
         if engine.state.iteration == 1:
             if os.path.exists(savePath) != True:
                 os.makedirs(savePath)
@@ -202,7 +203,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             #oblabelList = [labels, p_labels]
 
             # 可视化
-            showFlag = 1
             for oblabels in oblabelList:
                 binary_threshold = 0  #0.25#0.5
                 if model.visualizer.reservePos != True:
