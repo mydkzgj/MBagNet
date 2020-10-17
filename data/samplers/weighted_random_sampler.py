@@ -76,7 +76,7 @@ class AutoWeightedRandomSampler(WeightedRandomSampler):
             label = data[label_index]
             if isinstance(label, int) == True:
                 self.index_dic[label].append(index)
-            elif isinstance(label, list) == True:
+            elif isinstance(label, list) == True and isinstance(label[0], int)==True:
                 if max_num_categories <= 6:  # 6的全组合数  2^6 = 64, 全组合数太多的话实在是分类负担，只能选择random选择其中一维类别
                     int_label = converMultiLabel2SingleLabel(label, convertType="decimalism")
                 else:
