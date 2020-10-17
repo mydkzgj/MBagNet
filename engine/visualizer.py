@@ -162,7 +162,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             elif show_imagename_type == "number":  # 数字
                 engine.state.imgs_name = ["{}".format(i) for i in engine.state.imgs_index]
 
-            if engine.state.imgs_index[0] > show_image_maxnum:
+            if engine.state.imgs_index[0] > show_image_maxnum and show_image_maxnum != -1:
                 exit(0)
 
             # 观测类别
