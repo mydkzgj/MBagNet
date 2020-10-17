@@ -8,7 +8,7 @@ DATA:
  DATASETS:
   NAMES: ('coco-detection') 
   SEG_NAMES:  ('none')     
-  ROOT_DIR: ('./data')
+  ROOT_DIR: ('D:/Research/')
 
  DATALOADER:
   NUM_WORKERS: 4
