@@ -88,6 +88,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
+        if isinstance(grade_labels[0], dict):
+            annotation = grade_labels
+            grade_labels = annotation["multi-labels"]
+
         grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 and grade_imgs is not None else grade_imgs
         grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None else grade_labels
         seg_imgs = seg_imgs.to(device) if torch.cuda.device_count() >= 1 and seg_imgs is not None else seg_imgs
