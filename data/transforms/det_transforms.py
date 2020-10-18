@@ -90,7 +90,7 @@ class ConvertTargetToStandard(object):
     def convertToIntLabel(self, label_list):
         ilabel_list = []
         for l in label_list:
-            il = self.label2int(l)
+            il = self.label2int[l]
             ilabel_list.append(il)
         return ilabel_list
 
@@ -98,7 +98,7 @@ class ConvertTargetToStandard(object):
         multi_label = [0] * len(self.classes)
 
         for l in label_list:
-            il = self.label2int(l)
+            il = self.label2int[l]
             multi_label[il] = multi_label[il] + 1
         return multi_label
 
