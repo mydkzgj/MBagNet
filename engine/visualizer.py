@@ -88,7 +88,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
-        if isinstance(grade_labels[0], dict): #CJY at 2020.10.18
+        if grade_labels is not None and isinstance(grade_labels[0], dict): #CJY at 2020.10.18
             annotation = grade_labels
             grade_labels = [obj["multi-labels"] for obj in annotation]
             grade_labels = torch.tensor(grade_labels, dtype=torch.int64)
