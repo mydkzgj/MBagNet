@@ -311,9 +311,9 @@ class MultiPointingGameForDetection(object):
                 ann = annotation[b]
 
                 # 计算mask 转numpy
-                pt_mask = binary_saliency_maps[b].numpy().astype(np.uint8)
+                pt_mask = binary_saliency_maps[b][0].numpy().astype(np.uint8)
 
-                gt_bbox_index_list =  ann["instances-distribution"][s_c_index]
+                gt_bbox_index_list = ann["instances-distribution"][s_c_index]
                 if len(gt_bbox_index_list) == 0:
                     continue
 
@@ -327,12 +327,12 @@ class MultiPointingGameForDetection(object):
                     sub_region = pt_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]]  #row , col
                     if sub_region.sum() > 0:
                         object_hit = object_hit + 1
-                        hit_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
-                        gt_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+                        hit_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+                        gt_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
                     else:
                         object_miss = object_miss + 1
-                        miss_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
-                        gt_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+                        miss_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+                        gt_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
 
                 pixel_tp = (pt_mask * gt_mask).sum(axis=(0, 1))
                 pixel_fp = (pt_mask * (1 - gt_mask)).sum(axis=(0, 1))
