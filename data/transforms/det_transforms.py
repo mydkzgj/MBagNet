@@ -47,6 +47,20 @@ class ConvertTargetToStandard(object):
     """
     将不同的target形式转化为统一标准
     """
+    def __init__(self, dataset_name):
+        self.dataset_name = dataset_name
+        if "pascal" in self.dataset_name:
+            self.classes = ('aeroplane', 'bicycle', 'bird', 'boat',
+                            'bottle', 'bus', 'car', 'cat', 'chair',
+                            'cow', 'diningtable', 'dog', 'horse',
+                            'motorbike', 'person', 'pottedplant',
+                            'sheep', 'sofa', 'train', 'tvmonitor')
+            self.label2int = {}
+
+        for i in range(len(self.classes)):
+            self.label2int[self.classes[i]] = i
+
+
     def __call__(self, image, target):
         ann = target["annotation"]
 
@@ -68,8 +82,25 @@ class ConvertTargetToStandard(object):
         else:
             raise Exception("Wrong target type!")
 
+        standard_target["int-labels"] = self.convertToIntLabel(standard_target["labels"])
+        standard_target["multi-labels"] =
+
         return image, standard_target
 
+    def convertToIntLabel(self, label_list):
+        ilabel_list = []
+        for l in label_list:
+            il = self.label2int(l)
+            ilabel_list.append(il)
+        return ilabel_list
+
+    def convertToMultiLabel(self, label_list):
+        multi_label = [0] * len(self.classes)
+
+        for l in label_list:
+            il = self.label2int(l)
+            multi_label[il] = multi_label[il] + 1
+        return multi_label
 
 class Compose(object):
     """Composes several transforms together.
