@@ -216,7 +216,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
             # 可视化
             for oblabels in oblabelList:
-                binary_threshold = 0  #0.25#0.5
+                binary_threshold = 0.5  #0.25#0.5
                 if model.visualizer.reservePos != True:
                     binary_threshold = binary_threshold * 0.5 + 0.5
 
