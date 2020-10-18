@@ -101,10 +101,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
         heatmapType = "visualization"
         show_imagename_type = "number"
-        show_image_maxnum = 20
+        show_image_maxnum = -1#20
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
-        showFlag = 1
-        computeMetirc = 1
+        showFlag = 0
+        computeMetirc = 2
         if engine.state.iteration == 1:
             if os.path.exists(savePath) != True:
                 os.makedirs(savePath)
@@ -237,28 +237,21 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 if computeMetirc != 0:
                     if dataType == "seg" and model.num_classes == 4:
                         if hasattr(engine.state, "MPG") != True:
-                            engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(4),
-                                                                                seg_class_list=range(4))
+                            engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(4), seg_class_list=range(4))
 
-                        # binary_gtmasks = torch.max(vmasks, dim=1, keepdim=True)[0]
-                        # gtmasks = torch.cat([vmasks, 1 - binary_gtmasks, binary_gtmasks], dim=1)
-                        gtmasks = vmasks
                         for i, v in enumerate(gcam_list):
                             segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
-                            engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(),
-                                                    model.visualizer_name, model.visualizer.target_layer[i],
-                                                    binary_threshold)
+                            engine.state.MPG.update(segmentations.cpu(), vmasks.cpu(), oblabels.cpu(),
+                                                    model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
                     elif model.num_classes == 20 and isinstance(annotation[0], dict):  # CJY at 2020.10.18
                         if hasattr(engine.state, "MPG") != True:
-                            engine.state.MPG = MultiPointingGameForDetection(visual_class_list=range(20),
-                                                                             seg_class_list=range(20))
+                            engine.state.MPG = MultiPointingGameForDetection(visual_class_list=range(20), seg_class_list=range(20))
 
                         vannotation = annotation[imgs.shape[0] - visual_num:imgs.shape[0]]
                         for i, v in enumerate(gcam_list):
                             segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
                             engine.state.MPG.update(segmentations.cpu(), vannotation, oblabels.cpu(),
-                                                    model.visualizer_name, model.visualizer.target_layer[i],
-                                                    binary_threshold)
+                                                    model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
 
             labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
 
