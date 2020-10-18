@@ -317,18 +317,22 @@ class MultiPointingGameForDetection(object):
                 if len(gt_bbox_index_list) == 0:
                     continue
 
+                object_hit = 0
+                object_miss = 0
+                gt_mask = np.zeros_like(pt_mask)
+                hit_mask = np.zeros_like(pt_mask)
+                miss_mask = np.zeros_like(pt_mask)
                 for gt_bbox_index in gt_bbox_index_list:
                     gt_bbox = ann["boxes"][gt_bbox_index]
-                    #sub_region = pt_mask[]
-
-                hit_mask = self.fillHoles(pt_mask, gt_mask)  # 保留的是二者相交的gt那部分
-                miss_mask = gt_mask - hit_mask
-
-                # 计算mask->scalar  通过联通域检测转化为标量
-                hit_retval, hit_labels, hit_stats, hit_centroids = cv.connectedComponentsWithStats(hit_mask, connectivity=8, ltype=cv.CV_32S)
-                object_hit = hit_retval - 1
-                miss_retval, miss_labels, miss_stats, miss_centroids = cv.connectedComponentsWithStats(miss_mask, connectivity=8, ltype=cv.CV_32S)
-                object_miss = miss_retval - 1
+                    sub_region = pt_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]]  #row , col
+                    if sub_region.sum() > 0:
+                        object_hit = object_hit + 1
+                        hit_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+                        gt_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+                    else:
+                        object_miss = object_miss + 1
+                        miss_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+                        gt_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
 
                 pixel_tp = (pt_mask * gt_mask).sum(axis=(0, 1))
                 pixel_fp = (pt_mask * (1 - gt_mask)).sum(axis=(0, 1))
