@@ -84,6 +84,7 @@ class ConvertTargetToStandard(object):
 
         standard_target["int-labels"] = self.convertToIntLabel(standard_target["labels"])
         standard_target["multi-labels"] = self.convertToMultiLabel(standard_target["labels"])
+        standard_target["instances-distribution"] = self.generateInstanceDistribution(standard_target["labels"])
 
         return image, standard_target
 
@@ -101,6 +102,15 @@ class ConvertTargetToStandard(object):
             il = self.label2int[l]
             multi_label[il] = multi_label[il] + 1
         return multi_label
+
+    def generateInstanceDistribution(self, label_list):
+        instances_distribution = [[]] * len(self.classes)
+
+        for index, l in enumerate(label_list):
+            il = self.label2int[l]
+            instances_distribution[il].append(index)
+        return instances_distribution
+
 
 class Compose(object):
     """Composes several transforms together.

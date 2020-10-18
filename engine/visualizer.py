@@ -88,7 +88,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
     def _inference(engine, batch):
         model.eval()
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
-        if isinstance(grade_labels[0], dict):
+        if isinstance(grade_labels[0], dict): #CJY at 2020.10.18
             annotation = grade_labels
             grade_labels = [obj["multi-labels"] for obj in annotation]
             grade_labels = torch.tensor(grade_labels, dtype=torch.int64)
@@ -229,7 +229,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
                 if dataType == "seg" and model.num_classes == 4:
                     if hasattr(engine.state, "MPG")!=True:
-                        engine.state.MPG = MultiPointingGame(visual_class_list=range(4), seg_class_list=range(4))
+                        engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(4), seg_class_list=range(4))
 
                     #binary_gtmasks = torch.max(vmasks, dim=1, keepdim=True)[0]
                     #gtmasks = torch.cat([vmasks, 1 - binary_gtmasks, binary_gtmasks], dim=1)
@@ -238,6 +238,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                         segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
                         if segmentations.shape[1] == 1:
                             engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
+                elif model.num_classes == 20 and isinstance(grade_labels[0], dict): #CJY at 2020.10.18
+                    if hasattr(engine.state, "MPG")!=True:
+                        engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(20), seg_class_list=range(20))
+
 
             labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
 
