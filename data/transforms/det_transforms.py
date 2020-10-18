@@ -51,9 +51,17 @@ class ConvertTargetToStandard(object):
         ann = target["annotation"]
 
         standard_target = {}
-        standard_target["boxes"] = [ann["object"]["bndbox"]["xmin"], ann["object"]["bndbox"]["ymin"],
-                                    ann["object"]["bndbox"]["xmax"],ann["object"]["bndbox"]["xmax"]]
-        standard_target["labels"] = [ann["object"]["name"]]
+        standard_target["boxes"] = []
+        standard_target["labels"] = []
+        if isinstance(ann["object"], dict):
+            standard_target["boxes"].append([ann["object"]["bndbox"]["xmin"], ann["object"]["bndbox"]["ymin"],
+                                        ann["object"]["bndbox"]["xmax"], ann["object"]["bndbox"]["xmax"]])
+            standard_target["labels"].append(ann["object"]["name"])
+        elif isinstance(ann["object"], list):
+            for obj in ann["object"]:
+                standard_target["boxes"].append([obj["bndbox"]["xmin"], obj["bndbox"]["ymin"],
+                                                 obj["bndbox"]["xmax"], obj["bndbox"]["xmax"]])
+                standard_target["labels"].append(obj["name"])
 
         return image, standard_target
 
