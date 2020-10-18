@@ -311,8 +311,12 @@ class MultiPointingGameForDetection(object):
                 ann = annotation[b]
 
                 # 计算mask 转numpy
-                pt_mask = binary_saliency_maps[b][s_c_index].numpy().astype(np.uint8)   #.permute(1, 2, 0)
-                gt_mask = binary_seg_gtmasks[b][s_c_index].numpy().astype(np.uint8)
+                pt_mask = binary_saliency_maps[b].numpy().astype(np.uint8)
+
+                gt_bbox_index_list =  ann["instances-distribution"][s_c_index]
+                for gt_bbox_index in gt_bbox_index_list:
+                    gt_bbox = ann["boxes"][gt_bbox_index]
+                    sub_region = pt_mask[]
 
                 hit_mask = self.fillHoles(pt_mask, gt_mask)  # 保留的是二者相交的gt那部分
                 miss_mask = gt_mask - hit_mask
