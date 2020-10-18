@@ -51,6 +51,9 @@ class ConvertTargetToStandard(object):
         ann = target["annotation"]
 
         standard_target = {}
+        standard_target["osize"] = ann["size"]
+        standard_target["width"] = int(ann["size"]["width"])
+        standard_target["height"] = int(ann["size"]["height"])
         standard_target["boxes"] = []
         standard_target["labels"] = []
         if isinstance(ann["object"], dict):
@@ -62,6 +65,8 @@ class ConvertTargetToStandard(object):
                 standard_target["boxes"].append([int(obj["bndbox"]["xmin"]), int(obj["bndbox"]["ymin"]),
                                                  int(obj["bndbox"]["xmax"]), int(obj["bndbox"]["xmax"])])
                 standard_target["labels"].append(obj["name"])
+        else:
+            raise Exception("Wrong target type!")
 
         return image, standard_target
 
@@ -174,7 +179,6 @@ class Resize(object):
         assert isinstance(size, int) or (isinstance(size, Iterable) and len(size) == 2)
         self.size = size
         self.interpolation = interpolation
-        self.target_interpolation = Image.BOX
 
     def __call__(self, img, target):
         """
@@ -185,10 +189,14 @@ class Resize(object):
             PIL Image: Rescaled image.
         """
         img = TF.resize(img, self.size, self.interpolation)
-        if isinstance(target, list):
-            target = [TF.resize(tar, self.size, self.target_interpolation) for tar in target]
-        else:
-            target = TF.resize(target, self.size, self.target_interpolation)   #是否应该使用 Image.BOX
+
+        x_ratio = self.size[0] / target["width"]
+        y_ratio = self.size[1] / target["height"]
+        for index in range(len(target["boxes"])):
+            box = target["boxes"][index]
+            new_box = [int(box[0]*x_ratio), int(box[1]*y_ratio), int(box[2]*x_ratio), int(box[3]*y_ratio)]
+            target["boxes"][index] = new_box
+
         return img, target
 
     def __repr__(self):
@@ -568,10 +576,13 @@ class PaddingToSquare(object):
                 padding = (0, 0, 0, 0)
 
             img = TF.pad(img, padding=padding, padding_mode=self.padding_mode)
-            if isinstance(target, list):
-                target = [TF.pad(tar, padding=padding, padding_mode=self.padding_mode) for tar in target]
-            else:
-                target = TF.pad(target, padding=padding, padding_mode=self.padding_mode)
+
+            target["width"] = img.width
+            target["height"] = img.height
+            for index in range(len(target["boxes"])):
+                box = target["boxes"][index]
+                new_box = [box[0] + padding[0], box[1] + padding[1], box[2] + padding[0], box[3] + padding[1]]
+                target["boxes"][index] = new_box
 
         return img, target
 
