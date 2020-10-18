@@ -90,7 +90,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
         if isinstance(grade_labels[0], dict):
             annotation = grade_labels
-            grade_labels = annotation["multi-labels"]
+            grade_labels = [obj["multi-labels"] for obj in annotation]
+            grade_labels = torch.tensor(grade_labels, dtype=torch.int64)
 
         grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 and grade_imgs is not None else grade_imgs
         grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None else grade_labels
