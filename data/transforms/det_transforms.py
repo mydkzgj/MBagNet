@@ -196,6 +196,8 @@ class Resize(object):
             box = target["boxes"][index]
             new_box = [int(box[0]*x_ratio), int(box[1]*y_ratio), int(box[2]*x_ratio), int(box[3]*y_ratio)]
             target["boxes"][index] = new_box
+        target["width"] = img.width
+        target["height"] = img.height
 
         return img, target
 
@@ -577,17 +579,15 @@ class PaddingToSquare(object):
 
             img = TF.pad(img, padding=padding, padding_mode=self.padding_mode)
 
-            target["width"] = img.width
-            target["height"] = img.height
             for index in range(len(target["boxes"])):
                 box = target["boxes"][index]
                 new_box = [box[0] + padding[0], box[1] + padding[1], box[2] + padding[0], box[3] + padding[1]]
                 target["boxes"][index] = new_box
 
+            target["width"] = img.width
+            target["height"] = img.height
+
         return img, target
-
-
-
 
 
 """
