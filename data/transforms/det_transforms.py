@@ -104,7 +104,9 @@ class ConvertTargetToStandard(object):
         return multi_label
 
     def generateInstanceDistribution(self, label_list):
-        instances_distribution = [[]] * len(self.classes)
+        instances_distribution = {}
+        for i in range(len(self.classes)):
+            instances_distribution[i] = []
 
         for index, l in enumerate(label_list):
             il = self.label2int[l]
