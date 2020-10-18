@@ -314,6 +314,9 @@ class MultiPointingGameForDetection(object):
                 pt_mask = binary_saliency_maps[b].numpy().astype(np.uint8)
 
                 gt_bbox_index_list =  ann["instances-distribution"][s_c_index]
+                if len(gt_bbox_index_list) == 0:
+                    continue
+                    
                 for gt_bbox_index in gt_bbox_index_list:
                     gt_bbox = ann["boxes"][gt_bbox_index]
                     sub_region = pt_mask[]
