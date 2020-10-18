@@ -83,7 +83,7 @@ class ConvertTargetToStandard(object):
             raise Exception("Wrong target type!")
 
         standard_target["int-labels"] = self.convertToIntLabel(standard_target["labels"])
-        standard_target["multi-labels"] =
+        standard_target["multi-labels"] = self.convertToMultiLabel(standard_target["labels"])
 
         return image, standard_target
 
