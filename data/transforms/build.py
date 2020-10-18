@@ -66,7 +66,7 @@ def build_det_transforms(cfg, is_train=True):
     #mask_size = (cfg.DATA.TRANSFORM.SIZE[0]//ratio, cfg.DATA.TRANSFORM.SIZE[1]//ratio)
     if is_train:
         transform = DT.Compose([
-            DT.ConvertTargetToStandard(),
+            DT.ConvertTargetToStandard(dataset_name=cfg.DATA.DATASETS.NAMES),
             DT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             DT.Resize(cfg.DATA.TRANSFORM.SIZE),
             DT.RandomHorizontalFlip(p=cfg.DATA.TRANSFORM.PROB),
@@ -78,7 +78,7 @@ def build_det_transforms(cfg, is_train=True):
         ])
     else:
         transform = DT.Compose([
-            DT.ConvertTargetToStandard(),
+            DT.ConvertTargetToStandard(dataset_name=cfg.DATA.DATASETS.NAMES),
             DT.PaddingToSquare(padding_mode=cfg.DATA.TRANSFORM.PADDING_TO_SQUARE_MODE),
             DT.Resize(cfg.DATA.TRANSFORM.SIZE),
             DT.ToTensor(),
