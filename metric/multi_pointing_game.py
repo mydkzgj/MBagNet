@@ -316,10 +316,10 @@ class MultiPointingGameForDetection(object):
                 gt_bbox_index_list =  ann["instances-distribution"][s_c_index]
                 if len(gt_bbox_index_list) == 0:
                     continue
-                    
+
                 for gt_bbox_index in gt_bbox_index_list:
                     gt_bbox = ann["boxes"][gt_bbox_index]
-                    sub_region = pt_mask[]
+                    #sub_region = pt_mask[]
 
                 hit_mask = self.fillHoles(pt_mask, gt_mask)  # 保留的是二者相交的gt那部分
                 miss_mask = gt_mask - hit_mask

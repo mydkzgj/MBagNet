@@ -236,11 +236,15 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                     gtmasks = vmasks
                     for i, v in enumerate(gcam_list):
                         segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
-                        if segmentations.shape[1] == 1:
-                            engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
+                        engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
                 elif model.num_classes == 20 and isinstance(grade_labels[0], dict): #CJY at 2020.10.18
                     if hasattr(engine.state, "MPG")!=True:
                         engine.state.MPG = MultiPointingGameForDetection(visual_class_list=range(20), seg_class_list=range(20))
+
+                    vannotation = annotation[imgs.shape[0] - visual_num:imgs.shape[0]]
+                    for i, v in enumerate(gcam_list):
+                        segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
+                        engine.state.MPG.update(segmentations.cpu(), vannotation, oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
 
 
             labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
