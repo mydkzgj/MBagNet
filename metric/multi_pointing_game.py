@@ -324,8 +324,9 @@ class MultiPointingGameForDetection(object):
                 miss_mask = np.zeros_like(pt_mask)
                 for gt_bbox_index in gt_bbox_index_list:
                     gt_bbox = ann["boxes"][gt_bbox_index]
-                    sub_region = pt_mask[0, gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]]  #row , col
-                    if sub_region.sum() > 0:
+                    sub_region = pt_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]]  #row , col
+                    sum = sub_region.sum()
+                    if sum > 0:
                         object_hit = object_hit + 1
                         hit_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
                         gt_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
