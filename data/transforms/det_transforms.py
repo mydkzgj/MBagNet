@@ -48,16 +48,18 @@ class ConvertTargetToStandard(object):
     将不同的target形式转化为统一标准
     """
     def __call__(self, image, target):
-        standard_target = ()
-        for tar in target:
-            print(1)
+        ann = target["annotation"]
 
-        return image, target
+        standard_target = {}
+        standard_target["boxes"] = [ann["object"]["bndbox"]["xmin"], ann["object"]["bndbox"]["ymin"],
+                                    ann["object"]["bndbox"]["xmax"],ann["object"]["bndbox"]["xmax"]]
+        standard_target["labels"] = [ann["object"]["name"]]
+
+        return image, standard_target
 
 
 class Compose(object):
     """Composes several transforms together.
-
     Args:
         transforms (list of ``Transform`` objects): list of transforms to compose.
 
