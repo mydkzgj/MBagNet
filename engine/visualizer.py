@@ -237,7 +237,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                     for i, v in enumerate(gcam_list):
                         segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
                         engine.state.MPG.update(segmentations.cpu(), gtmasks.cpu(), oblabels.cpu(), model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
-                elif model.num_classes == 20 and isinstance(grade_labels[0], dict): #CJY at 2020.10.18
+                elif model.num_classes == 20 and isinstance(annotation[0], dict): #CJY at 2020.10.18
                     if hasattr(engine.state, "MPG")!=True:
                         engine.state.MPG = MultiPointingGameForDetection(visual_class_list=range(20), seg_class_list=range(20))
 
