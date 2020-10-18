@@ -54,13 +54,13 @@ class ConvertTargetToStandard(object):
         standard_target["boxes"] = []
         standard_target["labels"] = []
         if isinstance(ann["object"], dict):
-            standard_target["boxes"].append([ann["object"]["bndbox"]["xmin"], ann["object"]["bndbox"]["ymin"],
-                                        ann["object"]["bndbox"]["xmax"], ann["object"]["bndbox"]["xmax"]])
+            standard_target["boxes"].append([int(ann["object"]["bndbox"]["xmin"]), int(ann["object"]["bndbox"]["ymin"]),
+                                             int(ann["object"]["bndbox"]["xmax"]), int(ann["object"]["bndbox"]["xmax"])])
             standard_target["labels"].append(ann["object"]["name"])
         elif isinstance(ann["object"], list):
             for obj in ann["object"]:
-                standard_target["boxes"].append([obj["bndbox"]["xmin"], obj["bndbox"]["ymin"],
-                                                 obj["bndbox"]["xmax"], obj["bndbox"]["xmax"]])
+                standard_target["boxes"].append([int(obj["bndbox"]["xmin"]), int(obj["bndbox"]["ymin"]),
+                                                 int(obj["bndbox"]["xmax"]), int(obj["bndbox"]["xmax"])])
                 standard_target["labels"].append(obj["name"])
 
         return image, standard_target
