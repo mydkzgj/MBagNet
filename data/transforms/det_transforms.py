@@ -72,12 +72,12 @@ class ConvertTargetToStandard(object):
         standard_target["labels"] = []
         if isinstance(ann["object"], dict):
             standard_target["boxes"].append([int(ann["object"]["bndbox"]["xmin"]), int(ann["object"]["bndbox"]["ymin"]),
-                                             int(ann["object"]["bndbox"]["xmax"]), int(ann["object"]["bndbox"]["xmax"])])
+                                             int(ann["object"]["bndbox"]["xmax"]), int(ann["object"]["bndbox"]["ymax"])])
             standard_target["labels"].append(ann["object"]["name"])
         elif isinstance(ann["object"], list):
             for obj in ann["object"]:
                 standard_target["boxes"].append([int(obj["bndbox"]["xmin"]), int(obj["bndbox"]["ymin"]),
-                                                 int(obj["bndbox"]["xmax"]), int(obj["bndbox"]["xmax"])])
+                                                 int(obj["bndbox"]["xmax"]), int(obj["bndbox"]["ymax"])])
                 standard_target["labels"].append(obj["name"])
         else:
             raise Exception("Wrong target type!")
