@@ -206,7 +206,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_labels]
                 oblabelList = [s_labels[:, j] for j in range(s_labels.shape[1])]
             elif computeMetirc == 3:  #观察预测正确的gt-label的类别
-                pright_labels = labels * logits.gt(0).float()
+                pright_labels = labels * logits[0:labels.shape[0]].gt(0).float()
                 num_labels = pright_labels.gt(0).sum().item()
                 s_pr_labels = torch.sort(pright_labels, dim=1, descending=True)[1][:, 0:num_labels]
                 oblabelList = [s_pr_labels[:, j] for j in range(s_pr_labels.shape[1])]
