@@ -129,7 +129,7 @@ def convertTensorToNumpy(img, visualization, gtmask):
     if gtmask is not None:
         if isinstance(gtmask, dict):  #绘制矩形框
             gtmask_numpy = img_numpy
-            for index in len(gtmask["boxes"]):
+            for index in range(len(gtmask["boxes"])):
                 bbox = gtmask["boxes"][index]
                 label = gtmask["int-labels"][index]
                 cv.rectangle(gtmask_numpy, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,0,255))

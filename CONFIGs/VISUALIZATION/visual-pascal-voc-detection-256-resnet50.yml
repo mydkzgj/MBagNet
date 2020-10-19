@@ -23,7 +23,7 @@ DATA:
   PIXEL_MEAN: [0.485, 0.456, 0.406]
   PIXEL_STD: [0.229, 0.224, 0.225]
   PADDING: 0
-  PADDING_TO_SQUARE_MODE: "reflect"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
+  PADDING_TO_SQUARE_MODE: "constant"  #"none", "constant", "edge", "reflect"(mirror), "symmetric"
   PROB: 0.5
   RE_PROB: 0.0
 
