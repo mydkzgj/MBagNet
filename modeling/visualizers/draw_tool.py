@@ -128,12 +128,11 @@ def convertTensorToNumpy(img, visualization, gtmask):
     # (3).转化Ground Truth (多/单通道) 转化为 彩图/灰度图
     if gtmask is not None:
         if isinstance(gtmask, dict):  #绘制矩形框
-            gtmask_numpy = img_numpy
+            gtmask_numpy = img_numpy.copy()
             for index in range(len(gtmask["boxes"])):
                 bbox = gtmask["boxes"][index]
                 label = gtmask["int-labels"][index]
                 cv.rectangle(gtmask_numpy, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,0,255))
-
         else:
             gtmask_channel = gtmask.shape[0]
             if gtmask_channel == 1:
