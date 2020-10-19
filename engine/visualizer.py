@@ -106,7 +106,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         show_image_maxnum = -1#20
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
         showFlag = 0
-        computeMetirc = 2
+        computeMetirc = 3
         if engine.state.iteration == 1:
             if os.path.exists(savePath) != True:
                 os.makedirs(savePath)
