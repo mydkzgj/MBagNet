@@ -127,17 +127,25 @@ def convertTensorToNumpy(img, visualization, gtmask):
 
     # (3).转化Ground Truth (多/单通道) 转化为 彩图/灰度图
     if gtmask is not None:
-        gtmask_channel = gtmask.shape[0]
-        if gtmask_channel == 1:
-            gtmask_numpy = gtmask.cpu().detach().numpy()
+        if isinstance(gtmask, dict):  #绘制矩形框
+            gtmask_numpy = img_numpy
+            for index in len(gtmask["boxes"]):
+                bbox = gtmask["boxes"][index]
+                label = gtmask["int-labels"][index]
+                cv.rectangle(gtmask_numpy, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,0,255))
+
         else:
-            mutichannel_gtmask_numpy = gtmask.cpu().detach().numpy()
-            color_gtmask_numpy = 0
-            for i in range(gtmask_channel):
-                single_gtmask_numpy = mutichannel_gtmask_numpy[i]
-                single_gtmask_numpy = np.expand_dims(single_gtmask_numpy, axis=2).repeat(3, axis=2)
-                color_gtmask_numpy = color_gtmask_numpy + single_gtmask_numpy * np.array(color_name(i))
-            gtmask_numpy = color_gtmask_numpy.astype(np.uint8)
+            gtmask_channel = gtmask.shape[0]
+            if gtmask_channel == 1:
+                gtmask_numpy = gtmask.cpu().detach().numpy()
+            else:
+                mutichannel_gtmask_numpy = gtmask.cpu().detach().numpy()
+                color_gtmask_numpy = 0
+                for i in range(gtmask_channel):
+                    single_gtmask_numpy = mutichannel_gtmask_numpy[i]
+                    single_gtmask_numpy = np.expand_dims(single_gtmask_numpy, axis=2).repeat(3, axis=2)
+                    color_gtmask_numpy = color_gtmask_numpy + single_gtmask_numpy * np.array(color_name(i))
+                gtmask_numpy = color_gtmask_numpy.astype(np.uint8)
     else:
         gtmask_numpy = img_numpy
 
