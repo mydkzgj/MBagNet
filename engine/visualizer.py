@@ -89,9 +89,11 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         model.eval()
         grade_imgs, grade_labels, seg_imgs, seg_masks, seg_labels, gimg_path, simg_path = batch
         if grade_labels is not None and isinstance(grade_labels[0], dict): #CJY at 2020.10.18
-            annotation = grade_labels
-            grade_labels = [obj["multi-labels"] for obj in annotation]
+            annotations = grade_labels
+            grade_labels = [obj["multi-labels"] for obj in annotations]
             grade_labels = torch.tensor(grade_labels, dtype=torch.int64)
+        else:
+            annotations = None
 
         grade_imgs = grade_imgs.to(device) if torch.cuda.device_count() >= 1 and grade_imgs is not None else grade_imgs
         grade_labels = grade_labels.to(device) if torch.cuda.device_count() >= 1 and grade_labels is not None else grade_labels
@@ -112,7 +114,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         # 记录grade和seg的样本数量
         grade_num = grade_imgs.shape[0] if grade_imgs is not None else 0
         seg_num = seg_masks.shape[0] if seg_imgs is not None else 0
-        # 将grade和seg样本concat起来
+        # 将grade和seg样本concat起来 #不考虑joint的形式
         if grade_num > 0 and seg_num == 0:    # grade
             dataType = "grade"
             imgs = grade_imgs
@@ -125,12 +127,6 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             labels = seg_labels
             masks = seg_masks
             img_paths = simg_path
-        elif 0:#grade_num > 0 and seg_num > 0:       # joint
-            dataType = "joint"
-            imgs = torch.cat([grade_imgs, seg_imgs], dim=0)
-            labels = torch.cat([grade_labels, seg_labels], dim=0)
-            masks = seg_masks
-            img_paths = gimg_path + simg_path
 
         model.transmitClassifierWeight()  # 该函数是将baseline中的finalClassifier的weight传回给base，使得其可以直接计算logits-map，
         model.transimitBatchDistribution(1)  # 所有样本均要生成可视化seg
@@ -229,10 +225,14 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 vlabels = s_labels[imgs.shape[0] - visual_num:imgs.shape[0]]
                 vplabels = s_p_labels[imgs.shape[0] - visual_num:imgs.shape[0]]
                 vmasks = masks[masks.shape[0] - visual_num:masks.shape[0]] if masks is not None else None
+                vannotations = annotations[imgs.shape[0] - visual_num:imgs.shape[0]] if annotations is not None else None
 
                 if showFlag == 1:
                     # 绘制可视化结果
-                    model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgs_name)
+                    if vmasks is not None:
+                        model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgs_name)
+                    elif vannotations is not None:
+                        model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vannotations, binary_threshold, savePath, engine.state.imgs_name)
 
                 if computeMetirc != 0:
                     if dataType == "seg" and model.num_classes == 4:
@@ -247,10 +247,10 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                         if hasattr(engine.state, "MPG") != True:
                             engine.state.MPG = MultiPointingGameForDetection(visual_class_list=range(20), seg_class_list=range(20))
 
-                        vannotation = annotation[imgs.shape[0] - visual_num:imgs.shape[0]]
+
                         for i, v in enumerate(gcam_list):
                             segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
-                            engine.state.MPG.update(segmentations.cpu(), vannotation, oblabels.cpu(),
+                            engine.state.MPG.update(segmentations.cpu(), vannotations, oblabels.cpu(),
                                                     model.visualizer_name, model.visualizer.target_layer[i], binary_threshold)
 
             labels = labels if len(labels.shape) == 1 else torch.max(labels, dim=1)[1]
