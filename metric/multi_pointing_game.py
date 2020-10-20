@@ -392,6 +392,7 @@ class MultiPointingGameForDetection(object):
 
     def saveXLS(self, savePath):
         # 1.生成总表，详细记录每一项
+        """  为了快速，可以先省去
         sheetName = "SUMMARY-CLASSWISE"
         op_list = ["Visulization Method", "Observation Module", "Threshold",
                    "Metric Type", "Metric Name", "Visual Label", "Segmentation Label", "Value"]
@@ -410,18 +411,12 @@ class MultiPointingGameForDetection(object):
 
 
         xls_filename = os.path.join(savePath, method_key + ".xlsx")
-        """
-        if os.path.exists(xls_filename) == True:
-            with pd.ExcelWriter(xls_filename, mode='a') as writer:
-                DF.to_excel(writer, sheet_name=sheetName)
-        else:
-            with pd.ExcelWriter(xls_filename, mode='w') as writer:
-                DF.to_excel(writer, sheet_name=sheetName)
-        """
+
         with pd.ExcelWriter(xls_filename, mode='w') as writer:
             DF.to_excel(writer, sheet_name=sheetName)
 
         #DF.to_excel(model.visualizer_name + ".xlsx")
+        #"""
 
         # 2.生成总表，详细记录每一项
         if self.visual_class_list == self.seg_class_list:

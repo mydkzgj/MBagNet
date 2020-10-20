@@ -200,6 +200,9 @@ class Baseline(nn.Module):
         self.visualization = None
         self.choose_visualizer()
 
+        # CJY at 2020.10.20
+        self.visualizer.reservePos = True
+
         # 5.所有的hook操作（按理来说应该放在各自的baseline里）
         #self.set_hooks()
 
