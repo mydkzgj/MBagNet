@@ -200,7 +200,7 @@ class Baseline(nn.Module):
         self.visualization = None
         self.choose_visualizer()
 
-        # CJY at 2020.10.20
+        # CJY at 2020.10.20 全局控制开关
         self.visualizer.reservePos = True
 
         # 5.所有的hook操作（按理来说应该放在各自的baseline里）
