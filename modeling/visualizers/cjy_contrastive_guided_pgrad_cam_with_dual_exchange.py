@@ -8,7 +8,7 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
+class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
     """
     说明：将每个特征activation的gradient分为正负两部分，可以分别观测这两部分的作用
     gcam = pos_gcam + neg_gcam 即为 pgrad-cam
@@ -485,7 +485,7 @@ class CJY_CONTRAST_GUIDED_BACKPROPAGATION():
         inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
         gcam_all = torch.sum((inter_output * inter_gradient).relu(), dim=1, keepdim=True)
-        #"""
+        """
         if inter_output.min() < 0:
             gcam_all = torch.sum(inter_output * inter_gradient, dim=1, keepdim=True)
         else:
