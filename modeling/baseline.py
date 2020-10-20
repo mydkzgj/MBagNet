@@ -178,7 +178,7 @@ class Baseline(nn.Module):
         # "pgrad-cam-GBP"
         # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
 
-        self.visualizer_name = "cjy-contrast-guided-backpropagation"
+        self.visualizer_name = "cjy-contrastive-guided-pgrad-cam"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
