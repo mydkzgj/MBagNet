@@ -57,7 +57,7 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
 
         self.firstCAM = 1
 
-        self.reservePos = False  #True
+        self.reservePos = False    #True
 
         self.normFlag = True
 
@@ -230,10 +230,8 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
 
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
-                    module.kernel_size[0] - 1) + 1
+            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
-
 
             pos_weight = module.weight.relu()
             neg_weight = -(-module.weight).relu()
@@ -298,7 +296,7 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             #"""
 
-            #"""
+            """
             #3. consider negtive
             if relu_output.ndimension() == 2:
                 new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
@@ -326,6 +324,31 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             #"""
+            # """
+            # 4. consider negtive
+            if relu_output.ndimension() == 2:
+                new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * \
+                               grad_in_sub[2].lt(0).float()
+                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(
+                    0).float()
+                new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(
+                    0).float()
+
+                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                # new_grad_in = grad_in[0]
+            else:
+                cam_old = torch.sum(relu_output * grad_in[0], dim=1, keepdim=True)
+                cam_old_sub = [cam_old[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+                new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - cam_old_sub[2].lt(0).float() * grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+                new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - cam_old_sub[1].lt(0).float() * grad_in_sub[1] * grad_in_sub[1].lt(0).float()
+
+                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+
+            # """
             return (new_grad_in,)
 
 
