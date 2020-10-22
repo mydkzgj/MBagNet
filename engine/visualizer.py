@@ -103,10 +103,13 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
         heatmapType = "visualization"
         show_imagename_type = "number"
-        show_image_maxnum = -1#20
+        run_image_maxnum = -1#20
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
         showFlag = 0
+        max_show_num = 200
         computeMetirc = 3
+        model.visualizer.reservePos = True  # CJY at 2020.10.20 全局控制开关
+        
         if engine.state.iteration == 1:
             if os.path.exists(savePath) != True:
                 os.makedirs(savePath)
@@ -161,7 +164,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             elif show_imagename_type == "number":  # 数字
                 engine.state.imgs_name = ["{}".format(i) for i in engine.state.imgs_index]
 
-            if engine.state.imgs_index[0] > show_image_maxnum and show_image_maxnum != -1:
+            if engine.state.imgs_index[0] > run_image_maxnum and run_image_maxnum != -1:
                 exit(0)
 
             # 观测类别
@@ -233,11 +236,12 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 vannotations = annotations[imgs.shape[0] - visual_num:imgs.shape[0]] if annotations is not None else None
 
                 if showFlag == 1:
-                    # 绘制可视化结果
-                    if vmasks is not None:
-                        model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgs_name)
-                    elif vannotations is not None:
-                        model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vannotations, binary_threshold, savePath, engine.state.imgs_name)
+                    if engine.state.imgs_index[0] > max_show_num and  max_show_num != -1:
+                        # 绘制可视化结果
+                        if vmasks is not None:
+                            model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgs_name)
+                        elif vannotations is not None:
+                            model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vannotations, binary_threshold, savePath, engine.state.imgs_name)
 
                 if computeMetirc != 0:
                     if dataType == "seg" and model.num_classes == 4:
