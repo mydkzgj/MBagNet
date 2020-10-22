@@ -13,7 +13,8 @@ from .draw_tool import draw_visualization
 class GuidedGradCAM():
     def __init__(self, model, num_classes, target_layer, useGuidedBP=False):
         self.num_classes = num_classes
-        self.target_layer = target_layer  #注：需要让input可计算梯度； target_layer  # 最好按forward顺序写
+        #self.target_layer = target_layer[-2] if target_layer[-1] == "" else target_layer[-1] #注：需要让input可计算梯度； target_layer  # 最好按forward顺序写
+        self.target_layer = ["gcam", "gbp", "ggcam"]
         self.draw_index = 0
 
         # 子模块
@@ -49,6 +50,11 @@ class GuidedGradCAM():
                 raise Exception("Wrong process type!")
             ggcam = resized_cam * gbp
             norm_ggcam, ggcam_max = self.gcamNormalization(ggcam)  #使用guidedBP的归一化，即reserve-pos为False
+            # CJY at 2020.10.22
+            self.gcam_list.append(resized_cam)
+            norm_gbp, _ = self.gcamNormalization(gbp)
+            self.gcam_list.append(norm_gbp)
+
             self.gcam_list.append(norm_ggcam)
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam
