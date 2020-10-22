@@ -109,7 +109,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         max_show_num = 200
         computeMetirc = 3
         model.visualizer.reservePos = True  # CJY at 2020.10.20 全局控制开关
-        
+
         if engine.state.iteration == 1:
             if os.path.exists(savePath) != True:
                 os.makedirs(savePath)
@@ -236,7 +236,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 vannotations = annotations[imgs.shape[0] - visual_num:imgs.shape[0]] if annotations is not None else None
 
                 if showFlag == 1:
-                    if engine.state.imgs_index[0] > max_show_num and  max_show_num != -1:
+                    if engine.state.imgs_index[0] < max_show_num and  max_show_num != -1:
                         # 绘制可视化结果
                         if vmasks is not None:
                             model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vmasks, binary_threshold, savePath, engine.state.imgs_name)
