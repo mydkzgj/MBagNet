@@ -254,8 +254,8 @@ class MultiPointingGameForDetection(object):
         self.num_visual_class = len(self.visual_class_list)
         self.num_seg_class = len(self.seg_class_list)
 
-        self.elemnet_name_list = ["OBJECT_HIT", "OBJECT_MISS", "PIXEL_TP", "PIXEL_FP", "PIXEL_TN", "PIXEL_FN", "NUM_IMAGE"]
-        self.metric_name_list = ["OBJECT_PRECISION", "OBJECT_RECALL", "PIXEL_ACCURACY", "PIXEL_PRECISION", "PIXEL_RECALL", "PIXEL_IOU"]
+        self.elemnet_name_list = ["OBJECT_HIT", "OBJECT_MISS", "PIXEL_TP", "PIXEL_FP", "PIXEL_TN", "PIXEL_FN", "CONCENTRATION", "NUM_IMAGE"]
+        self.metric_name_list = ["OBJECT_PRECISION", "OBJECT_RECALL", "PIXEL_ACCURACY", "PIXEL_PRECISION", "PIXEL_RECALL", "PIXEL_IOU", "CONCENTRATION"]
 
         self.state = {}
 
@@ -267,13 +267,14 @@ class MultiPointingGameForDetection(object):
         initial_element = {"OBJECT_HIT": self.createInitialNumpy(), "OBJECT_MISS": self.createInitialNumpy(),
                            "PIXEL_TP": self.createInitialNumpy(), "PIXEL_FP": self.createInitialNumpy(),
                            "PIXEL_TN": self.createInitialNumpy(), "PIXEL_FN": self.createInitialNumpy(),
-                           "NUM_IMAGE": self.createInitialNumpy()}
+                           "CONCENTRATION": self.createInitialNumpy(), "NUM_IMAGE": self.createInitialNumpy()}
         return initial_element
 
     def createInitialMetric(self):
         initial_metric = {"OBJECT_PRECISION": self.createInitialNumpy(), "OBJECT_RECALL": self.createInitialNumpy(),
                           "PIXEL_ACCURACY": self.createInitialNumpy(), "PIXEL_PRECISION": self.createInitialNumpy(),
-                          "PIXEL_RECALL": self.createInitialNumpy(), "PIXEL_IOU": self.createInitialNumpy()}
+                          "PIXEL_RECALL": self.createInitialNumpy(), "PIXEL_IOU": self.createInitialNumpy(),
+                          "CONCENTRATION": self.createInitialNumpy()}
         return initial_metric
 
 
@@ -313,6 +314,10 @@ class MultiPointingGameForDetection(object):
                 # 计算mask 转numpy
                 pt_mask = binary_saliency_maps[b][0].numpy().astype(np.uint8)
 
+                # CJY 不进行二值化，为了求取专注性focus, concentrate
+                ori_mask = saliency_maps[b][0].numpy().astype(np.uint8)
+                canvas_mask = np.zeros_like(pt_mask)
+
                 gt_bbox_index_list = ann["instances-distribution"][s_c_index]
                 if len(gt_bbox_index_list) == 0:
                     continue
@@ -324,6 +329,10 @@ class MultiPointingGameForDetection(object):
                 miss_mask = np.zeros_like(pt_mask)
                 for gt_bbox_index in gt_bbox_index_list:
                     gt_bbox = ann["boxes"][gt_bbox_index]
+
+                    # CJY 不进行二值化，为了求取专注性focus, concentrate
+                    canvas_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]] = 1
+
                     sub_region = pt_mask[gt_bbox[1]:gt_bbox[3], gt_bbox[0]:gt_bbox[2]]  #row , col
                     sum = sub_region.sum()
                     if sum > 0:
@@ -340,6 +349,9 @@ class MultiPointingGameForDetection(object):
                 pixel_tn = ((1 - pt_mask) * (1 - gt_mask)).sum(axis=(0, 1))
                 pixel_fn = ((1 - pt_mask) & gt_mask).sum(axis=(0, 1))
 
+                # CJY 不进行二值化，为了求取专注性focus, concentrate
+                concentration = (canvas_mask * ori_mask).sum()/((1-canvas_mask) * ori_mask).sum()
+
                 te["OBJECT_HIT"][v_c_index][s_c_index] = object_hit
                 te["OBJECT_MISS"][v_c_index][s_c_index] = object_miss
                 te["PIXEL_TP"][v_c_index][s_c_index] = pixel_tp
@@ -348,12 +360,16 @@ class MultiPointingGameForDetection(object):
                 te["PIXEL_FN"][v_c_index][s_c_index] = pixel_fn
                 te["NUM_IMAGE"][v_c_index][s_c_index] = 1
 
+                te["CONCENTRATION"][v_c_index][s_c_index] = concentration
+
             tm["OBJECT_PRECISION"] = te["OBJECT_HIT"] / np.maximum(te["OBJECT_HIT"].sum(axis=1, keepdims=True), 1E-12)
             tm["OBJECT_RECALL"] = te["OBJECT_HIT"] / np.maximum((te["OBJECT_HIT"]+te["OBJECT_MISS"]), 1E-12)
             tm["PIXEL_ACCURACY"] = (te["PIXEL_TP"]+te["PIXEL_TN"])/np.maximum((te["PIXEL_TP"]+te["PIXEL_FP"]+te["PIXEL_TN"]+te["PIXEL_FN"]), 1E-12)
             tm["PIXEL_PRECISION"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FP"]), 1E-12)
             tm["PIXEL_RECALL"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FN"]), 1E-12)
             tm["PIXEL_IOU"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FP"] + te["PIXEL_FN"]), 1E-12)
+
+            tm["CONCENTRATION"] = te["CONCENTRATION"]
 
             # 记录
             for k in self.state[key]["METRIC_IMAGEWISE"].keys():
@@ -371,6 +387,7 @@ class MultiPointingGameForDetection(object):
             self.state[key]["METRIC_OVERALL"]["PIXEL_RECALL"] = self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] / np.maximum((self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] + self.state[key]["ELEMENT_OVERALL"]["PIXEL_FN"]), 1E-12)
             self.state[key]["METRIC_OVERALL"]["PIXEL_IOU"] = self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] / np.maximum((self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] + self.state[key]["ELEMENT_OVERALL"]["PIXEL_FP"] + self.state[key]["ELEMENT_OVERALL"]["PIXEL_FN"]), 1E-12)
 
+            self.state[key]["METRIC_OVERALL"]["CONCENTRATION"] = self.state[key]["METRIC_IMAGEWISE"]["CONCENTRATION"]
 
     def fillHoles(self, seedImg, Mask):
         # 输入是numpy格式
@@ -391,7 +408,7 @@ class MultiPointingGameForDetection(object):
         return outputImg
 
     def saveXLS(self, savePath):
-        # 1.生成总表，详细记录每一项
+        # 1.生成总表，详细记录每一项 Classwise
         """  为了快速，可以先省去
         sheetName = "SUMMARY-CLASSWISE"
         op_list = ["Visulization Method", "Observation Module", "Threshold",
@@ -461,7 +478,7 @@ class MultiPointingGameForDetection(object):
                     DF.to_excel(writer, sheet_name=sheetName)
 
 
-        #2.记录统计后的表
+        #3.记录统计后的表
         sheetName = "VISUAL-LABEL"
         op_list = ["Visulization Method", "Observation Module", "Threshold", "Visual Label",] + self.metric_name_list
 
