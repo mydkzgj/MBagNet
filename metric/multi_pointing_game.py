@@ -315,7 +315,7 @@ class MultiPointingGameForDetection(object):
                 pt_mask = binary_saliency_maps[b][0].numpy().astype(np.uint8)
 
                 # CJY 不进行二值化，为了求取专注性focus, concentrate
-                ori_mask = saliency_maps[b][0].detach().numpy().astype(np.float32)
+                ori_mask = saliency_maps[b][0].relu().detach().numpy().astype(np.float32)
                 canvas_mask = np.zeros_like(pt_mask)
 
                 gt_bbox_index_list = ann["instances-distribution"][s_c_index]
@@ -350,7 +350,7 @@ class MultiPointingGameForDetection(object):
                 pixel_fn = ((1 - pt_mask) & gt_mask).sum(axis=(0, 1))
 
                 # CJY 不进行二值化，为了求取专注性focus, concentrate
-                concentration = (canvas_mask * ori_mask).sum()/((1-canvas_mask) * ori_mask).sum()
+                concentration = (canvas_mask * ori_mask).sum()/np.maximum((ori_mask).sum(), 1E-12)
 
                 te["OBJECT_HIT"][v_c_index][s_c_index] = object_hit
                 te["OBJECT_MISS"][v_c_index][s_c_index] = object_miss
