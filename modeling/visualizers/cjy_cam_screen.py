@@ -262,19 +262,11 @@ class CJY_CAM_SCREEN():
                 CAM = CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
             """
 
-            CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-            new_grad_in = grad_in[0]
+            if grad_out[0].ndimension() == 4:
+                CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                new_grad_in = CAM * grad_in[0]
 
-            if grad_out[0].ndimension() == 2:
-                new_grad_in = CAM * new_grad_in
-                pass
-            elif grad_out[0].ndimension() == 4:
-                new_grad_in = CAM * new_grad_in
-
-                #pos_grad_out = grad_out[0].gt(0).float()
-                #new_grad_in = pos_grad_out * new_grad_in   #grad_in[0]
-
-            return (new_grad_in,)
+                return (new_grad_in,)
 
 
     def pool_forward_hook_fn(self, module, input, output):
