@@ -315,7 +315,7 @@ class MultiPointingGameForDetection(object):
                 pt_mask = binary_saliency_maps[b][0].numpy().astype(np.uint8)
 
                 # CJY 不进行二值化，为了求取专注性focus, concentrate
-                ori_mask = saliency_maps[b][0].detach().numpy().astype(np.uint8)
+                ori_mask = saliency_maps[b][0].detach().numpy().astype(np.float())
                 canvas_mask = np.zeros_like(pt_mask)
 
                 gt_bbox_index_list = ann["instances-distribution"][s_c_index]
