@@ -200,8 +200,8 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM():
                 grad_in_sub = [grad_in[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
                 new_grad_in0 = grad_in_sub[0] * 0
-                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
-                new_grad_in2 = (-grad_in_sub[2]) * grad_in_sub[2].lt(0).float()
+                new_grad_in1 = grad_in_sub[1] * 1         # * grad_in_sub[1].gt(0).float()
+                new_grad_in2 = grad_in_sub[2] * (-1)      # * grad_in_sub[2].lt(0).float()
 
                 new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
