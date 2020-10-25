@@ -373,11 +373,7 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             cam_n = self.GenerateCAM(relu_output, new_grad_in_n)
             cam_n_sum = cam_n.relu().sum()
 
-            if cam_p_sum > cam_n_sum:
-                new_grad_in = new_grad_in_p
-            else:
-                new_grad_in = new_grad_in_n
-
+            new_grad_in = new_grad_in_p if cam_p_sum > cam_n_sum else new_grad_in_n
             # """
 
             return (new_grad_in,)
