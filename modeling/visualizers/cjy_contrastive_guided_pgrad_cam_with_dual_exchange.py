@@ -354,7 +354,6 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             if relu_output.ndimension() == 2:
                 return grad_in
 
-            print()
             new_grad_in_p0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
             new_grad_in_p1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
             new_grad_in_p2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
@@ -377,7 +376,7 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             if cam_p_sum > cam_n_sum:
                 new_grad_in = new_grad_in_p
             else:
-                new_grad_in = new_grad_in_p
+                new_grad_in = new_grad_in_n
 
             # """
 
