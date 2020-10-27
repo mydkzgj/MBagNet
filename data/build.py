@@ -90,7 +90,19 @@ def make_seg_data_loader(cfg, for_train):
         classes_list = []
         return None, None, None, classes_list
 
-    train_set, val_set, test_set, classes_list = make_seg_dataset_for_custom_datasets(cfg, for_train)
+    # torchvision分割数据集（部分修改）
+    torchvision_dataset_list = ["pascal-voc-segmentation",
+                                "coco-classification", "coco-detection"]
+    # 自定义数据集
+    custom_seg_dataset_list = ["ddr_lesion_segmentation_regroup",
+                               "ddr_lesion_segmentation_multilabel_weaksupervision",
+                               "ddr_lesion_segmentation_multilabel_weaksupervision_colormask",
+                               ]
+
+    if cfg.DATA.DATASETS.NAMES in torchvision_dataset_list:
+        train_set, val_set, test_set, classes_list = make_dataset_for_classic_datasets(cfg, for_train)
+    elif cfg.DATA.DATASETS.NAMES in custom_seg_dataset_list:
+        train_set, val_set, test_set, classes_list = make_seg_dataset_for_custom_datasets(cfg, for_train)
 
     num_classes = len(classes_list)
     train_sampler = build_seg_sampler(cfg, train_set, num_classes, set_name="train", is_train=for_train)
