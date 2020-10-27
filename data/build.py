@@ -99,9 +99,9 @@ def make_seg_data_loader(cfg, for_train):
                                "ddr_lesion_segmentation_multilabel_weaksupervision_colormask",
                                ]
 
-    if cfg.DATA.DATASETS.NAMES in torchvision_dataset_list:
-        train_set, val_set, test_set, classes_list = make_dataset_for_classic_datasets(cfg, for_train)
-    elif cfg.DATA.DATASETS.NAMES in custom_seg_dataset_list:
+    if cfg.DATA.DATASETS.SEG_NAMES in torchvision_dataset_list:
+        train_set, val_set, test_set, classes_list = make_dataset_for_classic_datasets(cfg, for_train, "segmentation")
+    elif cfg.DATA.DATASETS.SEG_NAMES in custom_seg_dataset_list:
         train_set, val_set, test_set, classes_list = make_seg_dataset_for_custom_datasets(cfg, for_train)
 
     num_classes = len(classes_list)

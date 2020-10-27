@@ -44,33 +44,38 @@ def make_seg_dataset_for_custom_datasets(cfg, for_train):
     return train_set, val_set, test_set, classes_list
 
 
-def make_dataset_for_classic_datasets(cfg, for_train):
+def make_dataset_for_classic_datasets(cfg, for_train, dataset_type="classification"):
     train_transforms = build_transforms(cfg, is_train=for_train)
     val_transforms = build_transforms(cfg, is_train=False)
     test_transforms = build_transforms(cfg, is_train=False)
 
     root_path = cfg.DATA.DATASETS.ROOT_DIR
 
+    if dataset_type == "classification":
+        dataset_name = cfg.DATA.DATASETS.NAMES
+    elif dataset_type == "segmentation":
+        dataset_name = cfg.DATA.DATASETS.SEG_NAMES
+
     # for those have been realized by torchvision
-    if cfg.DATA.DATASETS.NAMES == "cifar10":
+    if dataset_name == "cifar10":
         root_path = os.path.join(root_path, "DATABASE", "CIFAR10")
         train_set = torchvision.datasets.CIFAR10(root=root_path, train=True, download=True, transform=train_transforms)
         val_set = torchvision.datasets.CIFAR10(root=root_path, train=False, download=True, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
-    elif cfg.DATA.DATASETS.NAMES == "cifar100":
+    elif dataset_name == "cifar100":
         root_path = os.path.join(root_path, "DATABASE", "CIFAR100")
         train_set = torchvision.datasets.CIFAR100(root=root_path, train=True, download=True, transform=train_transforms)
         val_set = torchvision.datasets.CIFAR100(root=root_path, train=False, download=True, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
-    elif cfg.DATA.DATASETS.NAMES == "pascal-voc-classification":
+    elif dataset_name == "pascal-voc-classification":
         root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
         train_set = VOCClassification(root=root_path, year="2012", image_set="train", download=False, transform=train_transforms)
         val_set = VOCClassification(root=root_path, year="2012", image_set="val", download=False, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
-    elif cfg.DATA.DATASETS.NAMES == "pascal-voc-detection":
+    elif dataset_name == "pascal-voc-detection":
         train_transforms = build_det_transforms(cfg, is_train=for_train)
         val_transforms = build_det_transforms(cfg, is_train=False)
         test_transforms = build_det_transforms(cfg, is_train=False)
@@ -80,14 +85,14 @@ def make_dataset_for_classic_datasets(cfg, for_train):
         test_set = val_set
         classes_list = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
                         'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
-    elif cfg.DATA.DATASETS.NAMES == "pascal-voc-segmentation":
+    elif dataset_name == "pascal-voc-segmentation":
         root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
         train_set = torchvision.datasets.VOCSegmentation(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
         val_set = torchvision.datasets.VOCSegmentation(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
         test_set = val_set
         classes_list = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
                         'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
-    elif cfg.DATA.DATASETS.NAMES == "coco-classification":
+    elif dataset_name == "coco-classification":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
         year = "2017"
         annotation_path = os.path.join(root_path, "annotations")
@@ -99,7 +104,7 @@ def make_dataset_for_classic_datasets(cfg, for_train):
         val_set = CocoClassification(root=val_image_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.class_list
-    elif cfg.DATA.DATASETS.NAMES == "coco-caption":
+    elif dataset_name == "coco-caption":
         root_path = os.path.join(root_path, "DATABASE", "Microsoft-COCO")
         year = "2017"
         annotation_path = os.path.join(root_path, "annotations")
@@ -111,7 +116,7 @@ def make_dataset_for_classic_datasets(cfg, for_train):
         val_set = torchvision.datasets.CocoCaptions(root=val_image_path, annFile=val_annfile, transform=val_transforms)
         test_set = val_set
         classes_list = None
-    elif cfg.DATA.DATASETS.NAMES == "coco-detection":
+    elif dataset_name == "coco-detection":
         train_transforms = build_det_transforms(cfg, is_train=for_train)
         val_transforms = build_det_transforms(cfg, is_train=False)
         test_transforms = build_det_transforms(cfg, is_train=False)
