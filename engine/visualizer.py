@@ -260,7 +260,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                             model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vannotations, binary_threshold, savePath, engine.state.imgs_name)
 
                 if computeMetirc != 0:
-                    if dataType == "seg" and model.num_classes == 4:
+                    if dataType == "seg":
                         if hasattr(engine.state, "MPG") != True:
                             engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(4), seg_class_list=range(4))
 
