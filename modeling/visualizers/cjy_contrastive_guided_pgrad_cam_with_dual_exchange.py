@@ -356,8 +356,9 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
 
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.stem_relu_index = self.stem_relu_index - 1
-                if len(self.stem_relu_index_list) - self.stem_relu_index < 5:
-                    return grad_in
+
+            if len(self.stem_relu_index_list) - self.stem_relu_index < 5:
+                return grad_in
 
             new_grad_in0 = grad_in_sub[0] #+ grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
             new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
