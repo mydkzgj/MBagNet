@@ -96,6 +96,9 @@ class MultiPointingGameForSegmentation(object):
                 pixel_tn = ((1 - pt_mask) * (1 - gt_mask)).sum(axis=(0, 1))
                 pixel_fn = ((1 - pt_mask) & gt_mask).sum(axis=(0, 1))
 
+                # CJY 不进行二值化，为了求取专注性focus, concentrate
+                concentration = (gt_mask * ori_mask).sum() / np.maximum((ori_mask).sum(), 1E-12)
+
                 te["OBJECT_HIT"][v_c_index][s_c_index] = object_hit
                 te["OBJECT_MISS"][v_c_index][s_c_index] = object_miss
                 te["PIXEL_TP"][v_c_index][s_c_index] = pixel_tp
@@ -105,9 +108,6 @@ class MultiPointingGameForSegmentation(object):
                 te["NUM_IMAGE"][v_c_index][s_c_index] = 1
 
                 te["CONCENTRATION"][v_c_index][s_c_index] = concentration
-
-            # CJY 不进行二值化，为了求取专注性focus, concentrate
-            concentration = (gt_mask * ori_mask).sum() / np.maximum((ori_mask).sum(), 1E-12)
 
             tm["OBJECT_PRECISION"] = te["OBJECT_HIT"] / np.maximum(te["OBJECT_HIT"].sum(axis=1, keepdims=True), 1E-12)
             tm["OBJECT_RECALL"] = te["OBJECT_HIT"] / np.maximum((te["OBJECT_HIT"]+te["OBJECT_MISS"]), 1E-12)
