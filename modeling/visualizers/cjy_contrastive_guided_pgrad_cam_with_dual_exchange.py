@@ -354,6 +354,11 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             if relu_output.ndimension() == 2:
                 return grad_in
 
+            if self.relu_output_obtain_index in self.stem_relu_index_list:
+                self.stem_relu_index = self.stem_relu_index - 1
+                if len(self.stem_relu_index_list) - self.stem_relu_index < 5:
+                    return grad_in
+
             new_grad_in0 = grad_in_sub[0] #+ grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
             new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
             new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
@@ -434,6 +439,7 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
         if self.multiply_input >= 1:
             gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
 
+        self.stem_relu_index = len(self.stem_relu_index_list)
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
