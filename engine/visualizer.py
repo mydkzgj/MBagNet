@@ -65,6 +65,19 @@ def lesionsStatistics(mask, label):
     LS[label][index] = LS[label][index] + 1
 """
 
+def convertMultiMask(seg_masks, num_classes):
+    batches = seg_masks.shape[0]
+    channels = seg_masks.shape[1]
+    if channels > 1:
+        raise Exception
+    classwise_seg_masks_list = []
+    for c in range(num_classes):
+        classwise_seg_masks_list.append(seg_masks.eq(c+1))
+
+    classwise_seg_masks = torch.cat(classwise_seg_masks_list, dim=1)
+    multi_labels = classwise_seg_masks.sum(-1).sum(-1).gt(0).float()
+
+    return classwise_seg_masks, multi_labels
 
 
 
@@ -92,6 +105,9 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             annotations = grade_labels
             grade_labels = [obj["multi-labels"] for obj in annotations]
             grade_labels = torch.tensor(grade_labels, dtype=torch.int64)
+        elif seg_masks is not None and seg_labels is None:
+            annotations = None
+            seg_masks, seg_labels = convertMultiMask(seg_masks)
         else:
             annotations = None
 

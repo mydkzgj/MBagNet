@@ -18,6 +18,10 @@ def collate_fn_seg(batch):
         imgs_path = [""] * len(batch)
     elif len(batch[0]) == 4:
         imgs, masks, labels, imgs_path = zip(*batch)
+    elif len(batch[0]) == 2:
+        imgs, masks = zip(*batch)
+        labels = None
+        imgs_path = [""] * len(batch)
     labels = torch.tensor(labels, dtype=torch.int64)   # for continuous var CJY at 2020.9.5
     return torch.stack(imgs, dim=0), torch.stack(masks, dim=0), labels, imgs_path
 
