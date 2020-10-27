@@ -107,7 +107,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             grade_labels = torch.tensor(grade_labels, dtype=torch.int64)
         elif seg_masks is not None and seg_labels is None:
             annotations = None
-            seg_masks, seg_labels = convertMultiMask(seg_masks)
+            seg_masks, seg_labels = convertMultiMask(seg_masks, model.num_classes)
         else:
             annotations = None
 
