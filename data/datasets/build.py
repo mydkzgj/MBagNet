@@ -45,16 +45,21 @@ def make_seg_dataset_for_custom_datasets(cfg, for_train):
 
 
 def make_dataset_for_classic_datasets(cfg, for_train, dataset_type="classification"):
-    train_transforms = build_transforms(cfg, is_train=for_train)
-    val_transforms = build_transforms(cfg, is_train=False)
-    test_transforms = build_transforms(cfg, is_train=False)
-
-    root_path = cfg.DATA.DATASETS.ROOT_DIR
+    if dataset_type == "classification":
+        train_transforms = build_transforms(cfg, is_train=for_train)
+        val_transforms = build_transforms(cfg, is_train=False)
+        test_transforms = build_transforms(cfg, is_train=False)
+    elif dataset_type == "segmentation":
+        train_transforms = build_seg_transforms(cfg, is_train=for_train)
+        val_transforms = build_seg_transforms(cfg, is_train=False)
+        test_transforms = build_seg_transforms(cfg, is_train=False)
 
     if dataset_type == "classification":
         dataset_name = cfg.DATA.DATASETS.NAMES
     elif dataset_type == "segmentation":
         dataset_name = cfg.DATA.DATASETS.SEG_NAMES
+
+    root_path = cfg.DATA.DATASETS.ROOT_DIR
 
     # for those have been realized by torchvision
     if dataset_name == "cifar10":
