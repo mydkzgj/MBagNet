@@ -22,7 +22,7 @@ def collate_fn_seg(batch):
         imgs, masks = zip(*batch)
         labels = None
         imgs_path = [""] * len(batch)
-    labels = torch.tensor(labels, dtype=torch.int64)   # for continuous var CJY at 2020.9.5
+    labels = torch.tensor(labels, dtype=torch.int64) if labels is not None else None  # for continuous var CJY at 2020.9.5
     return torch.stack(imgs, dim=0), torch.stack(masks, dim=0), labels, imgs_path
 
 def collate_fn(batch):
