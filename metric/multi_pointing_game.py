@@ -17,8 +17,8 @@ class MultiPointingGameForSegmentation(object):
         self.num_visual_class = len(self.visual_class_list)
         self.num_seg_class = len(self.seg_class_list)
 
-        self.elemnet_name_list = ["OBJECT_HIT", "OBJECT_MISS", "PIXEL_TP", "PIXEL_FP", "PIXEL_TN", "PIXEL_FN", "NUM_IMAGE"]
-        self.metric_name_list = ["OBJECT_PRECISION", "OBJECT_RECALL", "PIXEL_ACCURACY", "PIXEL_PRECISION", "PIXEL_RECALL", "PIXEL_IOU"]
+        self.elemnet_name_list = ["OBJECT_HIT", "OBJECT_MISS", "PIXEL_TP", "PIXEL_FP", "PIXEL_TN", "PIXEL_FN", "CONCENTRATION", "NUM_IMAGE"]
+        self.metric_name_list = ["OBJECT_PRECISION", "OBJECT_RECALL", "PIXEL_ACCURACY", "PIXEL_PRECISION", "PIXEL_RECALL", "PIXEL_IOU", "CONCENTRATION"]
 
         self.state = {}
 
@@ -30,13 +30,14 @@ class MultiPointingGameForSegmentation(object):
         initial_element = {"OBJECT_HIT": self.createInitialNumpy(), "OBJECT_MISS": self.createInitialNumpy(),
                            "PIXEL_TP": self.createInitialNumpy(), "PIXEL_FP": self.createInitialNumpy(),
                            "PIXEL_TN": self.createInitialNumpy(), "PIXEL_FN": self.createInitialNumpy(),
-                           "NUM_IMAGE": self.createInitialNumpy()}
+                           "CONCENTRATION": self.createInitialNumpy(), "NUM_IMAGE": self.createInitialNumpy()}
         return initial_element
 
     def createInitialMetric(self):
         initial_metric = {"OBJECT_PRECISION": self.createInitialNumpy(), "OBJECT_RECALL": self.createInitialNumpy(),
                           "PIXEL_ACCURACY": self.createInitialNumpy(), "PIXEL_PRECISION": self.createInitialNumpy(),
-                          "PIXEL_RECALL": self.createInitialNumpy(), "PIXEL_IOU": self.createInitialNumpy()}
+                          "PIXEL_RECALL": self.createInitialNumpy(), "PIXEL_IOU": self.createInitialNumpy(),
+                          "CONCENTRATION": self.createInitialNumpy()}
         return initial_metric
 
 
@@ -74,6 +75,9 @@ class MultiPointingGameForSegmentation(object):
             tm = self.createInitialMetric()
 
             for s_c_index in range(self.num_seg_class):
+                # CJY 不进行二值化，为了求取专注性focus, concentrate
+                ori_mask = saliency_maps[b][0].relu().detach().numpy().astype(np.float32)
+
                 # 计算mask 转numpy
                 pt_mask = binary_saliency_maps[b][s_c_index].numpy().astype(np.uint8)   #.permute(1, 2, 0)
                 gt_mask = binary_seg_gtmasks[b][s_c_index].numpy().astype(np.uint8)
@@ -100,12 +104,19 @@ class MultiPointingGameForSegmentation(object):
                 te["PIXEL_FN"][v_c_index][s_c_index] = pixel_fn
                 te["NUM_IMAGE"][v_c_index][s_c_index] = 1
 
+                te["CONCENTRATION"][v_c_index][s_c_index] = concentration
+
+            # CJY 不进行二值化，为了求取专注性focus, concentrate
+            concentration = (gt_mask * ori_mask).sum() / np.maximum((ori_mask).sum(), 1E-12)
+
             tm["OBJECT_PRECISION"] = te["OBJECT_HIT"] / np.maximum(te["OBJECT_HIT"].sum(axis=1, keepdims=True), 1E-12)
             tm["OBJECT_RECALL"] = te["OBJECT_HIT"] / np.maximum((te["OBJECT_HIT"]+te["OBJECT_MISS"]), 1E-12)
             tm["PIXEL_ACCURACY"] = (te["PIXEL_TP"]+te["PIXEL_TN"])/np.maximum((te["PIXEL_TP"]+te["PIXEL_FP"]+te["PIXEL_TN"]+te["PIXEL_FN"]), 1E-12)
             tm["PIXEL_PRECISION"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FP"]), 1E-12)
             tm["PIXEL_RECALL"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FN"]), 1E-12)
             tm["PIXEL_IOU"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FP"] + te["PIXEL_FN"]), 1E-12)
+
+            tm["CONCENTRATION"] = te["CONCENTRATION"]
 
             # 记录
             for k in self.state[key]["METRIC_IMAGEWISE"].keys():
@@ -122,6 +133,8 @@ class MultiPointingGameForSegmentation(object):
             self.state[key]["METRIC_OVERALL"]["PIXEL_PRECISION"] = self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] / np.maximum((self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] + self.state[key]["ELEMENT_OVERALL"]["PIXEL_FP"]), 1E-12)
             self.state[key]["METRIC_OVERALL"]["PIXEL_RECALL"] = self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] / np.maximum((self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] + self.state[key]["ELEMENT_OVERALL"]["PIXEL_FN"]), 1E-12)
             self.state[key]["METRIC_OVERALL"]["PIXEL_IOU"] = self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] / np.maximum((self.state[key]["ELEMENT_OVERALL"]["PIXEL_TP"] + self.state[key]["ELEMENT_OVERALL"]["PIXEL_FP"] + self.state[key]["ELEMENT_OVERALL"]["PIXEL_FN"]), 1E-12)
+
+            self.state[key]["METRIC_OVERALL"]["CONCENTRATION"] = self.state[key]["METRIC_IMAGEWISE"]["CONCENTRATION"]
 
 
     def fillHoles(self, seedImg, Mask):
