@@ -107,7 +107,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
             grade_labels = torch.tensor(grade_labels, dtype=torch.int64)
         elif seg_masks is not None and seg_labels is None:
             annotations = None
-            seg_masks, seg_labels = convertMultiMask(seg_masks, model.num_classes)
+            seg_masks, seg_labels = convertMultiMask(seg_masks*255, model.num_classes)
         else:
             annotations = None
 
@@ -260,9 +260,9 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                             model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vannotations, binary_threshold, savePath, engine.state.imgs_name)
 
                 if computeMetirc != 0:
-                    if dataType == "seg":
+                    if dataType == "seg" and (model.num_classes == 4 or model.num_classes == 20):
                         if hasattr(engine.state, "MPG") != True:
-                            engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(4), seg_class_list=range(4))
+                            engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(model.num_classes), seg_class_list=range(model.num_classes))
 
                         for i, v in enumerate(gcam_list):
                             segmentations = torch.nn.functional.interpolate(v, input_size, mode='bilinear')
