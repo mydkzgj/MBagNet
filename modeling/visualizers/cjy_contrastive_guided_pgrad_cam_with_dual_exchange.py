@@ -354,26 +354,16 @@ class CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             if relu_output.ndimension() == 2:
                 return grad_in
 
-            new_grad_in_p0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-            new_grad_in_p1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
-            new_grad_in_p2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
+            new_grad_in0 = grad_in_sub[0] #+ grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
+            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
 
-            new_grad_in_sub_p = [new_grad_in_p0, new_grad_in_p1, new_grad_in_p2]
-            new_grad_in_p = torch.cat(new_grad_in_sub_p, dim=0)
+            gcam = torch.sum(relu_out_sub[0]*new_grad_in1, dim=1, keepdim=True) - torch.sum(relu_out_sub[0]*new_grad_in2, dim=1, keepdim=True)
+            cam = torch.sum(relu_out_sub[0]*grad_in_sub[0], dim=1, keepdim=True)
+            new_grad_in0 = new_grad_in0 * gcam.gt(0).float() * cam.gt(0).float()
 
-            new_grad_in_n0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].gt(0).float()
-            new_grad_in_n1 = grad_in_sub[1] * grad_in_sub[1].lt(0).float()
-            new_grad_in_n2 = grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-
-            new_grad_in_sub_n = [new_grad_in_n0, new_grad_in_n1, new_grad_in_n2]
-            new_grad_in_n = torch.cat(new_grad_in_sub_n, dim=0)
-
-            cam_p = self.GenerateCAM(relu_output, new_grad_in_p)
-            cam_p_sum = cam_p.relu().sum()
-            cam_n = self.GenerateCAM(relu_output, new_grad_in_n)
-            cam_n_sum = cam_n.relu().sum()
-
-            new_grad_in = new_grad_in_p if cam_p_sum > cam_n_sum else new_grad_in_n
+            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             # """
 
             return (new_grad_in,)
