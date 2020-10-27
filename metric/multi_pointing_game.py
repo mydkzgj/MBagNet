@@ -97,7 +97,7 @@ class MultiPointingGameForSegmentation(object):
                 pixel_fn = ((1 - pt_mask) & gt_mask).sum(axis=(0, 1))
 
                 # CJY 不进行二值化，为了求取专注性focus, concentrate
-                concentration = (gt_mask * ori_mask).sum() / np.maximum((ori_mask).sum(), 1E-12)
+                concentration = (gt_mask * ori_mask).sum() #/ np.maximum((ori_mask).sum(), 1E-12)
 
                 te["OBJECT_HIT"][v_c_index][s_c_index] = object_hit
                 te["OBJECT_MISS"][v_c_index][s_c_index] = object_miss
@@ -116,7 +116,7 @@ class MultiPointingGameForSegmentation(object):
             tm["PIXEL_RECALL"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FN"]), 1E-12)
             tm["PIXEL_IOU"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FP"] + te["PIXEL_FN"]), 1E-12)
 
-            tm["CONCENTRATION"] = te["CONCENTRATION"]
+            tm["CONCENTRATION"] = te["CONCENTRATION"] / np.maximum(te["CONCENTRATION"].sum(axis=1, keepdims=True), 1E-12)
 
             # 记录
             for k in self.state[key]["METRIC_IMAGEWISE"].keys():
@@ -360,7 +360,7 @@ class MultiPointingGameForDetection(object):
                 pixel_fn = ((1 - pt_mask) & gt_mask).sum(axis=(0, 1))
 
                 # CJY 不进行二值化，为了求取专注性focus, concentrate
-                concentration = (canvas_mask * ori_mask).sum()/np.maximum((ori_mask).sum(), 1E-12)
+                concentration = (canvas_mask * ori_mask).sum()
 
                 te["OBJECT_HIT"][v_c_index][s_c_index] = object_hit
                 te["OBJECT_MISS"][v_c_index][s_c_index] = object_miss
@@ -379,7 +379,7 @@ class MultiPointingGameForDetection(object):
             tm["PIXEL_RECALL"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FN"]), 1E-12)
             tm["PIXEL_IOU"] = te["PIXEL_TP"] / np.maximum((te["PIXEL_TP"] + te["PIXEL_FP"] + te["PIXEL_FN"]), 1E-12)
 
-            tm["CONCENTRATION"] = te["CONCENTRATION"]
+            tm["CONCENTRATION"] = te["CONCENTRATION"] / np.maximum(te["CONCENTRATION"].sum(axis=1, keepdims=True), 1E-12)
 
             # 记录
             for k in self.state[key]["METRIC_IMAGEWISE"].keys():
