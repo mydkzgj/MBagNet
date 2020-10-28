@@ -204,20 +204,20 @@ class CJY_DUAL_BACKPROPAGATION():
             bias_overall = bias_output + bias_current * grad_output
 
             # new_bias_input计算
-            # """
+            """
             # 1
             new_weight = torch.ones_like(module.weight)  # module.weight
             new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
             bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
             # """
-            """
+            #"""
             # 2
             new_weight = torch.ones_like(module.weight)
             # x为0的点为死点，不将bias分给这种点
             activation_map = linear_input.ne(0).float()
             activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
             x_nonzero = (activation_num_map).ne(0).float()
-            y = bias_output / (activation_num_map + (1 - x_nonzero)) * x_nonzero
+            y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
             bias_input = z * activation_map
             #"""
@@ -266,14 +266,14 @@ class CJY_DUAL_BACKPROPAGATION():
             output_padding = grad_in[0].shape[3] - output_size
 
             # new_bias_input计算
-            # """
+            """
             # 1
             new_weight = torch.ones_like(module.weight)  # module.weight
             new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
             bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
                                                               padding=new_padding, output_padding=output_padding)
             #"""
-            """
+            #"""
             # 2
             new_weight = torch.ones_like(module.weight)
             # x为0的点为死点，不将bias分给这种点
