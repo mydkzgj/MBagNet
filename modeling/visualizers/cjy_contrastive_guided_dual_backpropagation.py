@@ -565,8 +565,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
         db_gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
 
-        pos_gcam = torch.sum(pos_guided_gradient * inter_output, dim=1, keepdim=True)
-        neg_gcam = torch.sum(neg_guided_gradient * inter_output, dim=1, keepdim=True)
+        pos_gcam = torch.sum((pos_guided_gradient * inter_output).relu(), dim=1, keepdim=True)
+        neg_gcam = torch.sum((neg_guided_gradient * inter_output).relu(), dim=1, keepdim=True)
         cg_gcam = pos_gcam - neg_gcam
 
         norm_cggcam, _ = self.gcamNormalization(cg_gcam.relu())
