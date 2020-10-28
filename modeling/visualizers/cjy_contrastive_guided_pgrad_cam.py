@@ -8,7 +8,7 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class CJY_CONTRAST_GUIDED_PGRAD_CAM():
+class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
     """
     说明：将每个特征activation的gradient分为正负两部分，可以分别观测这两部分的作用
     gcam = pos_gcam + neg_gcam 即为 pgrad-cam
