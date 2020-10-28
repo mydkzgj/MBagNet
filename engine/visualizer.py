@@ -124,7 +124,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         showFlag = 1
         max_show_num = 200
         computeMetirc = 3
-        model.visualizer.reservePos = True  # CJY at 2020.10.20 全局控制开关
+        model.visualizer.reservePos = False#True  # CJY at 2020.10.20 全局控制开关
 
         if engine.state.iteration == 1:
             if os.path.exists(savePath) != True:
