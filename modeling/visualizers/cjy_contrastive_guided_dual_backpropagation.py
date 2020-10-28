@@ -479,7 +479,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
         if self.multiply_input >= 1:
             #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0], dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0,
+                                             gcam_one_hot_labels * 1, gcam_one_hot_labels * (-1)], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
