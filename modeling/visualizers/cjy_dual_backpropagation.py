@@ -194,6 +194,7 @@ class CJY_DUAL_BACKPROPAGATION():
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
             num_sub_batch = linear_input.shape[0] // self.multiply_input
+            linear_in_sub = [linear_input[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
@@ -214,7 +215,7 @@ class CJY_DUAL_BACKPROPAGATION():
             # 2
             new_weight = torch.ones_like(module.weight)
             # x为0的点为死点，不将bias分给这种点
-            activation_map = linear_input.ne(0).float()
+            activation_map = linear_in_sub[0].ne(0).float()
             activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
             x_nonzero = (activation_num_map).ne(0).float()
             y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
