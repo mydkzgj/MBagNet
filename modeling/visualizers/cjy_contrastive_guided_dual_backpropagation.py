@@ -573,7 +573,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         norm_cggcam = (norm_cggcam - 0.5) * 2 if self.reservePos == False else norm_cggcam
 
         self.threshold = 0.1
-        gcam = db_gcam * norm_cggcam.gt(self.threshold)
+        gcam = db_gcam * norm_cggcam.gt(self.threshold).float()
 
         gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)
