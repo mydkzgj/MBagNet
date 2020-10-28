@@ -104,6 +104,7 @@ class CJY_DUAL_BACKPROPAGATION():
             print("Set GuidedBP Hook on ReLU")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
+                    self.num_relu_layers = self.num_relu_layers + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     if "densenet" in self.model.base_name and "denseblock" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
@@ -116,7 +117,7 @@ class CJY_DUAL_BACKPROPAGATION():
                     elif "vgg" in self.model.base_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
-                    self.num_relu_layers = self.num_relu_layers + 1
+
                     module.register_backward_hook(self.relu_backward_hook_fn)
 
         if self.useGuidedPOOL == True:
