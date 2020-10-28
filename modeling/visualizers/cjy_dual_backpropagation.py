@@ -419,6 +419,8 @@ class CJY_DUAL_BACKPROPAGATION():
         self.linear_input_obtain_index = len(self.linear_input)
         self.bn_input_obtain_index = len(self.bn_input)
 
+        self.rest = 0
+
         if self.multiply_input >= 1:
             gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
 
@@ -606,6 +608,8 @@ class CJY_DUAL_BACKPROPAGATION():
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
         #print("logits:{} label:{}".format(logits[0][labels].item(), labels.item()))
+        print("logits:{} rest:{} diff:{} label:{}".format(logits[0][labels].item(), self.rest.item(),
+                                                          logits[0][labels].item() - self.rest.item(), labels.item()))
 
         # Clear Reservation
         #self.inter_output.clear()
