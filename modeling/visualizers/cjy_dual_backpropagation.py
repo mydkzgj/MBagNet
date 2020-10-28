@@ -323,6 +323,12 @@ class CJY_DUAL_BACKPROPAGATION():
             new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
+            #"""
+            if grad_out[0].ndimension() == 4:
+                cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                new_grad_in = new_grad_in * cam
+            #"""
+
             return (new_grad_in,)
 
 
