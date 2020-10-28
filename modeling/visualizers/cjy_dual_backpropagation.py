@@ -250,6 +250,7 @@ class CJY_DUAL_BACKPROPAGATION():
             conv_input = self.conv_input[self.conv_input_obtain_index]
 
             num_sub_batch = conv_input.shape[0] // self.multiply_input
+            conv_in_sub = [conv_input[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
@@ -271,15 +272,15 @@ class CJY_DUAL_BACKPROPAGATION():
             new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
             bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
                                                               padding=new_padding, output_padding=output_padding)
-            # """
+            #"""
             """
             # 2
             new_weight = torch.ones_like(module.weight)
             # x为0的点为死点，不将bias分给这种点
-            activation_map = conv_input.ne(0).float()
+            activation_map = conv_in_sub[0].ne(0).float()
             activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride, padding=module.padding)  # 计算非死点个数之和
             x_nonzero = (activation_num_map).ne(0).float()
-            y = bias_output / (activation_num_map + (1 - x_nonzero)) * x_nonzero
+            y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
             bias_input = z * activation_map
             #"""
@@ -422,7 +423,8 @@ class CJY_DUAL_BACKPROPAGATION():
         self.rest = 0
 
         if self.multiply_input >= 1:
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
+            #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
