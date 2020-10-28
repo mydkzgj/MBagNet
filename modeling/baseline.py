@@ -547,7 +547,7 @@ class Baseline(nn.Module):
             self.visualizer = CJY_CONTRAST_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-contrastive-guided-pgrad-cam-with-dual-exchange":
             self.visualizer = CJY_CONTRAST_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-        elif self.visualizer_name == "cjy-dual_backpropagation":
+        elif self.visualizer_name == "cjy-dual-backpropagation":
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
