@@ -19,8 +19,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.threshold = 0.1
 
         # 子模块
-        self.dual_backpropagtion = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-        self.contrastive_guided_pgrad_cam = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        self.dual_backpropagtion = CJY_DUAL_BACKPROPAGATION(model=model, num_classes=self.num_classes, target_layer=self.target_layer)
+        self.contrastive_guided_pgrad_cam = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model=model, num_classes=self.num_classes, target_layer=self.target_layer)
 
         self.reservePos = True
         self.dual_backpropagtion.reservePos = False
