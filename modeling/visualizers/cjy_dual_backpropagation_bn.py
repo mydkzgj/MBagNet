@@ -8,13 +8,15 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class CJY_DUAL_BACKPROPAGATION():
+class CJY_DUAL_BACKPROPAGATION_BN():
     """
     说明：dual 包括 gradient 和 bias
 
     contribution = gradient * activation + bias
 
     比dual backpropagation写的更好
+
+    for densent resnet  BN
     """
     def __init__(self, model, num_classes, target_layer):
         self.model = model
@@ -64,9 +66,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
         self.normFlag = True
 
-        self.multiply_input = 2
-
-        self.bias_back_type = 1  #1,2,3
+        self.multiply_input = 5   # gradient, bias(f&b), pos_forward, neg_forward,
 
         self.setHook(model)
 
@@ -188,16 +188,39 @@ class CJY_DUAL_BACKPROPAGATION():
     def linear_forward_hook_fn(self, module, input, output):
         if self.linear_current_index == 0:
             self.linear_input.clear()
+
         self.linear_input.append(input[0])
         self.linear_current_index = self.linear_current_index + 1
         if self.linear_current_index % self.num_linear_layers == 0:
             self.linear_current_index = 0
+
+        # CJY at 2020.10.29
+        #bias_current = module.bias.unsqueeze(0).expand_as(output) if module.bias is not None else 0
+
+        num_sub_batch = input[0].shape[0] // self.multiply_input
+        linear_in_sub = [input[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        linear_out_sub = [output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+        new_weight_pos = module.weight.relu()
+        linear_out_pp = torch.nn.functional.linear(linear_in_sub[-2], new_weight_pos)
+        linear_out_np = torch.nn.functional.linear(linear_in_sub[-1], new_weight_pos)
+        new_weight_neg = -(-module.weight).relu()
+        linear_out_pn = torch.nn.functional.linear(linear_in_sub[-2], new_weight_neg)
+        linear_out_nn = torch.nn.functional.linear(linear_in_sub[-1], new_weight_neg)
+
+        linear_out_sub[-3] = linear_out_sub[-3]
+        linear_out_sub[-2] = linear_out_pp + linear_out_nn
+        linear_out_sub[-1] = linear_out_np + linear_out_pn
+        new_output = torch.cat(linear_out_sub)
+
+        return new_output
 
     def linear_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedLINEARstate == True:
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
+            """
             num_sub_batch = linear_input.shape[0] // self.multiply_input
             linear_in_sub = [linear_input[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
@@ -208,7 +231,7 @@ class CJY_DUAL_BACKPROPAGATION():
             bias_output = grad_out_sub[1]
             bias_current = module.bias.unsqueeze(0).expand_as(grad_output) if module.bias is not None else 0
             bias_overall = bias_output + bias_current * grad_output
-
+            
             # new_bias_input计算
             if self.bias_back_type == 1:
                 # 1
@@ -234,10 +257,11 @@ class CJY_DUAL_BACKPROPAGATION():
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_input = linear_in_sub[0] * z
 
-            new_grad_in_sub = [grad_input, bias_input]
+            new_grad_in_sub = [grad_input, bias_input, grad_in_sub[-2], grad_in_sub[-1]]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
+            #"""
 
 
     def conv_forward_hook_fn(self, module, input, output):
@@ -248,11 +272,33 @@ class CJY_DUAL_BACKPROPAGATION():
         if self.conv_current_index % self.num_conv_layers == 0:
             self.conv_current_index = 0
 
+        # CJY at 2020.10.29
+        #bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output) if module.bias is not None else 0
+
+        num_sub_batch = input[0].shape[0] // self.multiply_input
+        conv_in_sub = [input[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        conv_out_sub = [output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+        new_weight_pos = module.weight.relu()
+        conv_out_pp = torch.nn.functional.conv2d(conv_in_sub[-2], new_weight_pos, stride=module.stride, padding=module.padding)
+        conv_out_np = torch.nn.functional.conv2d(conv_in_sub[-1], new_weight_pos, stride=module.stride, padding=module.padding)
+        new_weight_neg = -(-module.weight).relu()
+        conv_out_pn = torch.nn.functional.conv2d(conv_in_sub[-2], new_weight_neg, stride=module.stride, padding=module.padding)
+        conv_out_nn = torch.nn.functional.conv2d(conv_in_sub[-1], new_weight_neg, stride=module.stride, padding=module.padding)
+
+        conv_out_sub[-3] = conv_out_sub[-3]
+        conv_out_sub[-2] = conv_out_pp + conv_out_nn
+        conv_out_sub[-1] = conv_out_np + conv_out_pn
+        new_output = torch.cat(conv_out_sub)
+
+        return new_output
+
     def conv_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedCONVstate == True:
             self.conv_input_obtain_index = self.conv_input_obtain_index - 1
             conv_input = self.conv_input[self.conv_input_obtain_index]
 
+            """
             num_sub_batch = conv_input.shape[0] // self.multiply_input
             conv_in_sub = [conv_input[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
@@ -269,6 +315,7 @@ class CJY_DUAL_BACKPROPAGATION():
             output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
+            # new_bias_input计算
             # new_bias_input计算
             if self.bias_back_type == 1:
                 # 1
@@ -301,10 +348,11 @@ class CJY_DUAL_BACKPROPAGATION():
 
             self.rest = self.rest + bias_overall.sum() - bias_input.sum()
 
-            new_grad_in_sub = [grad_input, bias_input]
+            new_grad_in_sub = [grad_input, bias_input, grad_in_sub[-2], grad_in_sub[-1]]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
+            #"""
 
 
     def relu_forward_hook_fn(self, module, input, output):
@@ -314,6 +362,18 @@ class CJY_DUAL_BACKPROPAGATION():
         self.relu_current_index = self.relu_current_index + 1
         if self.relu_current_index % self.num_relu_layers == 0:
             self.relu_current_index = 0
+
+        # CJY at 2020.10.29
+        num_sub_batch = input[0].shape[0] // self.multiply_input
+        relu_in_sub = [input[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        relu_out_sub = [output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+        relu_out_sub[-3] = relu_out_sub[0] * 0
+        relu_out_sub[-2] = relu_out_sub[0]
+        relu_out_sub[-1] = relu_out_sub[0] * 0
+        new_output = torch.cat(relu_out_sub)
+
+        return new_output
 
     def relu_backward_hook_fn_for_resnet_stem(self, module, grad_in, grad_out):
         if self.guidedReLUstate == True:
@@ -325,7 +385,7 @@ class CJY_DUAL_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1] * 0.5]
+            new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1] * 0.5, grad_in_sub[-2], grad_in_sub[-1]]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             """
@@ -346,7 +406,13 @@ class CJY_DUAL_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
+            grad_output = grad_out_sub[0]
+            bias_output = grad_out_sub[-2] + grad_out_sub[-1]
+            bias_current = relu_out_sub[1]
+            bias_overall = bias_output + bias_current * grad_output
+
+            new_grad_in_sub = [grad_in_sub[0], grad_in_sub[0] * 0, bias_overall, grad_in_sub[0] * 0]
+
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             """
@@ -383,6 +449,7 @@ class CJY_DUAL_BACKPROPAGATION():
         bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         output = (input[0] - mean) / (var+eps).sqrt() * weight + bias
         """
+
         if self.bn_current_index == 0:
             self.bn_input.clear()
         self.bn_input.append(input[0])
@@ -390,11 +457,36 @@ class CJY_DUAL_BACKPROPAGATION():
         if self.bn_current_index % self.num_bn_layers == 0:
             self.bn_current_index = 0
 
+        # CJY at 2020.10.29
+        # bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(output) if module.bias is not None else 0
+
+        num_sub_batch = input[0].shape[0] // self.multiply_input
+        bn_in_sub = [input[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        bn_out_sub = [output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+        equivalent_weight = module.weight / (module.var + module.eps).sqrt()
+        equivalent_weight = equivalent_weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+
+        new_weight_pos = equivalent_weight.relu()
+        bn_out_pp = bn_in_sub[-2] * new_weight_pos
+        bn_out_np = bn_in_sub[-1] * new_weight_pos
+        new_weight_neg = -(-equivalent_weight).relu()
+        bn_out_pn = bn_in_sub[-2] * new_weight_neg
+        bn_out_nn = bn_in_sub[-1] * new_weight_neg
+
+        bn_out_sub[-3] = bn_out_sub[-3]
+        bn_out_sub[-2] = bn_out_pp + bn_out_nn
+        bn_out_sub[-1] = bn_out_np + bn_out_pn
+        new_output = torch.cat(bn_out_sub)
+
+        return new_output
+
     def bn_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBNstate == True:
             self.bn_input_obtain_index = self.bn_input_obtain_index - 1
             bn_input = self.bn_input[self.bn_input_obtain_index]
 
+            """
             eps = module.eps
             mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
             var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
@@ -414,10 +506,11 @@ class CJY_DUAL_BACKPROPAGATION():
             # new_bias_input计算
             bias_input = bias_overall
 
-            new_grad_in_sub = [grad_input, bias_input]
+            new_grad_in_sub = [grad_input, bias_input, grad_in_sub[-2], grad_in_sub[-1]]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
+            #"""
 
 
     # Obtain Gradient
@@ -534,7 +627,8 @@ class CJY_DUAL_BACKPROPAGATION():
 
         inter_output = inter_output_sub[0]
         inter_gradient = inter_gradient_sub[0]
-        inter_bias = inter_gradient_sub[1]
+        #inter_bias = inter_gradient_sub[1]
+        inter_bias = inter_gradient_sub[-2] + inter_gradient_sub[-1]
 
         gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
 

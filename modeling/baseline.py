@@ -43,6 +43,7 @@ from .visualizers.cjy_contrastive_guided_pgrad_cam import *
 from .visualizers.cjy_contrastive_guided_pgrad_cam_with_dual_exchange import *
 from .visualizers.cjy_dual_backpropagation import *
 from .visualizers.cjy_contrastive_guided_dual_backpropagation import *
+from .visualizers.cjy_dual_backpropagation_bn import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -179,9 +180,9 @@ class Baseline(nn.Module):
 
         # "pgrad-cam-GBP"
         # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
-        # "cjy-dual-backpropagation", "cjy-contrastive-guided-dual-backpropagation"
+        # "cjy-dual-backpropagation", "cjy-contrastive-guided-dual-backpropagation", "cjy-dual-backpropagation-bn"
 
-        self.visualizer_name = "cjy-dual-backpropagation"#"cjy-contrastive-guided-dual-backpropagation"#"cjy-contrastive-guided-pgrad-cam"
+        self.visualizer_name = "cjy-dual-backpropagation-bn"#"cjy-contrastive-guided-dual-backpropagation"#"cjy-contrastive-guided-pgrad-cam"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
@@ -552,6 +553,8 @@ class Baseline(nn.Module):
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-contrastive-guided-dual-backpropagation":
             self.visualizer = CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "cjy-dual-backpropagation-bn":
+            self.visualizer = CJY_DUAL_BACKPROPAGATION_BN(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")
