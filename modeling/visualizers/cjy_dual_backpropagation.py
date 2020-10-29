@@ -226,6 +226,7 @@ class CJY_DUAL_BACKPROPAGATION():
             bias_input = z * activation_map
             #"""
             """
+            # 3
             new_weight = module.weight
             x = torch.nn.functional.linear(linear_input, new_weight)
             x_nonzero = x.ne(0).float()
