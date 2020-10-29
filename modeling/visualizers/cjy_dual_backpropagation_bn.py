@@ -399,21 +399,27 @@ class CJY_DUAL_BACKPROPAGATION_BN():
     def relu_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedReLUstate == True:
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
-            relu_output = self.relu_output[self.relu_output_obtain_index]
+            relu_input = self.relu_output[self.relu_output_obtain_index]
 
-            num_sub_batch = relu_output.shape[0]//self.multiply_input
-            relu_out_sub = [relu_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            num_sub_batch = relu_input.shape[0]//self.multiply_input
+            relu_in_sub = [relu_input[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
             grad_output = grad_out_sub[0]
             bias_output = grad_out_sub[-2] + grad_out_sub[-1]
-            bias_current = relu_out_sub[1]
+            bias_current = relu_in_sub[1]
             bias_overall = bias_output + bias_current * grad_output
 
-            new_grad_in_sub = [grad_in_sub[0], grad_in_sub[0] * 0, bias_overall, grad_in_sub[0] * 0]
+            pos_sum = relu_in_sub[-2]   #为0处的bias就舍弃了
+            pos_sum_nonzero = pos_sum.gt(0).float()
+            new_bias = bias_overall/(pos_sum + (1-pos_sum_nonzero)) * pos_sum_nonzero
+
+            new_grad_in_sub = [grad_in_sub[0], grad_in_sub[0] * 0, new_bias, grad_in_sub[0] * 0]
 
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+
+            self.rest = self.rest + (bias_overall * (1 - pos_sum_nonzero)).sum()
 
             """
             if grad_out[0].ndimension() == 4:
