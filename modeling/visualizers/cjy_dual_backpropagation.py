@@ -214,7 +214,7 @@ class CJY_DUAL_BACKPROPAGATION():
             new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
             bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
             # """
-            #"""
+            """
             # 2
             new_weight = torch.ones_like(module.weight)
             # x为0的点为死点，不将bias分给这种点
@@ -225,14 +225,14 @@ class CJY_DUAL_BACKPROPAGATION():
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
             bias_input = z * activation_map
             #"""
-            """
+            #"""
             # 3
-            new_weight = module.weight
-            x = torch.nn.functional.linear(linear_input, new_weight)
+            new_weight = module.weight.relu()
+            x = torch.nn.functional.linear(linear_in_sub[0], new_weight)
             x_nonzero = x.ne(0).float()
             y = bias_output / (x + (1 - x_nonzero)) * x_nonzero
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-            bias_input = linear_input * z
+            bias_input = linear_in_sub[0] * z
             #"""
 
             new_grad_in_sub = [grad_input, bias_input]
@@ -278,7 +278,7 @@ class CJY_DUAL_BACKPROPAGATION():
             bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
                                                               padding=new_padding, output_padding=output_padding)
             #"""
-            #"""
+            """
             # 2
             new_weight = torch.ones_like(module.weight)
             # x为0的点为死点，不将bias分给这种点
@@ -289,14 +289,14 @@ class CJY_DUAL_BACKPROPAGATION():
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
             bias_input = z * activation_map
             #"""
-            """
+            #"""
             # 3
-            new_weight = module.weight
-            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            new_weight = module.weight.relu()
+            x = torch.nn.functional.conv2d(conv_in_sub[0], new_weight, stride=module.stride, padding=module.padding)
             x_nonzero = x.ne(0).float()
             y = bias_output / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
-            bias_input = conv_input * z
+            bias_input = conv_in_sub[0] * z
             #"""
 
             self.rest = self.rest + bias_overall.sum() - bias_input.sum()
