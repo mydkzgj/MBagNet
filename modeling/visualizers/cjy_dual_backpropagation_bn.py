@@ -66,7 +66,7 @@ class CJY_DUAL_BACKPROPAGATION_BN():
 
         self.normFlag = True
 
-        self.multiply_input = 5   # gradient, bias(f&b), pos_forward, neg_forward,
+        self.multiply_input = 4   # gradient, bias(f&b), pos_forward, neg_forward,
 
         self.setHook(model)
 
