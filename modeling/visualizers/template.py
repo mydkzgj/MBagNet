@@ -362,13 +362,14 @@ class Template():
         self.guidedAdaptiveAVGPOOLstate = 1
 
         self.firstCAM = 1
+        self.linear_input_obtain_index = len(self.linear_input)
+        self.conv_input_obtain_index = len(self.conv_input)
+        self.bn_input_obtain_index = len(self.bn_input)
         self.relu_output_obtain_index = len(self.relu_output)
         self.maxpool_output_obtain_index = len(self.maxpool_output)
         self.avgpool_output_obtain_index = len(self.avgpool_output)
         self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
-        self.conv_input_obtain_index = len(self.conv_input)
-        self.linear_input_obtain_index = len(self.linear_input)
-        self.bn_input_obtain_index = len(self.bn_input)
+
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph

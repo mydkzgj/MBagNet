@@ -511,11 +511,13 @@ class CJY_DUAL_BACKPROPAGATION():
         self.guidedAdaptiveAVGPOOLstate = 1
 
         self.firstCAM = 1
-        self.relu_output_obtain_index = len(self.relu_output)
-        self.pool_output_obtain_index = len(self.maxpool_output)
-        self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+        self.conv_input_obtain_index = len(self.conv_input)
         self.bn_input_obtain_index = len(self.bn_input)
+        self.relu_output_obtain_index = len(self.relu_output)
+        self.maxpool_output_obtain_index = len(self.maxpool_output)
+        self.avgpool_output_obtain_index = len(self.avgpool_output)
+        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
 
         self.rest = 0
 
