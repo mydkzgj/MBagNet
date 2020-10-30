@@ -432,6 +432,9 @@ class CJY_DUAL_BACKPROPAGATION():
             self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
             adaptive_avgpool_output = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
 
+            if grad_in[0].ndimension() != 4:
+                return grad_in
+
             num_sub_batch = adaptive_avgpool_output.shape[0] // self.multiply_input
             adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
