@@ -528,8 +528,23 @@ class CJY_DUAL_BACKPROPAGATION():
             self.add_output_obtain_index = self.add_output_obtain_index - 1
             add_output = self.add_output[self.add_output_obtain_index]
 
-            new_grad_in = grad_in[0]
-            return (new_grad_in,)
+            num_sub_batch = add_output.shape[0] // self.multiply_input
+            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            identity_grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            residual_grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+            bias_overall = grad_out_sub[1]
+
+            identity_ratio = module.num_identity_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+            residual_ratio = module.num_residual_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+
+            new_identity_bias = bias_overall * identity_ratio
+            new_residual_bias = bias_overall * residual_ratio
+
+            new_grad_in0 = torch.cat([identity_grad_in_sub[0], new_identity_bias], dim=0)
+            new_grad_in1 = torch.cat([residual_grad_in_sub[0], new_residual_bias], dim=0)
+
+            return (new_grad_in0, new_grad_in1)
 
 
     # Obtain Gradient

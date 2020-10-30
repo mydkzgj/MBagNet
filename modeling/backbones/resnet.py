@@ -39,8 +39,8 @@ class add_op(nn.Module):
     def __init__(self):
         super(nn.Module, self).__init__()
 
-        self.num_identity_neuron = 0
-        self.num_residual_neuron = 0
+        self.num_identity_neuron = None
+        self.num_residual_neuron = None
 
     def forward(self, x1, x2):
         out = x1 + x2
