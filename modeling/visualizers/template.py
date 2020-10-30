@@ -145,7 +145,7 @@ class Template():
         if self.useGuidedAdaptiveAVGPOOL == True:
             print("Set GuidedBP Hook on AdaptiveAVGPOOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.AvgPool2d) == True and "segmenter" not in module_name:
+                if isinstance(module, torch.nn.AdaptiveAvgPool2d) == True and "segmenter" not in module_name:
                     self.stem_adaptive_avgpool_index_list.append(self.num_adaptive_avgpool_layers)
                     print("Stem AdaptiveAVGPOOL:{}".format(module_name))
                     self.num_adaptive_avgpool_layers = self.num_adaptive_avgpool_layers + 1
