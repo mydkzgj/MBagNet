@@ -531,7 +531,7 @@ class CJY_DUAL_BACKPROPAGATION():
             num_sub_batch = add_output.shape[0] // self.multiply_input
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             identity_grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            residual_grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            residual_grad_in_sub = [grad_in[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
             bias_overall = grad_out_sub[1]
 
