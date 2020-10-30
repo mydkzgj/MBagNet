@@ -519,8 +519,8 @@ class CJY_DUAL_BACKPROPAGATION():
         if self.add_current_index == 0:
             self.add_output.clear()
         self.add_output.append(output)
-        self.add_current_index = self.avgpool_current_index + 1
-        if self.add_current_index % self.num_avgpool_layers == 0:
+        self.add_current_index = self.add_current_index + 1
+        if self.add_current_index % self.num_add_layers == 0:
             self.add_current_index = 0
 
     def add_backward_hook_fn(self, module, grad_in, grad_out):
