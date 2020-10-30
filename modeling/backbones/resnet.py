@@ -36,9 +36,19 @@ class add_op(nn.Module):
     """
     将add计算化为模块，用于hook
     """
+    def __init__(self):
+        super(nn.Module, self).__init__()
+
+        self.num_identity_neuron = 0
+        self.num_residual_neuron = 0
+
     def forward(self, x1, x2):
         out = x1 + x2
         return out
+
+    def change_neuron_num(self, num_identity_neuron, num_residual_neuron):
+        self.num_identity_neuron = num_identity_neuron
+        self.num_residual_neuron = num_residual_neuron
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -78,8 +88,11 @@ class BasicBlock(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        #out += identity
+        # CJY at 2020.10.30 for dual back hook
+        self.add_op.change_neuron_num(identity.shape[1], self.conv2.weight.shape[1]*self.conv2.weight.shape[2]*self.conv2.weight.shape[3])
         out = self.add_op(identity, out)
+        #out += identity
+
         out = self.relu2(out)
 
         return out
@@ -129,8 +142,11 @@ class Bottleneck(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
+        # CJY at 2020.10.30 for dual back hook
+        self.add_op.change_neuron_num(identity.shape[1], self.conv3.weight.shape[1] * self.conv3.weight.shape[2] * self.conv3.weight.shape[3])
+        out = self.add_op(identity, out)
         #out += identity
-        # CJY at 2020.10.30
+
         out = self.add_op(identity, out)
 
         out = self.relu3(out)
