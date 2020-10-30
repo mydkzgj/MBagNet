@@ -163,7 +163,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 if isinstance(module, torch.nn.AdaptiveAvgPool2d) == True and "segmenter" not in module_name:
                     self.stem_adaptive_avgpool_index_list.append(self.num_adaptive_avgpool_layers)
                     print("Stem AdaptiveAVGPOOL:{}".format(module_name))
-                    self.num_adpative_avgpool_layers = self.num_adpative_avgpool_layers + 1
+                    self.num_adaptive_avgpool_layers = self.num_adaptive_avgpool_layers + 1
                     module.register_forward_hook(self.adaptive_avgpool_forward_hook_fn)
                     module.register_backward_hook(self.adaptive_avgpool_backward_hook_fn)
 
