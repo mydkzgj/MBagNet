@@ -36,12 +36,6 @@ class add_op(nn.Module):
     """
     将add计算化为模块，用于hook
     """
-    def __init__(self):
-        super(nn.Module, self).__init__()
-
-        self.num_identity_neuron = None
-        self.num_residual_neuron = None
-
     def forward(self, x1, x2):
         out = x1 + x2
         return out
