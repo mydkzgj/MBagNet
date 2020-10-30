@@ -294,18 +294,18 @@ class Template():
             new_grad_in = grad_in[0]
             return (new_grad_in,)
 
-    def adpative_avgpool_forward_hook_fn(self, module, input, output):
-        if self.adpative_avgpool_current_index == 0:
-            self.adpative_avgpool_output.clear()
-        self.adpative_avgpool_output.append(output)
-        self.adpative_avgpool_current_index = self.adpative_avgpool_current_index + 1
-        if self.adpative_avgpool_current_index % self.num_adpative_avgpool_layers == 0:
-            self.adpative_avgpool_current_index = 0
+    def adaptive_avgpool_forward_hook_fn(self, module, input, output):
+        if self.adaptive_avgpool_current_index == 0:
+            self.adaptive_avgpool_output.clear()
+        self.adaptive_avgpool_output.append(output)
+        self.adaptive_avgpool_current_index = self.adaptive_avgpool_current_index + 1
+        if self.adaptive_avgpool_current_index % self.num_adaptive_avgpool_layers == 0:
+            self.adaptive_avgpool_current_index = 0
 
     def adpative_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
-            self.adpative_avgpool_output_obtain_index = self.adpative_avgpool_output_obtain_index - 1
-            adpative_avgpool_output = self.avgpool_output[self.adpative_avgpool_output_obtain_index]
+            self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
+            adaptive_avgpool_output = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
