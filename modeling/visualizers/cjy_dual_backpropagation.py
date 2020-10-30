@@ -7,6 +7,8 @@ Created on 2020.7.4
 import torch
 from .draw_tool import draw_visualization
 
+from modeling.backbones.resnet import add_op
+
 
 class CJY_DUAL_BACKPROPAGATION():
     """
@@ -71,6 +73,12 @@ class CJY_DUAL_BACKPROPAGATION():
         self.num_bn_layers = 0
         self.bn_input = []
         self.bn_current_index = 0
+
+        self.useGuidedADD = True    #True  # True#False  # GuideBackPropagation的变体
+        self.guidedADDstate = 0
+        self.num_add_layers = 0
+        self.add_output = []
+        self.add_current_index = 0
 
         self.firstCAM = 1
 
@@ -192,6 +200,14 @@ class CJY_DUAL_BACKPROPAGATION():
                     module.register_backward_hook(self.bn_backward_hook_fn)
                     module.register_forward_hook(self.bn_forward_hook_fn)
                     self.num_bn_layers = self.num_bn_layers + 1
+
+        if self.useGuidedADD == True:
+            print("Set GuidedADD Hook on BN")
+            for module_name, module in model.named_modules():
+                if isinstance(module, add_op) == True and "segmenter" not in module_name:
+                    module.register_backward_hook(self.add_backward_hook_fn)
+                    module.register_forward_hook(self.add_forward_hook_fn)
+                    self.num_add_layers = self.num_add_layers + 1
 
 
     # Hook Function
@@ -497,6 +513,23 @@ class CJY_DUAL_BACKPROPAGATION():
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
+
+
+    def add_forward_hook_fn(self, module, input, output):
+        if self.add_current_index == 0:
+            self.add_output.clear()
+        self.add_output.append(output)
+        self.add_current_index = self.avgpool_current_index + 1
+        if self.add_current_index % self.num_avgpool_layers == 0:
+            self.add_current_index = 0
+
+    def add_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedADDstate == True:
+            self.add_output_obtain_index = self.add_output_obtain_index - 1
+            add_output = self.avgpool_output[self.add_output_obtain_index]
+
+            new_grad_in = grad_in[0]
+            return (new_grad_in,)
 
 
     # Obtain Gradient
