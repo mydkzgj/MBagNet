@@ -200,7 +200,7 @@ class CJY_DUAL_BACKPROPAGATION():
                     self.num_bn_layers = self.num_bn_layers + 1
 
         if self.useGuidedADD == True:
-            print("Set GuidedADD Hook on BN")
+            print("Set GuidedBP Hook on ADD")
             for module_name, module in model.named_modules():
                 if isinstance(module, add_op) == True and "segmenter" not in module_name:
                     module.register_backward_hook(self.add_backward_hook_fn)
