@@ -107,7 +107,7 @@ class Bottleneck(nn.Module):
         self.relu3 = nn.ReLU(inplace=True)
 
         # CJY at 2020.10.30
-        self.add_op = self.add_op()
+        self.add_op = add_op()
 
         self.downsample = downsample
         self.stride = stride
