@@ -83,8 +83,8 @@ class BasicBlock(nn.Module):
             identity = self.downsample(x)
 
         # CJY at 2020.10.30 for dual back hook
-        self.add_op.change_neuron_num(identity.shape[1], self.conv2.weight.shape[1]*self.conv2.weight.shape[2]*self.conv2.weight.shape[3])
-        out = self.add_op(x, out)
+        self.add_op.change_neuron_num(x.shape[1], self.conv2.weight.shape[1]*self.conv2.weight.shape[2]*self.conv2.weight.shape[3])
+        out = self.add_op(identity, out)
         #out += identity
 
         out = self.relu2(out)
@@ -137,8 +137,8 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         # CJY at 2020.10.30 for dual back hook
-        self.add_op.change_neuron_num(identity.shape[1], self.conv3.weight.shape[1] * self.conv3.weight.shape[2] * self.conv3.weight.shape[3])
-        out = self.add_op(x, out)
+        self.add_op.change_neuron_num(x.shape[1], self.conv3.weight.shape[1] * self.conv3.weight.shape[2] * self.conv3.weight.shape[3])
+        out = self.add_op(identity, out)
         #out += identity
 
         out = self.relu3(out)
