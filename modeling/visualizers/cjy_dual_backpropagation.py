@@ -33,12 +33,26 @@ class CJY_DUAL_BACKPROPAGATION():
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
-        self.useGuidedPOOL = False  # True  #False  # GuideBackPropagation的变体
-        self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-        self.num_pool_layers = 0
-        self.pool_output = []
-        self.pool_current_index = 0  # 后续设定为len(relu_input)
-        self.stem_pool_index_list = []
+        self.useGuidedMAXPOOL = False  # True  #False  # GuideBackPropagation的变体
+        self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_maxpool_layers = 0
+        self.maxpool_output = []
+        self.maxpool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_maxpool_index_list = []
+
+        self.useGuidedAVGPOOL = False  # True  #False  # GuideBackPropagation的变体
+        self.guidedAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_avgpool_layers = 0
+        self.avgpool_output = []
+        self.avgpool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_avgpool_index_list = []
+
+        self.useGuidedAdaptiveAVGPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.guidedAdaptiveAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_adaptive_avgpool_layers = 0
+        self.adaptive_avgpool_output = []
+        self.adaptive_avgpool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_adaptive_avgpool_index_list = []
 
         self.useGuidedLINEAR = True#False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
@@ -122,22 +136,37 @@ class CJY_DUAL_BACKPROPAGATION():
 
                     module.register_backward_hook(self.relu_backward_hook_fn)
 
-        if self.useGuidedPOOL == True:
-            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
+        if self.useGuidedMAXPOOL == True:
+            print("Set GuidedBP Hook on MAXPOOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
-                    if "densenet" in self.model.base_name and "denseblock" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "vgg" in self.model.base_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    self.num_pool_layers = self.num_pool_layers + 1
-                    module.register_forward_hook(self.pool_forward_hook_fn)
-                    module.register_backward_hook(self.pool_backward_hook_fn)
+                    self.stem_maxpool_index_list.append(self.num_maxpool_layers)
+                    print("Stem MAXPOOL:{}".format(module_name))
+                    self.num_maxpool_layers = self.num_maxpool_layers + 1
+                    module.register_forward_hook(self.maxpool_forward_hook_fn)
+                    module.register_backward_hook(self.maxpool_backward_hook_fn)
+
+        if self.useGuidedAVGPOOL == True:
+            print("Set GuidedBP Hook on AVGPOOL")  #MaxPool也算非线性吧
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.AvgPool2d) == True and "segmenter" not in module_name:
+                    self.stem_avgpool_index_list.append(self.num_avgpool_layers)
+                    print("Stem AVGPOOL:{}".format(module_name))
+                    self.num_avgpool_layers = self.num_avgpool_layers + 1
+                    module.register_forward_hook(self.avgpool_forward_hook_fn)
+                    module.register_backward_hook(self.avgpool_backward_hook_fn)
+
+
+        if self.useGuidedAdaptiveAVGPOOL == True:
+            print("Set GuidedBP Hook on AdaptiveAVGPOOL")  #MaxPool也算非线性吧
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.AvgPool2d) == True and "segmenter" not in module_name:
+                    self.stem_adaptive_avgpool_index_list.append(self.num_adaptive_avgpool_layers)
+                    print("Stem AdaptiveAVGPOOL:{}".format(module_name))
+                    self.num_adpative_avgpool_layers = self.num_adpative_avgpool_layers + 1
+                    module.register_forward_hook(self.adaptive_avgpool_forward_hook_fn)
+                    module.register_backward_hook(self.adaptive_avgpool_backward_hook_fn)
+
 
         if self.useGuidedCONV == True:
             print("Set GuidedBP Hook on CONV")
@@ -358,18 +387,53 @@ class CJY_DUAL_BACKPROPAGATION():
             return (new_grad_in,)
 
 
-    def pool_forward_hook_fn(self, module, input, output):
-        if self.pool_current_index == 0:
-            self.pool_output.clear()
-        self.pool_output.append(output)
-        self.pool_current_index = self.pool_current_index + 1
-        if self.pool_current_index % self.num_pool_layers == 0:
-            self.pool_current_index = 0
+    def maxpool_forward_hook_fn(self, module, input, output):
+        if self.maxpool_current_index == 0:
+            self.maxpool_output.clear()
+        self.maxpool_output.append(output)
+        self.maxpool_current_index = self.maxpool_current_index + 1
+        if self.maxpool_current_index % self.num_maxpool_layers == 0:
+            self.maxpool_current_index = 0
 
-    def pool_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedPOOLstate == True:
-            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
-            pool_output = self.pool_output[self.pool_output_obtain_index]
+    def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedMAXPOOLstate == True:
+            self.maxpool_output_obtain_index = self.maxpool_output_obtain_index - 1
+            maxpool_output = self.maxpool_output[self.maxpool_output_obtain_index]
+
+            new_grad_in = grad_in[0]
+            return (new_grad_in,)
+
+    def avgpool_forward_hook_fn(self, module, input, output):
+        if self.avgpool_current_index == 0:
+            self.avgpool_output.clear()
+        self.avgpool_output.append(output)
+        self.avgpool_current_index = self.avgpool_current_index + 1
+        if self.avgpool_current_index % self.num_avgpool_layers == 0:
+            self.avgpool_current_index = 0
+
+    def avgpool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedAVGPOOLstate == True:
+            self.avgpool_output_obtain_index = self.avgpool_output_obtain_index - 1
+            avgpool_output = self.avgpool_output[self.avgpool_output_obtain_index]
+
+            new_grad_in = grad_in[0]
+            return (new_grad_in,)
+
+    def adpative_avgpool_forward_hook_fn(self, module, input, output):
+        if self.adpative_avgpool_current_index == 0:
+            self.adpative_avgpool_output.clear()
+        self.adpative_avgpool_output.append(output)
+        self.adpative_avgpool_current_index = self.adpative_avgpool_current_index + 1
+        if self.adpative_avgpool_current_index % self.num_adpative_avgpool_layers == 0:
+            self.adpative_avgpool_current_index = 0
+
+    def adpative_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedAVGPOOLstate == True:
+            self.adpative_avgpool_output_obtain_index = self.adpative_avgpool_output_obtain_index - 1
+            adpative_avgpool_output = self.avgpool_output[self.adpative_avgpool_output_obtain_index]
+
+            #bias = grad_out
+            #bias_overall =
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
@@ -438,16 +502,17 @@ class CJY_DUAL_BACKPROPAGATION():
         # 求取model.inter_output对应的gradient
         # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
 
-        #self.bn_weight_reserve_state = 1
-        self.guidedReLUstate = 1  # 是否开启guidedBP
-        self.guidedPOOLstate = 1
-        self.guidedCONVstate = 1
         self.guidedLINEARstate = 1
+        self.guidedCONVstate = 1
         self.guidedBNstate = 1
+        self.guidedReLUstate = 1
+        self.guidedMAXPOOLstate = 1
+        self.guidedAVGPOOLstate = 1
+        self.guidedAdaptiveAVGPOOLstate = 1
 
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
-        self.pool_output_obtain_index = len(self.pool_output)
+        self.pool_output_obtain_index = len(self.maxpool_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
         self.bn_input_obtain_index = len(self.bn_input)
@@ -463,11 +528,13 @@ class CJY_DUAL_BACKPROPAGATION():
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
         self.inter_gradient = list(inter_gradients)
 
-        self.guidedBNstate = 0
         self.guidedLINEARstate = 0
         self.guidedCONVstate = 0
-        self.guidedPOOLstate = 0
+        self.guidedBNstate = 0
         self.guidedReLUstate = 0
+        self.guidedMAXPOOLstate = 0
+        self.guidedAVGPOOLstate = 0
+        self.guidedAdaptiveAVGPOOLstate = 0
 
 
     def gcamNormalization(self, gcam):

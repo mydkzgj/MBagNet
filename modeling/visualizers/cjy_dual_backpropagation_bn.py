@@ -368,9 +368,8 @@ class CJY_DUAL_BACKPROPAGATION_BN():
         relu_in_sub = [input[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
         relu_out_sub = [output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-        relu_out_sub[-3] = relu_out_sub[0] * 0
-        relu_out_sub[-2] = relu_out_sub[0]
-        relu_out_sub[-1] = relu_out_sub[0] * 0
+        new_relu_out_sub = [relu_out_sub[0], relu_out_sub[0] * 0, relu_out_sub[0], relu_out_sub[0] * 0]
+
         new_output = torch.cat(relu_out_sub)
 
         return new_output

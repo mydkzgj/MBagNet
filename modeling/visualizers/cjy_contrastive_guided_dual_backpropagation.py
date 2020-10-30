@@ -125,7 +125,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         if self.useGuidedPOOL == True:
             print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
+                if isinstance(module, torch.nn.AvgPool2d) == True and "segmenter" not in module_name:
                     if "densenet" in self.model.base_name and "denseblock" not in module_name:
                         self.stem_pool_index_list.append(self.num_pool_layers)
                         print("Stem POOL:{}".format(module_name))
@@ -138,6 +138,15 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
                     self.num_pool_layers = self.num_pool_layers + 1
                     module.register_forward_hook(self.pool_forward_hook_fn)
                     module.register_backward_hook(self.pool_backward_hook_fn)
+
+        #
+        if self.useGuidedAdaptiveAvgPOOL == True:
+            print("Set GuidedBP Hook on AdaptiveAvgPOOL")  #MaxPool也算非线性吧
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.AdaptiveAvgPool2d) == True and "segmenter" not in module_name:
+                    module.register_forward_hook(self.adaptive_avg_pool_forward_hook_fn)
+                    module.register_backward_hook(self.adaptive_avg_pool_backward_hook_fn)
+
 
         if self.useGuidedCONV == True:
             print("Set GuidedBP Hook on CONV")
@@ -388,6 +397,23 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             self.pool_current_index = 0
 
     def pool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedPOOLstate == True:
+            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
+            pool_output = self.pool_output[self.pool_output_obtain_index]
+
+            new_grad_in = grad_in[0]
+            return (new_grad_in,)
+
+
+    def adaptive_avg_pool_forward_hook_fn(self, module, input, output):
+        if self.pool_current_index == 0:
+            self.pool_output.clear()
+        self.pool_output.append(output)
+        self.pool_current_index = self.pool_current_index + 1
+        if self.pool_current_index % self.num_pool_layers == 0:
+            self.pool_current_index = 0
+
+    def adaptive_avg_pool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedPOOLstate == True:
             self.pool_output_obtain_index = self.pool_output_obtain_index - 1
             pool_output = self.pool_output[self.pool_output_obtain_index]
