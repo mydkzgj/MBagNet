@@ -135,9 +135,7 @@ class CJY_DUAL_BACKPROPAGATION():
                         #print("Stem ReLU:{}".format(module_name))
                     elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
-                        module.register_backward_hook(self.relu_backward_hook_fn_for_resnet_stem)
                         #print("Stem ReLU:{}".format(module_name))
-                        continue
                     elif "vgg" in self.model.base_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
@@ -359,27 +357,6 @@ class CJY_DUAL_BACKPROPAGATION():
         self.relu_current_index = self.relu_current_index + 1
         if self.relu_current_index % self.num_relu_layers == 0:
             self.relu_current_index = 0
-
-    def relu_backward_hook_fn_for_resnet_stem(self, module, grad_in, grad_out):
-        if self.guidedReLUstate == True:
-            self.relu_output_obtain_index = self.relu_output_obtain_index - 1
-            relu_output = self.relu_output[self.relu_output_obtain_index]
-
-            num_sub_batch = relu_output.shape[0]//self.multiply_input
-            relu_out_sub = [relu_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-            new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1] * 0.5]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-            """
-            if grad_out[0].ndimension() == 4:
-                cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                new_grad_in = new_grad_in * cam
-            #"""
-
-            return (new_grad_in,)
 
     def relu_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedReLUstate == True:
