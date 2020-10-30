@@ -147,8 +147,6 @@ class Bottleneck(nn.Module):
         out = self.add_op(identity, out)
         #out += identity
 
-        out = self.add_op(identity, out)
-
         out = self.relu3(out)
 
         return out
