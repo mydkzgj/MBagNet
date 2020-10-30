@@ -557,6 +557,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.guidedMAXPOOLstate = 1
         self.guidedAVGPOOLstate = 1
         self.guidedAdaptiveAVGPOOLstate = 1
+        self.guidedADDstate = 1
 
         self.firstCAM = 1
         self.linear_input_obtain_index = len(self.linear_input)
@@ -585,6 +586,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.guidedMAXPOOLstate = 0
         self.guidedAVGPOOLstate = 0
         self.guidedAdaptiveAVGPOOLstate = 0
+        self.guidedADDstate = 0
 
 
     def gcamNormalization(self, gcam):
