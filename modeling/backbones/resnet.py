@@ -31,7 +31,14 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-
+# CJY
+class add_op(nn.Module):
+    """
+    将add计算化为模块，用于hook
+    """
+    def forward(self, x1, x2):
+        out = x1 + x2
+        return out
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -48,14 +55,15 @@ class BasicBlock(nn.Module):
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = norm_layer(planes)
         #self.relu = nn.ReLU(inplace=True)    #将resnet中的共用relu模块分为不同的几个，便于设置hook
         self.relu1 = nn.ReLU(inplace=True)
         self.relu2 = nn.ReLU(inplace=True)
-
-        self.conv2 = conv3x3(planes, planes)
-        self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
+
+        self.add_op = add_op()
 
     def forward(self, x):
         identity = x
@@ -70,7 +78,8 @@ class BasicBlock(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out += identity
+        #out += identity
+        out = self.add_op(identity, out)
         out = self.relu2(out)
 
         return out
@@ -97,6 +106,9 @@ class Bottleneck(nn.Module):
         self.relu2 = nn.ReLU(inplace=True)
         self.relu3 = nn.ReLU(inplace=True)
 
+        # CJY at 2020.10.30
+        self.add_op = self.add_op()
+
         self.downsample = downsample
         self.stride = stride
 
@@ -117,7 +129,10 @@ class Bottleneck(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out += identity
+        #out += identity
+        # CJY at 2020.10.30
+        out = self.add_op(identity, out)
+
         out = self.relu3(out)
 
         return out
