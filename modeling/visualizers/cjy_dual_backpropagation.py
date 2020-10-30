@@ -526,7 +526,7 @@ class CJY_DUAL_BACKPROPAGATION():
     def add_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedADDstate == True:
             self.add_output_obtain_index = self.add_output_obtain_index - 1
-            add_output = self.avgpool_output[self.add_output_obtain_index]
+            add_output = self.add_output[self.add_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
@@ -567,6 +567,8 @@ class CJY_DUAL_BACKPROPAGATION():
         self.maxpool_output_obtain_index = len(self.maxpool_output)
         self.avgpool_output_obtain_index = len(self.avgpool_output)
         self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
+
+        self.add_output_obtain_index = len(self.add_output)
 
         self.rest = 0
 
