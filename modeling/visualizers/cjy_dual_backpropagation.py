@@ -461,7 +461,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
                 # 此处将所有bias求和再重新分配
                 bias_overall = grad_out_sub[1]
-                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+                bias_overall_sum = bias_overall.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
 
                 activation_map = adaptive_avgpool_out_sub[0].gt(0).float()
                 activation_map_sum = activation_map.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
@@ -474,6 +474,8 @@ class CJY_DUAL_BACKPROPAGATION():
                     grad_in_sub = [grad_in[0][i * channels: (i + 1) * channels] for i in range(self.multiply_input)]
 
                     new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio / grad_in_sub[1].shape[0]
+
+                    new_bias = new_bias.view_as(grad_in_sub[1])
 
                     new_grad_in_sub = [grad_in_sub[0], new_bias]
                     new_grad_in = torch.cat(new_grad_in_sub, dim=0)
