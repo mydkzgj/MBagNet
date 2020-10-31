@@ -473,7 +473,7 @@ class CJY_DUAL_BACKPROPAGATION():
                     channels = grad_out[0].shape[1]
                     grad_in_sub = [grad_in[0][i * channels: (i + 1) * channels] for i in range(self.multiply_input)]
 
-                    grad_in_sub1 = grad_in_sub[1].unsqueeze(0).view_as(-1, channels)
+                    grad_in_sub1 = grad_in_sub[1].unsqueeze(0).unsqueeze(-1).unsqueeze(-1).view_as(-1, channels, 1, 1)
                     new_bias = torch.ones_like(grad_in_sub1) * bias_overall_sum * ratio / grad_in_sub[1].shape[0]
 
                     new_bias = new_bias * activation_map
