@@ -88,7 +88,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
         self.multiply_input = 2
 
-        self.bias_back_type = 1  #1,2,3
+        self.bias_back_type = 2  #1,2,3
 
         self.setHook(model)
 
@@ -469,7 +469,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 # activation map 全体与非0个数的比例
                 ratio = activation_map.shape[1] * activation_map.shape[2] * activation_map.shape[3] / activation_map_sum
 
-                if grad_in[0].ndimension() == 2:
+                if grad_in[0].ndimension() == 1:
                     channels = grad_out[0].shape[1]
                     grad_in_sub = [grad_in[0][i * channels: (i + 1) * channels] for i in range(self.multiply_input)]
 
