@@ -486,7 +486,7 @@ class CJY_DUAL_BACKPROPAGATION():
                     grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
                     new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio/ (
-                            grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
+                            grad_in_sub[1].shape[1] * grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
 
                     new_grad_in_sub = [grad_in_sub[0], new_bias]
                     new_grad_in = torch.cat(new_grad_in_sub, dim=0)
