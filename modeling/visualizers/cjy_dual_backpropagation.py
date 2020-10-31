@@ -564,8 +564,12 @@ class CJY_DUAL_BACKPROPAGATION():
 
             bias_overall = grad_out_sub[1]
 
-            identity_ratio = module.num_identity_neuron / (module.num_identity_neuron + module.num_residual_neuron)
-            residual_ratio = module.num_residual_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+            if self.bias_back_type == 1:
+                identity_ratio = module.num_identity_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+                residual_ratio = module.num_residual_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+            elif self.bias_back_type == 2:
+                identity_ratio = module.num_identity_activation_neuron / (module.num_identity_activation_neuron + module.num_residual_activation_neuron)
+                residual_ratio = module.num_residual_activation_neuron / (module.num_identity_activation_neuron + module.num_residual_activation_neuron)
 
             new_identity_bias = bias_overall * identity_ratio
             new_residual_bias = bias_overall * residual_ratio
