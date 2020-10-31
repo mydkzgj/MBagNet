@@ -456,6 +456,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             new_grad_in_sub = [grad_in_sub[0], new_bias]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
+            new_grad_in = torch.cat([new_grad_in, grad_in_sub[2], grad_in_sub[3]])
+
             self.rest = self.rest + bias_overall.sum() - new_bias.sum()
 
             return (new_grad_in,)
