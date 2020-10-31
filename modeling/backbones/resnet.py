@@ -145,9 +145,16 @@ class Bottleneck(nn.Module):
         out = self.relu2(out)
 
         # CJY at 2020.10.30 for dual back hook  add op
-        x1 = out.gt(0).float()
-        w1 = torch.ones_like(self.conv3.weight)[0:1]    #只输出单通道
-        num_identity_activation_neuron = torch.nn.functional.conv2d(x1, w1, stride=self.conv3.stride, padding=self.conv3.padding)  # 计算非死点个数之和
+        x1 = x.gt(0).float()
+        if self.downsample is not None:
+            w1 = torch.ones_like(self.downsample[0].weight)[0:1]  # 只输出单通道
+            num_identity_activation_neuron = torch.nn.functional.conv2d(x1, w1, stride=self.downsample[0].stride, padding=self.downsample[0].padding)  # 计算非死点个数之和
+        else:
+            num_identity_activation_neuron = x1.sum(dim=1, keepdim=True)  # 计算非死点个数之和
+        x2 = out.gt(0).float()
+        w2 = torch.ones_like(self.conv3.weight)[0:1]  # 只输出单通道
+        num_residual_activation_neuron = torch.nn.functional.conv2d(x2, w2, stride=self.conv3.stride, padding=self.conv3.padding)  # 计算非死点个数之和
+        self.add_op.record_activation_neuron_num(num_identity_activation_neuron, num_residual_activation_neuron)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -156,14 +163,6 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         # CJY at 2020.10.30 for dual back hook  add op
-        x2 = identity.gt(0).float()
-        if self.downsample is not None:
-            w2 = torch.ones_like(self.downsample.conv1x1.weight)[0:1]  #只输出单通道
-            num_residual_activation_neuron = torch.nn.functional.conv2d(x2, w2, stride=self.downsample.conv1x1.stride, padding=self.downsample.conv1x1.padding)  # 计算非死点个数之和
-        else:
-            num_residual_activation_neuron = x2.sum(dim=1, keepdim=True)# 计算非死点个数之和
-        self.add_op.record_activation_neuron_num(num_identity_activation_neuron, num_residual_activation_neuron)
-
         num_identity_neuron = x.shape[1]
         num_residual_neuron = self.conv3.weight.shape[1] * self.conv3.weight.shape[2] * self.conv3.weight.shape[3]
         self.add_op.record_neuron_num(num_identity_neuron, num_residual_neuron)
