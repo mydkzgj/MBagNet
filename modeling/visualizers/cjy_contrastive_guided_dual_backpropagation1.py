@@ -7,8 +7,6 @@ Created on 2020.7.4
 import torch
 from .draw_tool import draw_visualization
 
-from modeling.backbones.resnet import add_op
-
 
 class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
     """
@@ -35,26 +33,12 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
-        self.useGuidedMAXPOOL = False  # True  #False  # GuideBackPropagation的变体
-        self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-        self.num_maxpool_layers = 0
-        self.maxpool_output = []
-        self.maxpool_current_index = 0  # 后续设定为len(relu_input)
-        self.stem_maxpool_index_list = []
-
-        self.useGuidedAVGPOOL = False  # True  #False  # GuideBackPropagation的变体
-        self.guidedAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-        self.num_avgpool_layers = 0
-        self.avgpool_output = []
-        self.avgpool_current_index = 0  # 后续设定为len(relu_input)
-        self.stem_avgpool_index_list = []
-
-        self.useGuidedAdaptiveAVGPOOL = True  # True  #False  # GuideBackPropagation的变体
-        self.guidedAdaptiveAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-        self.num_adaptive_avgpool_layers = 0
-        self.adaptive_avgpool_output = []
-        self.adaptive_avgpool_current_index = 0  # 后续设定为len(relu_input)
-        self.stem_adaptive_avgpool_index_list = []
+        self.useGuidedPOOL = False  # True  #False  # GuideBackPropagation的变体
+        self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_pool_layers = 0
+        self.pool_output = []
+        self.pool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_pool_index_list = []
 
         self.useGuidedLINEAR = True#False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
@@ -74,12 +58,6 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.bn_input = []
         self.bn_current_index = 0
 
-        self.useGuidedADD = True    #True  # True#False  # GuideBackPropagation的变体
-        self.guidedADDstate = 0
-        self.num_add_layers = 0
-        self.add_output = []
-        self.add_current_index = 0
-
         self.firstCAM = 1
 
         self.reservePos = False  #True
@@ -89,8 +67,6 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.multiply_input = 4
 
         self.threshold = 0.1
-
-        self.bias_back_type = 1  #1,2,3
 
         self.setHook(model)
 
@@ -137,43 +113,39 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
                         #print("Stem ReLU:{}".format(module_name))
                     elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
+                        module.register_backward_hook(self.relu_backward_hook_fn_for_resnet_stem)
                         #print("Stem ReLU:{}".format(module_name))
+                        continue
                     elif "vgg" in self.model.base_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
 
                     module.register_backward_hook(self.relu_backward_hook_fn)
 
-        if self.useGuidedMAXPOOL == True:
-            print("Set GuidedBP Hook on MAXPOOL")  #MaxPool也算非线性吧
-            for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
-                    self.stem_maxpool_index_list.append(self.num_maxpool_layers)
-                    print("Stem MAXPOOL:{}".format(module_name))
-                    self.num_maxpool_layers = self.num_maxpool_layers + 1
-                    module.register_forward_hook(self.maxpool_forward_hook_fn)
-                    module.register_backward_hook(self.maxpool_backward_hook_fn)
-
-        if self.useGuidedAVGPOOL == True:
-            print("Set GuidedBP Hook on AVGPOOL")  #MaxPool也算非线性吧
+        if self.useGuidedPOOL == True:
+            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.AvgPool2d) == True and "segmenter" not in module_name:
-                    self.stem_avgpool_index_list.append(self.num_avgpool_layers)
-                    print("Stem AVGPOOL:{}".format(module_name))
-                    self.num_avgpool_layers = self.num_avgpool_layers + 1
-                    module.register_forward_hook(self.avgpool_forward_hook_fn)
-                    module.register_backward_hook(self.avgpool_backward_hook_fn)
+                    if "densenet" in self.model.base_name and "denseblock" not in module_name:
+                        self.stem_pool_index_list.append(self.num_pool_layers)
+                        print("Stem POOL:{}".format(module_name))
+                    elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
+                        self.stem_pool_index_list.append(self.num_pool_layers)
+                        print("Stem POOL:{}".format(module_name))
+                    elif "vgg" in self.model.base_name:
+                        self.stem_pool_index_list.append(self.num_pool_layers)
+                        print("Stem POOL:{}".format(module_name))
+                    self.num_pool_layers = self.num_pool_layers + 1
+                    module.register_forward_hook(self.pool_forward_hook_fn)
+                    module.register_backward_hook(self.pool_backward_hook_fn)
 
-
-        if self.useGuidedAdaptiveAVGPOOL == True:
-            print("Set GuidedBP Hook on AdaptiveAVGPOOL")  #MaxPool也算非线性吧
+        #
+        if self.useGuidedAdaptiveAvgPOOL == True:
+            print("Set GuidedBP Hook on AdaptiveAvgPOOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.AdaptiveAvgPool2d) == True and "segmenter" not in module_name:
-                    self.stem_adaptive_avgpool_index_list.append(self.num_adaptive_avgpool_layers)
-                    print("Stem AdaptiveAVGPOOL:{}".format(module_name))
-                    self.num_adaptive_avgpool_layers = self.num_adaptive_avgpool_layers + 1
-                    module.register_forward_hook(self.adaptive_avgpool_forward_hook_fn)
-                    module.register_backward_hook(self.adaptive_avgpool_backward_hook_fn)
+                    module.register_forward_hook(self.adaptive_avg_pool_forward_hook_fn)
+                    module.register_backward_hook(self.adaptive_avg_pool_backward_hook_fn)
 
 
         if self.useGuidedCONV == True:
@@ -200,14 +172,6 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
                     module.register_backward_hook(self.bn_backward_hook_fn)
                     module.register_forward_hook(self.bn_forward_hook_fn)
                     self.num_bn_layers = self.num_bn_layers + 1
-
-        if self.useGuidedADD == True:
-            print("Set GuidedBP Hook on ADD")
-            for module_name, module in model.named_modules():
-                if isinstance(module, add_op) == True and "segmenter" not in module_name:
-                    module.register_backward_hook(self.add_backward_hook_fn)
-                    module.register_forward_hook(self.add_forward_hook_fn)
-                    self.num_add_layers = self.num_add_layers + 1
 
 
     # Hook Function
@@ -255,29 +219,31 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             bias_overall = bias_output + bias_current * grad_output
 
             # new_bias_input计算
-            if self.bias_back_type == 1:
-                # 1
-                new_weight = torch.ones_like(module.weight)  # module.weight
-                new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
-                bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
-            elif self.bias_back_type == 2:
-                # 2
-                new_weight = torch.ones_like(module.weight)
-                # x为0的点为死点，不将bias分给这种点
-                activation_map = linear_in_sub[0].ne(0).float()
-                activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
-                x_nonzero = (activation_num_map).ne(0).float()
-                y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
-                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-                bias_input = z * activation_map
-            elif self.bias_back_type == 3:
-                # 3
-                new_weight = module.weight.relu()
-                x = torch.nn.functional.linear(linear_in_sub[0], new_weight)
-                x_nonzero = x.ne(0).float()
-                y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero
-                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-                bias_input = linear_in_sub[0] * z
+            """
+            # 1
+            new_weight = torch.ones_like(module.weight)  # module.weight
+            new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
+            bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
+            # """
+            #"""
+            # 2
+            new_weight = torch.ones_like(module.weight)
+            # x为0的点为死点，不将bias分给这种点
+            activation_map = linear_in_sub[0].ne(0).float()
+            activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
+            x_nonzero = (activation_num_map).ne(0).float()
+            y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            bias_input = z * activation_map
+            #"""
+            """
+            new_weight = module.weight
+            x = torch.nn.functional.linear(linear_input, new_weight)
+            x_nonzero = x.ne(0).float()
+            y = bias_output / (x + (1 - x_nonzero)) * x_nonzero
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            bias_input = linear_input * z
+            #"""
 
             new_grad_in_sub = [grad_input, bias_input]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
@@ -317,34 +283,33 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             output_padding = grad_in[0].shape[3] - output_size
 
             # new_bias_input计算
-            if self.bias_back_type == 1:
-                # 1
-                new_weight = torch.ones_like(module.weight)  # module.weight
-                new_weight = new_weight / (
-                    new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
-                bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
-                                                                  padding=new_padding, output_padding=output_padding)
-            elif self.bias_back_type == 2:
-                # 2
-                new_weight = torch.ones_like(module.weight)
-                # x为0的点为死点，不将bias分给这种点
-                activation_map = conv_in_sub[0].ne(0).float()
-                activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride,
-                                                                padding=module.padding)  # 计算非死点个数之和
-                x_nonzero = (activation_num_map).ne(0).float()
-                y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
-                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
-                                                         output_padding=output_padding)
-                bias_input = z * activation_map
-            elif self.bias_back_type == 3:
-                # 3
-                new_weight = module.weight.relu()
-                x = torch.nn.functional.conv2d(conv_in_sub[0], new_weight, stride=module.stride, padding=module.padding)
-                x_nonzero = x.ne(0).float()
-                y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
-                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
-                                                         output_padding=output_padding)
-                bias_input = conv_in_sub[0] * z
+            """
+            # 1
+            new_weight = torch.ones_like(module.weight)  # module.weight
+            new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
+            bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
+                                                              padding=new_padding, output_padding=output_padding)
+            #"""
+            #"""
+            # 2
+            new_weight = torch.ones_like(module.weight)
+            # x为0的点为死点，不将bias分给这种点
+            activation_map = conv_in_sub[0].ne(0).float()
+            activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride, padding=module.padding)  # 计算非死点个数之和
+            x_nonzero = (activation_num_map).ne(0).float()
+            y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            bias_input = z * activation_map
+            #"""
+            """
+            # 3
+            new_weight = module.weight
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            x_nonzero = x.ne(0).float()
+            y = bias_output / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            bias_input = conv_input * z
+            #"""
 
             self.rest = self.rest + bias_overall.sum() - bias_input.sum()
 
@@ -363,6 +328,35 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.relu_current_index = self.relu_current_index + 1
         if self.relu_current_index % self.num_relu_layers == 0:
             self.relu_current_index = 0
+
+    def relu_backward_hook_fn_for_resnet_stem(self, module, grad_in, grad_out):
+        if self.guidedReLUstate == True:
+            self.relu_output_obtain_index = self.relu_output_obtain_index - 1
+            relu_output = self.relu_output[self.relu_output_obtain_index]
+
+            num_sub_batch = relu_output.shape[0]//self.multiply_input
+            relu_out_sub = [relu_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+            new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1] * 0.5]
+            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+
+            if relu_output.ndimension() == 2:
+                new_grad_pos = grad_in_sub[2]
+                new_grad_neg = grad_in_sub[3]
+            else:
+                new_grad_pos = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
+                new_grad_neg = grad_in_sub[3] * grad_in_sub[3].gt(0).float()
+            new_grad_in = torch.cat([new_grad_in, new_grad_pos, new_grad_neg])
+
+            """
+            if grad_out[0].ndimension() == 4:
+                cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                new_grad_in = new_grad_in * cam
+            #"""
+
+            return (new_grad_in,)
 
     def relu_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedReLUstate == True:
@@ -394,70 +388,37 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             return (new_grad_in,)
 
 
-    def maxpool_forward_hook_fn(self, module, input, output):
-        if self.maxpool_current_index == 0:
-            self.maxpool_output.clear()
-        self.maxpool_output.append(output)
-        self.maxpool_current_index = self.maxpool_current_index + 1
-        if self.maxpool_current_index % self.num_maxpool_layers == 0:
-            self.maxpool_current_index = 0
+    def pool_forward_hook_fn(self, module, input, output):
+        if self.pool_current_index == 0:
+            self.pool_output.clear()
+        self.pool_output.append(output)
+        self.pool_current_index = self.pool_current_index + 1
+        if self.pool_current_index % self.num_pool_layers == 0:
+            self.pool_current_index = 0
 
-    def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedMAXPOOLstate == True:
-            self.maxpool_output_obtain_index = self.maxpool_output_obtain_index - 1
-            maxpool_output = self.maxpool_output[self.maxpool_output_obtain_index]
-
-            new_grad_in = grad_in[0]
-            return (new_grad_in,)
-
-    def avgpool_forward_hook_fn(self, module, input, output):
-        if self.avgpool_current_index == 0:
-            self.avgpool_output.clear()
-        self.avgpool_output.append(output)
-        self.avgpool_current_index = self.avgpool_current_index + 1
-        if self.avgpool_current_index % self.num_avgpool_layers == 0:
-            self.avgpool_current_index = 0
-
-    def avgpool_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedAVGPOOLstate == True:
-            self.avgpool_output_obtain_index = self.avgpool_output_obtain_index - 1
-            avgpool_output = self.avgpool_output[self.avgpool_output_obtain_index]
+    def pool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedPOOLstate == True:
+            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
+            pool_output = self.pool_output[self.pool_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
 
-    def adaptive_avgpool_forward_hook_fn(self, module, input, output):
-        if self.adaptive_avgpool_current_index == 0:
-            self.adaptive_avgpool_output.clear()
-        self.adaptive_avgpool_output.append(output)
-        self.adaptive_avgpool_current_index = self.adaptive_avgpool_current_index + 1
-        if self.adaptive_avgpool_current_index % self.num_adaptive_avgpool_layers == 0:
-            self.adaptive_avgpool_current_index = 0
 
-    def adaptive_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedAVGPOOLstate == True:
-            self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
-            adaptive_avgpool_output = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
+    def adaptive_avg_pool_forward_hook_fn(self, module, input, output):
+        if self.pool_current_index == 0:
+            self.pool_output.clear()
+        self.pool_output.append(output)
+        self.pool_current_index = self.pool_current_index + 1
+        if self.pool_current_index % self.num_pool_layers == 0:
+            self.pool_current_index = 0
 
-            if grad_in[0].ndimension() != 4:
-                return grad_in
+    def adaptive_avg_pool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedPOOLstate == True:
+            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
+            pool_output = self.pool_output[self.pool_output_obtain_index]
 
-            num_sub_batch = adaptive_avgpool_output.shape[0] // self.multiply_input
-            adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-            bias_overall = grad_out_sub[1]
-
-            bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
-
-            new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum / (grad_in_sub[1].shape[2]*grad_in_sub[1].shape[3])
-
-            new_grad_in_sub = [grad_in_sub[0], new_bias]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-            self.rest = self.rest + bias_overall.sum() - new_bias.sum()
-
+            new_grad_in = grad_in[0]
             return (new_grad_in,)
 
     def bn_forward_hook_fn(self, module, input, output):
@@ -508,38 +469,6 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             return (new_grad_in, grad_in[1], grad_in[2])
 
 
-    def add_forward_hook_fn(self, module, input, output):
-        if self.add_current_index == 0:
-            self.add_output.clear()
-        self.add_output.append(output)
-        self.add_current_index = self.add_current_index + 1
-        if self.add_current_index % self.num_add_layers == 0:
-            self.add_current_index = 0
-
-    def add_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedADDstate == True:
-            self.add_output_obtain_index = self.add_output_obtain_index - 1
-            add_output = self.add_output[self.add_output_obtain_index]
-
-            num_sub_batch = add_output.shape[0] // self.multiply_input
-            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            identity_grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            residual_grad_in_sub = [grad_in[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-            bias_overall = grad_out_sub[1]
-
-            identity_ratio = module.num_identity_neuron / (module.num_identity_neuron + module.num_residual_neuron)
-            residual_ratio = module.num_residual_neuron / (module.num_identity_neuron + module.num_residual_neuron)
-
-            new_identity_bias = bias_overall * identity_ratio
-            new_residual_bias = bias_overall * residual_ratio
-
-            new_grad_in0 = torch.cat([identity_grad_in_sub[0], new_identity_bias], dim=0)
-            new_grad_in1 = torch.cat([residual_grad_in_sub[0], new_residual_bias], dim=0)
-
-            return (new_grad_in0, new_grad_in1)
-
-
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
         self.observation_class = labels.cpu().numpy().tolist()
@@ -558,25 +487,19 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         # 求取model.inter_output对应的gradient
         # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
 
-        self.guidedLINEARstate = 1
+        #self.bn_weight_reserve_state = 1
+        self.guidedReLUstate = 1  # 是否开启guidedBP
+        self.guidedPOOLstate = 1
         self.guidedCONVstate = 1
+        self.guidedLINEARstate = 1
         self.guidedBNstate = 1
-        self.guidedReLUstate = 1
-        self.guidedMAXPOOLstate = 1
-        self.guidedAVGPOOLstate = 1
-        self.guidedAdaptiveAVGPOOLstate = 1
-        self.guidedADDstate = 1
 
         self.firstCAM = 1
-        self.linear_input_obtain_index = len(self.linear_input)
-        self.conv_input_obtain_index = len(self.conv_input)
-        self.bn_input_obtain_index = len(self.bn_input)
         self.relu_output_obtain_index = len(self.relu_output)
-        self.maxpool_output_obtain_index = len(self.maxpool_output)
-        self.avgpool_output_obtain_index = len(self.avgpool_output)
-        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
-
-        self.add_output_obtain_index = len(self.add_output)
+        self.pool_output_obtain_index = len(self.pool_output)
+        self.conv_input_obtain_index = len(self.conv_input)
+        self.linear_input_obtain_index = len(self.linear_input)
+        self.bn_input_obtain_index = len(self.bn_input)
 
         self.rest = 0
 
@@ -590,14 +513,11 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
         self.inter_gradient = list(inter_gradients)
 
+        self.guidedBNstate = 0
         self.guidedLINEARstate = 0
         self.guidedCONVstate = 0
-        self.guidedBNstate = 0
+        self.guidedPOOLstate = 0
         self.guidedReLUstate = 0
-        self.guidedMAXPOOLstate = 0
-        self.guidedAVGPOOLstate = 0
-        self.guidedAdaptiveAVGPOOLstate = 0
-        self.guidedADDstate = 0
 
 
     def gcamNormalization(self, gcam):
@@ -659,10 +579,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
         num_sub_batch = inter_output.shape[0] // self.multiply_input
-        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                            range(self.multiply_input)]
-        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                              range(self.multiply_input)]
+        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
         inter_output = inter_output_sub[0]
         inter_gradient = inter_gradient_sub[0]
