@@ -456,26 +456,35 @@ class CJY_DUAL_BACKPROPAGATION():
 
             elif self.bias_back_type == 2:
                 num_sub_batch = adaptive_avgpool_output.shape[0] // self.multiply_input
-                adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                                            range(self.multiply_input)]
-                grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                                range(self.multiply_input)]
-                grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                               range(self.multiply_input)]
+                adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+                grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
+                # 此处将所有bias求和再重新分配
                 bias_overall = grad_out_sub[1]
-                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
 
                 activation_map = adaptive_avgpool_out_sub[0].gt(0).float()
                 activation_map_sum = activation_map.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
 
-                ratio = activation_map.shape[1]*activation_map.shape[2]*activation_map.shape[3] / activation_map_sum
+                # activation map 全体与非0个数的比例
+                ratio = activation_map.shape[1] * activation_map.shape[2] * activation_map.shape[3] / activation_map_sum
 
-                new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio/ (
+                if grad_in[0].ndimension() == 2:
+                    channels = grad_out[0].shape[1]
+                    grad_in_sub = [grad_in[0][i * channels: (i + 1) * channels] for i in range(self.multiply_input)]
+
+                    new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio / grad_in_sub[1].shape[0]
+
+                    new_grad_in_sub = [grad_in_sub[0], new_bias]
+                    new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                else:
+                    grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+                    new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio/ (
                             grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
 
-                new_grad_in_sub = [grad_in_sub[0], new_bias]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                    new_grad_in_sub = [grad_in_sub[0], new_bias]
+                    new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
                 self.rest = self.rest + bias_overall.sum() - new_bias.sum()
 
