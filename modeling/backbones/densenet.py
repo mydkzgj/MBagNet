@@ -97,17 +97,22 @@ class _Transition(nn.Sequential):
                                           kernel_size=1, stride=1, bias=False))
         self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
 
-    def record_activation_neuron_num(self, num_relu_neuron, num_relu_activation_neuron):
-        self.num_relu_neuron = num_relu_neuron
-        self.num_relu_activation_neuron = num_relu_activation_neuron
+    def record_activation_neuron_num(self, num_solo_activation_neuron, num_pool_activation_neuron):
+        self.num_solo_activation_neuron = num_solo_activation_neuron
+        self.num_pool_activation_neuron = num_pool_activation_neuron
 
     def forward(self, x):
         out = self.norm(x)
         out = self.relu(out)
 
-        num_relu_neuron = torch.ones_like(x).sum(dim=-1).sum(dim=-1).sum(dim=-1)
-        num_relu_activation_neuron = out.gt(0).float().sum(dim=-1).sum(dim=-1).sum(dim=-1)
-        self.record_activation_neuron_num(num_relu_neuron, num_relu_activation_neuron)
+        x1 = torch.ones_like(x)
+        num_relu_neuron = x1.sum(dim=1, keepdim=True)
+        x1 = out.gt(0).float()
+        w1 = torch.ones_like(self.conv.weight)[0:1]
+        num_solo_activation_neuron = torch.nn.functional.conv2d(x1, w1, stride=self.conv.stride, padding=self.conv.padding)  # 计算非死点个数之和
+        num_pool_activation_neuron = torch.nn.functional.interpolate(self.pool(num_solo_activation_neuron),
+                                                                     size=(num_solo_activation_neuron.shape[2],num_solo_activation_neuron.shape[3]), mode="nearest")
+        self.record_activation_neuron_num(num_solo_activation_neuron, num_pool_activation_neuron)
 
         out = self.conv(out)
         out = self.pool(out)

@@ -412,7 +412,25 @@ class CJY_DUAL_BACKPROPAGATION():
             self.avgpool_output_obtain_index = self.avgpool_output_obtain_index - 1
             avgpool_output = self.avgpool_output[self.avgpool_output_obtain_index]
 
-            new_grad_in = grad_in[0]
+            num_sub_batch = avgpool_output.shape[0] // self.multiply_input
+            avgpool_out_sub = [avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+            bias_input = grad_in_sub[1]
+
+            if self.bias_back_type == 1:
+                new_grad_in = grad_in[0]
+            elif self.bias_back_type == 2:
+                num_solo = module.num_solo_activation_neuron
+                num_pool = module.num_pool_activation_neuron
+                ratio = 4 * num_solo/ num_pool
+
+                new_bias = bias_input * ratio
+
+                new_grad_in_sub = [grad_in_sub[0], new_bias]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+
             return (new_grad_in,)
 
     def adaptive_avgpool_forward_hook_fn(self, module, input, output):
