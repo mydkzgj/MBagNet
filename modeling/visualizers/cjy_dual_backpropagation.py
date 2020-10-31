@@ -368,8 +368,11 @@ class CJY_DUAL_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            if self.bias_back_type == 1:
+                new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            elif self.bias_back_type == 2:
+                new_grad_in = grad_in
 
             """
             if grad_out[0].ndimension() == 4:
@@ -425,26 +428,59 @@ class CJY_DUAL_BACKPROPAGATION():
             self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
             adaptive_avgpool_output = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
 
-            if grad_in[0].ndimension() != 4:
-                return grad_in
+            if self.bias_back_type == 1:
+                if grad_in[0].ndimension() != 4:
+                    return grad_in
 
-            num_sub_batch = adaptive_avgpool_output.shape[0] // self.multiply_input
-            adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+                num_sub_batch = adaptive_avgpool_output.shape[0] // self.multiply_input
+                adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                                            range(self.multiply_input)]
+                grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                                range(self.multiply_input)]
+                grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                               range(self.multiply_input)]
 
-            bias_overall = grad_out_sub[1]
+                bias_overall = grad_out_sub[1]
 
-            bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
 
-            new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum / (grad_in_sub[1].shape[2]*grad_in_sub[1].shape[3])
+                new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum / (
+                            grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
 
-            new_grad_in_sub = [grad_in_sub[0], new_bias]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                new_grad_in_sub = [grad_in_sub[0], new_bias]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
-            self.rest = self.rest + bias_overall.sum() - new_bias.sum()
+                self.rest = self.rest + bias_overall.sum() - new_bias.sum()
 
-            return (new_grad_in,)
+                return (new_grad_in,)
+
+            elif self.bias_back_type == 2:
+                num_sub_batch = adaptive_avgpool_output.shape[0] // self.multiply_input
+                adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                                            range(self.multiply_input)]
+                grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                                range(self.multiply_input)]
+                grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                               range(self.multiply_input)]
+
+                bias_overall = grad_out_sub[1]
+                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+
+                activation_map = adaptive_avgpool_out_sub[0].gt(0).float()
+                activation_map_sum = activation_map.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+
+                ratio = activation_map.shape[1]*activation_map.shape[2]*activation_map.shape[3] / activation_map_sum
+
+                new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio/ (
+                            grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
+
+                new_grad_in_sub = [grad_in_sub[0], new_bias]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+
+                self.rest = self.rest + bias_overall.sum() - new_bias.sum()
+
+                return (new_grad_in,)
+
 
     def bn_forward_hook_fn(self, module, input, output):
         """
