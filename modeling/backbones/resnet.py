@@ -90,7 +90,7 @@ class BasicBlock(nn.Module):
             w1 = torch.ones_like(self.downsample[0].weight)[0:1]  # 只输出单通道
             num_identity_activation_neuron = torch.nn.functional.conv2d(x1, w1, stride=self.downsample[0].stride, padding=self.downsample[0].padding)  # 计算非死点个数之和
         else:
-            num_identity_activation_neuron = x1.sum(dim=1, keepdim=True)  # 计算非死点个数之和
+            num_identity_activation_neuron = x1  # 计算非死点个数之和
         x2 = out.gt(0).float()
         w2 = torch.ones_like(self.conv3.weight)[0:1]  # 只输出单通道
         num_residual_activation_neuron = torch.nn.functional.conv2d(x2, w2, stride=self.conv2.stride, padding=self.conv2.padding)  # 计算非死点个数之和
@@ -161,7 +161,7 @@ class Bottleneck(nn.Module):
             w1 = torch.ones_like(self.downsample[0].weight)[0:1]  # 只输出单通道
             num_identity_activation_neuron = torch.nn.functional.conv2d(x1, w1, stride=self.downsample[0].stride, padding=self.downsample[0].padding)  # 计算非死点个数之和
         else:
-            num_identity_activation_neuron = x1.sum(dim=1, keepdim=True)  # 计算非死点个数之和
+            num_identity_activation_neuron = x1  # 计算非死点个数之和
         x2 = out.gt(0).float()
         w2 = torch.ones_like(self.conv3.weight)[0:1]  # 只输出单通道
         num_residual_activation_neuron = torch.nn.functional.conv2d(x2, w2, stride=self.conv3.stride, padding=self.conv3.padding)  # 计算非死点个数之和
