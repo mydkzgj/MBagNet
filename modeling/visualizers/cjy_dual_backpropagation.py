@@ -698,6 +698,9 @@ class CJY_DUAL_BACKPROPAGATION():
 
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
+        if self.bias_back_type == 2:
+            inter_bias = inter_output.gt(0).float() * inter_bias
+
         # backward形式
         num_sub_batch = inter_output.shape[0] // self.multiply_input
         inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
