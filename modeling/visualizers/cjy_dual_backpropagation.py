@@ -372,7 +372,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             elif self.bias_back_type == 2:
-                new_grad_in = grad_in
+                new_grad_in = grad_in[0]
 
             """
             if grad_out[0].ndimension() == 4:
