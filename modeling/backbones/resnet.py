@@ -96,7 +96,7 @@ class BasicBlock(nn.Module):
         num_residual_activation_neuron = torch.nn.functional.conv2d(x2, w2, stride=self.conv2.stride, padding=self.conv2.padding)  # 计算非死点个数之和
         self.add_op.record_activation_neuron_num(num_identity_activation_neuron, num_residual_activation_neuron)
 
-        num_identity_neuron = x.shape[1]
+        num_identity_neuron = x.shape[1] if self.downsample is not None else 1
         num_residual_neuron = self.conv2.weight.shape[1] * self.conv2.weight.shape[2] * self.conv2.weight.shape[3]
         self.add_op.record_neuron_num(num_identity_neuron, num_residual_neuron)
         #"""
@@ -167,7 +167,7 @@ class Bottleneck(nn.Module):
         num_residual_activation_neuron = torch.nn.functional.conv2d(x2, w2, stride=self.conv3.stride, padding=self.conv3.padding)  # 计算非死点个数之和
         self.add_op.record_activation_neuron_num(num_identity_activation_neuron, num_residual_activation_neuron)
 
-        num_identity_neuron = x.shape[1]
+        num_identity_neuron = x.shape[1] if self.downsample is not None else 1
         num_residual_neuron = self.conv3.weight.shape[1] * self.conv3.weight.shape[2] * self.conv3.weight.shape[3]
         self.add_op.record_neuron_num(num_identity_neuron, num_residual_neuron)
         #"""
