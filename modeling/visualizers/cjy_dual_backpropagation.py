@@ -426,7 +426,9 @@ class CJY_DUAL_BACKPROPAGATION():
                 num_pool = module.num_pool_activation_neuron
                 ratio = 4 * num_solo/ num_pool
 
-                new_bias = bias_input * ratio
+                ratio_sub = [ratio[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+                new_bias = bias_input * ratio_sub[0]
 
                 new_grad_in_sub = [grad_in_sub[0], new_bias]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
