@@ -480,6 +480,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
                     new_grad_in_sub = [grad_in_sub[0], new_bias]
                     new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                    # 注：此时的new_bias必须在后面avg-pool backward后与activation_map相乘才好
 
                 else:
                     grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]

@@ -97,6 +97,22 @@ class _Transition(nn.Sequential):
                                           kernel_size=1, stride=1, bias=False))
         self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
 
+    def record_activation_neuron_num(self, num_relu_neuron, num_relu_activation_neuron):
+        self.num_relu_neuron = num_relu_neuron
+        self.num_relu_activation_neuron = num_relu_activation_neuron
+
+    def forward(self, x):
+        out = self.norm(x)
+        out = self.relu(out)
+
+        num_relu_neuron = torch.zeros_like(x).sum(dim=-1).sum(dim=-1).sum(dim=-1)
+        num_relu_activation_neuron = out.gt(0).float().sum(dim=-1).sum(dim=-1).sum(dim=-1)
+        self.record_activation_neuron_num(num_relu_neuron, num_relu_activation_neuron)
+
+        out = self.conv(out)
+        out = self.pool(out)
+
+        return out
 
 
 class DenseNet(nn.Module):
