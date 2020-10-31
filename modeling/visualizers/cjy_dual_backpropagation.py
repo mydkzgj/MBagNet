@@ -708,7 +708,8 @@ class CJY_DUAL_BACKPROPAGATION():
         inter_bias = inter_gradient_sub[1]
 
         if self.bias_back_type == 2:
-            inter_bias = inter_output.gt(0).float() * inter_bias
+            if inter_output.shape[1] != 3:
+                inter_bias = inter_output.gt(0).float() * inter_bias
 
         gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
 
