@@ -98,8 +98,8 @@ class _Transition(nn.Sequential):
         self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
 
     def record_activation_neuron_num(self, num_solo_activation_neuron, num_pool_activation_neuron):
-        self.num_solo_activation_neuron = num_solo_activation_neuron
-        self.num_pool_activation_neuron = num_pool_activation_neuron
+        self.pool.num_solo_activation_neuron = num_solo_activation_neuron
+        self.pool.num_pool_activation_neuron = num_pool_activation_neuron
 
     def forward(self, x):
         out = self.norm(x)
