@@ -105,7 +105,7 @@ class _Transition(nn.Sequential):
         out = self.norm(x)
         out = self.relu(out)
 
-        num_relu_neuron = torch.zeros_like(x).sum(dim=-1).sum(dim=-1).sum(dim=-1)
+        num_relu_neuron = torch.ones_like(x).sum(dim=-1).sum(dim=-1).sum(dim=-1)
         num_relu_activation_neuron = out.gt(0).float().sum(dim=-1).sum(dim=-1).sum(dim=-1)
         self.record_activation_neuron_num(num_relu_neuron, num_relu_activation_neuron)
 
