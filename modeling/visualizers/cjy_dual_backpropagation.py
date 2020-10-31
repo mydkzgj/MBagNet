@@ -52,7 +52,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.useGuidedAdaptiveAVGPOOL = True  # True  #False  # GuideBackPropagation的变体
         self.guidedAdaptiveAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_adaptive_avgpool_layers = 0
-        self.adaptive_avgpool_output = []
+        self.adaptive_avgpool_input = []
         self.adaptive_avgpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_adaptive_avgpool_index_list = []
 
@@ -417,16 +417,16 @@ class CJY_DUAL_BACKPROPAGATION():
 
     def adaptive_avgpool_forward_hook_fn(self, module, input, output):
         if self.adaptive_avgpool_current_index == 0:
-            self.adaptive_avgpool_output.clear()
-        self.adaptive_avgpool_output.append(output)
+            self.adaptive_avgpool_input.clear()
+        self.adaptive_avgpool_input.append(input[0])
         self.adaptive_avgpool_current_index = self.adaptive_avgpool_current_index + 1
         if self.adaptive_avgpool_current_index % self.num_adaptive_avgpool_layers == 0:
             self.adaptive_avgpool_current_index = 0
 
     def adaptive_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
-            self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
-            adaptive_avgpool_input = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
+            self.adaptive_avgpool_input_obtain_index = self.adaptive_avgpool_input_obtain_index - 1
+            adaptive_avgpool_input = self.adaptive_avgpool_input[self.adaptive_avgpool_input_obtain_index]
 
             if self.bias_back_type == 1:
                 if grad_in[0].ndimension() != 4:
@@ -608,7 +608,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.relu_output_obtain_index = len(self.relu_output)
         self.maxpool_output_obtain_index = len(self.maxpool_output)
         self.avgpool_output_obtain_index = len(self.avgpool_output)
-        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
+        self.adaptive_avgpool_input_obtain_index = len(self.adaptive_avgpool_input)
 
         self.add_output_obtain_index = len(self.add_output)
 
