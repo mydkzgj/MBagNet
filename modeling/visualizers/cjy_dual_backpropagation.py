@@ -476,7 +476,6 @@ class CJY_DUAL_BACKPROPAGATION():
                     grad_in_sub1 = grad_in_sub[1].unsqueeze(0).unsqueeze(-1).unsqueeze(-1).view(-1, channels, 1, 1)
                     new_bias = torch.ones_like(grad_in_sub1) * bias_overall_sum * ratio / grad_in_sub[1].shape[0]
 
-                    new_bias = new_bias * activation_map
                     new_bias = new_bias.view_as(grad_in_sub[1])
 
                     new_grad_in_sub = [grad_in_sub[0], new_bias]
@@ -487,6 +486,8 @@ class CJY_DUAL_BACKPROPAGATION():
 
                     new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio/ (
                             grad_in_sub[1].shape[1] * grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
+
+                    new_bias = new_bias * activation_map
 
                     new_grad_in_sub = [grad_in_sub[0], new_bias]
                     new_grad_in = torch.cat(new_grad_in_sub, dim=0)
