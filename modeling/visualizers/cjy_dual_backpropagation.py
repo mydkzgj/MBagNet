@@ -396,6 +396,12 @@ class CJY_DUAL_BACKPROPAGATION():
             maxpool_output = self.maxpool_output[self.maxpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
+
+            """
+            if grad_out[0].ndimension() == 4:
+                cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                new_grad_in = new_grad_in * cam
+            #"""
             return (new_grad_in,)
 
     def avgpool_forward_hook_fn(self, module, input, output):
