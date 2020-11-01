@@ -286,6 +286,11 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
             new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+
+            cam = self.GenerateCAM(relu_output, new_grad_in)
+            norm_cam, _ = self.gcamNormalization(cam.relu())
+            norm_cam = 2 * (norm_cam - 0.5) if self.reservePos == False else norm_cam
+            new_grad_in = new_grad_in * norm_cam
             #"""
 
             """
