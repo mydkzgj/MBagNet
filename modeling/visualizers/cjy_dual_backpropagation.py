@@ -399,7 +399,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
             """
             if grad_out[0].ndimension() == 4:
-                cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
                 new_grad_in = new_grad_in * cam
             #"""
             return (new_grad_in,)
