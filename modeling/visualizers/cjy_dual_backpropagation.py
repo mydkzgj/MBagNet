@@ -397,13 +397,12 @@ class CJY_DUAL_BACKPROPAGATION():
 
             new_grad_in = grad_in[0]
 
-            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-            new_maxpool_input = torch.nn.functional.max_unpool2d(maxpool_output, indices, module.kernel_size, module.stride, module.padding)
-
-            """
+            #"""
             if grad_out[0].ndimension() == 4:
+                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
                 cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
-                new_grad_in = new_grad_in * cam
+                new_grad_out = grad_out[0] * cam
+                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding)
             #"""
             return (new_grad_in,)
 
