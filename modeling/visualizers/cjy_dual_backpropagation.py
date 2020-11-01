@@ -398,7 +398,7 @@ class CJY_DUAL_BACKPROPAGATION():
             new_grad_in = grad_in[0]
 
             maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-            torch.nn.functional.max_unpool2d(maxpool_output, indices)
+            new_maxpool_input = torch.nn.functional.max_unpool2d(maxpool_output, indices, module.kernel_size, module.stride, module.padding)
 
             """
             if grad_out[0].ndimension() == 4:
