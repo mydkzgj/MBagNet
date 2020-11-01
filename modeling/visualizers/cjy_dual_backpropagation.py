@@ -128,8 +128,6 @@ class CJY_DUAL_BACKPROPAGATION():
             print("Set GuidedBP Hook on ReLU")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
-                    self.num_relu_layers = self.num_relu_layers + 1
-                    module.register_forward_hook(self.relu_forward_hook_fn)
                     if "densenet" in self.model.base_name and "denseblock" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
@@ -139,7 +137,8 @@ class CJY_DUAL_BACKPROPAGATION():
                     elif "vgg" in self.model.base_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
-
+                    self.num_relu_layers = self.num_relu_layers + 1
+                    module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
 
         if self.useGuidedMAXPOOL == True:
@@ -424,7 +423,7 @@ class CJY_DUAL_BACKPROPAGATION():
             elif self.bias_back_type == 2:
                 num_solo = module.num_solo_activation_neuron
                 num_pool = module.num_pool_activation_neuron
-                ratio = 4 * num_solo/ num_pool
+                ratio = num_solo/ num_pool
 
                 ratio_sub = [ratio[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
