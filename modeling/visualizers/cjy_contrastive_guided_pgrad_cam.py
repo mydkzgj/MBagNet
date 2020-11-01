@@ -372,7 +372,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
             if self.firstCAM == 1:
                 maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-                cam = self.GenerateCAM(maxpool_output, new_grad_in)
+                cam = self.GenerateCAM(maxpool_output, grad_out[0])
                 new_grad_out = grad_out[0] * cam.relu()
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
                 self.firstCAM == 0
