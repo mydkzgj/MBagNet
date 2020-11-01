@@ -757,7 +757,7 @@ class CJY_DUAL_BACKPROPAGATION():
         # max值法
         # overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
         """
-        #"""
+        """
         #2.norm multiply
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
@@ -775,8 +775,9 @@ class CJY_DUAL_BACKPROPAGATION():
                     overall_gcam = overall_gcam * gcam
                 else:
                     overall_gcam = overall_gcam * (gcam - 0.5).relu() * 2
+        overall_gcam, _ = self.gcamNormalization(overall_gcam)        
         #"""
-        """
+        #"""
         #3. weighted add
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
@@ -797,7 +798,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
         overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear') if overall_gcam is not 0 else None
 
-        overall_gcam, _ = self.gcamNormalization(overall_gcam)
+
         return overall_gcam
 
 
@@ -893,7 +894,7 @@ class CJY_DUAL_BACKPROPAGATION():
                     draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
 
             # 绘制一下overall_gcam
-            if self.overall_gcam is not None:
+            if 0:#self.overall_gcam is not None:
                 layer_name = "overall"
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
