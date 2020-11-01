@@ -775,7 +775,6 @@ class CJY_DUAL_BACKPROPAGATION():
                     overall_gcam = overall_gcam * gcam
                 else:
                     overall_gcam = overall_gcam * (gcam - 0.5).relu() * 2
-        overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
         #"""
         """
         #3. weighted add
