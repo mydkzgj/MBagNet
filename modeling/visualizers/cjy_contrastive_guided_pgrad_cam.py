@@ -317,13 +317,12 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             #"""
 
+            """
             if self.firstCAM == 1:
                 cam = self.GenerateCAM(relu_output, new_grad_in)
-                norm_cam, _ = self.gcamNormalization(cam.relu())
-                norm_cam = 2 * (norm_cam-0.5) if self.reservePos == False else norm_cam
-                norm_cam = norm_cam + norm_cam.gt(0).float()
-                new_grad_in = new_grad_in * norm_cam
+                new_grad_in = new_grad_in * cam.relu()
                 self.firstCAM = 0
+            #"""
 
             return (new_grad_in,)
 
@@ -373,17 +372,14 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
             new_grad_in = grad_in[0]
 
+            """
             if self.firstCAM == 1:
                 maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
                 cam = self.GenerateCAM(maxpool_output, grad_out[0])
-
-                norm_cam, _ = self.gcamNormalization(cam.relu())
-                norm_cam = 2 * (norm_cam - 0.5) if self.reservePos == False else norm_cam
-                norm_cam = norm_cam + norm_cam.gt(0).float()
-                new_grad_out = grad_out[0] * norm_cam
-
+                new_grad_out = grad_out[0] * cam.relu()
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
                 self.firstCAM = 0
+            #"""
 
             return (new_grad_in,)
 
