@@ -744,8 +744,9 @@ class CJY_DUAL_BACKPROPAGATION():
 
     # Generate Overall CAM
     def GenerateOverallCAM(self, gcam_list, input_size):
-        """
         # 多尺度下的gcam进行融合
+        """
+        #1.concat -  max or mean
         resized_gcam_list = []
         for gcam in gcam_list:
             gcam = torch.nn.functional.interpolate(gcam, input_size, mode='bilinear')  # mode='nearest'  'bilinear'
@@ -756,7 +757,8 @@ class CJY_DUAL_BACKPROPAGATION():
         # max值法
         # overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
         """
-        """
+        #"""
+        #2.norm multiply
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
             if self.target_layer[self.num_target_layer - index - 1]=="":
@@ -766,21 +768,21 @@ class CJY_DUAL_BACKPROPAGATION():
                 if self.reservePos == True:
                     overall_gcam = gcam
                 else:
-                    overall_gcam = gcam - 0.5
+                    overall_gcam = (gcam - 0.5).relu() * 2
             else:
                 overall_gcam = torch.nn.functional.interpolate(overall_gcam, (gcam.shape[2], gcam.shape[3]), mode='bilinear')
                 if self.reservePos == True:
                     overall_gcam = overall_gcam * gcam
                 else:
-                    overall_gcam = overall_gcam * (gcam-0.5)
+                    overall_gcam = overall_gcam * (gcam - 0.5).relu() * 2
         overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
         #"""
-
+        """
+        #3. weighted add
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
             if self.target_layer[self.num_target_layer - index - 1] == "":
                 continue
-
             if overall_gcam is 0:
                 if self.reservePos == True:
                     overall_gcam = gcam
@@ -792,11 +794,9 @@ class CJY_DUAL_BACKPROPAGATION():
                     overall_gcam = (overall_gcam + gcam)#/2
                 else:
                     overall_gcam = (overall_gcam + (gcam-0.5))#/2
-        if overall_gcam is not 0:
-            overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
-        else:
-            overall_gcam = None
+        #"""
 
+        overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear') if overall_gcam is not 0 else None
         return overall_gcam
 
 
