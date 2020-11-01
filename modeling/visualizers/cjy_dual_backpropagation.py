@@ -411,8 +411,8 @@ class CJY_DUAL_BACKPROPAGATION():
 
     def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedMAXPOOLstate == True:
-            self.maxpool_output_obtain_index = self.maxpool_output_obtain_index - 1
-            maxpool_input = self.maxpool_input[self.maxpool_output_obtain_index]
+            self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
+            maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
 
             new_grad_in = grad_in[0]
 
@@ -673,7 +673,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.conv_input_obtain_index = len(self.conv_input)
         self.bn_input_obtain_index = len(self.bn_input)
         self.relu_output_obtain_index = len(self.relu_output)
-        self.maxpool_output_obtain_index = len(self.maxpool_input)
+        self.maxpool_input_obtain_index = len(self.maxpool_input)
         self.avgpool_output_obtain_index = len(self.avgpool_output)
         self.adaptive_avgpool_input_obtain_index = len(self.adaptive_avgpool_input)
 

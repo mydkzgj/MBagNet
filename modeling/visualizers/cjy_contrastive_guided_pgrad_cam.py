@@ -39,7 +39,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         self.pool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_pool_index_list = []
 
-        self.useGuidedLINEAR = True#False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.useGuidedLINEAR = False #False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
         self.num_linear_layers = 0
         self.linear_input = []
@@ -54,6 +54,13 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         self.useGuidedBN = False    #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
+
+        self.useGuidedMAXPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_maxpool_layers = 0
+        self.maxpool_input = []
+        self.maxpool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_maxpool_index_list = []
 
         self.firstCAM = 1
 
@@ -159,6 +166,16 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
                     #module.register_forward_hook(self.bn_forward_hook_fn)
                     self.num_bn_layers = self.num_bn_layers + 1
 
+        if self.useGuidedMAXPOOL == True:
+            print("Set GuidedBP Hook on MAXPOOL")  #MaxPool也算非线性吧
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
+                    self.stem_maxpool_index_list.append(self.num_maxpool_layers)
+                    print("Stem MAXPOOL:{}".format(module_name))
+                    self.num_maxpool_layers = self.num_maxpool_layers + 1
+                    module.register_forward_hook(self.maxpool_forward_hook_fn)
+                    module.register_backward_hook(self.maxpool_backward_hook_fn)
+
 
     # Hook Function
     def reserve_input_for_firstLayer_hook_fn(self, module, input, output):
@@ -195,6 +212,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
             new_grad_in = grad_in[1]
 
+            """
             if self.firstCAM == True:
                 num_sub_batch = linear_input.shape[0]//self.multiply_input
                 grad_in_sub = [grad_in[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
@@ -207,6 +225,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
                 self.firstCAM = 0
+            #"""
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -286,13 +305,6 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
             new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-            if self.relu_output_obtain_index == len(self.relu_output) -1:
-                cam = self.GenerateCAM(relu_output, new_grad_in)
-                norm_cam, _ = self.gcamNormalization(cam.relu())
-                norm_cam = 2 * (norm_cam - 0.5) if self.reservePos == False else norm_cam
-                new_grad_in = new_grad_in * norm_cam
-
             #"""
 
             """
@@ -304,6 +316,11 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             #"""
+
+            if self.firstCAM == 1:
+                cam = self.GenerateCAM(relu_output, new_grad_in)
+                new_grad_in = new_grad_in * cam.relu()
+                self.firstCAM == 0
 
             return (new_grad_in,)
 
@@ -338,6 +355,30 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             new_grad_in = grad_in[0]
             return (new_grad_in, grad_in[1], grad_in[2])
 
+    def maxpool_forward_hook_fn(self, module, input, output):
+        if self.maxpool_current_index == 0:
+            self.maxpool_input.clear()
+        self.maxpool_input.append(input[0])
+        self.maxpool_current_index = self.maxpool_current_index + 1
+        if self.maxpool_current_index % self.num_maxpool_layers == 0:
+            self.maxpool_current_index = 0
+
+    def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedMAXPOOLstate == True:
+            self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
+            maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
+
+            new_grad_in = grad_in[0]
+
+            if self.firstCAM == 1:
+                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+                cam = self.GenerateCAM(maxpool_output, new_grad_in)
+                new_grad_out = grad_out[0] * cam.relu()
+                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
+                self.firstCAM == 0
+
+            return (new_grad_in,)
+
 
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
@@ -363,15 +404,18 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         self.guidedCONVstate = 1
         self.guidedLINEARstate = 1
         self.guidedBNstate = 1
+        self.guidedMAXPOOLstate = 1
 
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
         self.pool_output_obtain_index = len(self.pool_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
+        self.maxpool_input_obtain_index = len(self.maxpool_input)
 
         if self.multiply_input >= 1:
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
+            #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels*0, gcam_one_hot_labels, gcam_one_hot_labels*(-1)], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
@@ -383,6 +427,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         self.guidedCONVstate = 0
         self.guidedPOOLstate = 0
         self.guidedReLUstate = 0
+        self.guidedMAXPOOLstate = 0
 
 
     def gcamNormalization(self, gcam):
