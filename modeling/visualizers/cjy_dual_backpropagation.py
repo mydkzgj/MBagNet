@@ -385,7 +385,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
             new_grad_in = new_grad_in * cam
             #"""
-            #"""
+            """
             if self.relu_output_obtain_index in self.stem_relu_index_list:
                 self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
                 self.CAM = self.CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
@@ -422,7 +422,7 @@ class CJY_DUAL_BACKPROPAGATION():
             new_grad_out = grad_out[0] * cam
             new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             # """
-            #"""
+            """
             maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
             self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
             self.CAM = self.CAM * self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
@@ -509,9 +509,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 new_grad_in_sub = [grad_in_sub[0], new_bias]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
-                self.rest = self.rest + bias_overall.sum() - new_bias.sum()
-
-                return (new_grad_in,)
+                #self.rest = self.rest + bias_overall.sum() - new_bias.sum()
 
             elif self.bias_back_type == 2:
                 num_sub_batch = adaptive_avgpool_input.shape[0] // self.multiply_input
@@ -554,7 +552,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
                 #self.rest = self.rest + bias_overall.sum() - new_bias.sum()
 
-                return (new_grad_in,)
+            return (new_grad_in,)
 
 
     def bn_forward_hook_fn(self, module, input, output):

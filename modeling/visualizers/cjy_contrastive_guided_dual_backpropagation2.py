@@ -35,14 +35,14 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
-        self.useGuidedMAXPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.useGuidedMAXPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_maxpool_layers = 0
-        self.maxpool_input = []
+        self.maxpool_output = []
         self.maxpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_maxpool_index_list = []
 
-        self.useGuidedAVGPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.useGuidedAVGPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_avgpool_layers = 0
         self.avgpool_output = []
@@ -52,7 +52,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.useGuidedAdaptiveAVGPOOL = True  # True  #False  # GuideBackPropagation的变体
         self.guidedAdaptiveAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_adaptive_avgpool_layers = 0
-        self.adaptive_avgpool_input = []
+        self.adaptive_avgpool_output = []
         self.adaptive_avgpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_adaptive_avgpool_index_list = []
 
@@ -90,7 +90,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
         self.threshold = 0.1
 
-        self.bias_back_type = 1
+        self.bias_back_type = 1  #1,2,3
 
         self.setHook(model)
 
@@ -130,6 +130,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             print("Set GuidedBP Hook on ReLU")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
+                    self.num_relu_layers = self.num_relu_layers + 1
+                    module.register_forward_hook(self.relu_forward_hook_fn)
                     if "densenet" in self.model.base_name and "denseblock" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
@@ -139,8 +141,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
                     elif "vgg" in self.model.base_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
-                    self.num_relu_layers = self.num_relu_layers + 1
-                    module.register_forward_hook(self.relu_forward_hook_fn)
+
                     module.register_backward_hook(self.relu_backward_hook_fn)
 
         if self.useGuidedMAXPOOL == True:
@@ -373,11 +374,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            if self.bias_back_type == 1:
-                new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-            elif self.bias_back_type == 2:
-                new_grad_in = grad_in[0]
+            new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
+            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             if relu_output.ndimension() == 2:
                 new_grad_pos = grad_in_sub[2]
@@ -387,25 +385,6 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
                 new_grad_neg = grad_in_sub[3] * grad_in_sub[3].gt(0).float()
             new_grad_in = torch.cat([new_grad_in, new_grad_pos, new_grad_neg])
 
-            """
-            if self.relu_output_obtain_index in self.stem_relu_index_list:
-                self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                cam = self.CAM
-            else:
-                if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
-                    cam = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
-                else:
-                    cam = self.CAM
-                cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-            new_grad_in = new_grad_in * cam
-            #"""
-            """
-            if self.relu_output_obtain_index in self.stem_relu_index_list:
-                self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
-                self.CAM = self.CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                cam = self.CAM
-                new_grad_in = new_grad_in * cam
-            #"""
             """
             if grad_out[0].ndimension() == 4:
                 cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
@@ -417,62 +396,24 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
     def maxpool_forward_hook_fn(self, module, input, output):
         if self.maxpool_current_index == 0:
-            self.maxpool_input.clear()
-        self.maxpool_input.append(input[0])
+            self.maxpool_output.clear()
+        self.maxpool_output.append(output)
         self.maxpool_current_index = self.maxpool_current_index + 1
         if self.maxpool_current_index % self.num_maxpool_layers == 0:
             self.maxpool_current_index = 0
 
     def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedMAXPOOLstate == True:
-            self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
-            maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
+            self.maxpool_output_obtain_index = self.maxpool_output_obtain_index - 1
+            maxpool_output = self.maxpool_output[self.maxpool_output_obtain_index]
 
-            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-
-            num_sub_batch = maxpool_input.shape[0] // self.multiply_input
-            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-            new_grad_out0 = grad_out_sub[0] + grad_out_sub[1] * grad_out_sub[1].lt(0).float() - grad_out_sub[2] * \
-                            grad_out_sub[2].lt(0).float()
-            new_grad_out1 = grad_out_sub[1] * grad_out_sub[1].gt(0).float()
-            new_grad_out2 = grad_out_sub[2] * grad_out_sub[2].gt(0).float()
-
-            new_grad_out_sub = [new_grad_out0, new_grad_out1, new_grad_out2]
-            new_grad_out = torch.cat(new_grad_out_sub, dim=0)
-
-            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-
-            """
-            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-            cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()            
-            new_grad_out = grad_out[0] * cam
-            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-            # """
-            """
-            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-            self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
-            self.CAM = self.CAM * self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
-            cam = self.CAM
-            new_grad_out = grad_out[0] * cam
-            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-            #"""
-            """            
-            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-            cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
-            new_grad_out = grad_out[0] * cam
-            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-            #"""
-
-            new_grad_in = torch.cat([new_grad_in, grad_in_sub[2], grad_in_sub[3]])
-
+            new_grad_in = grad_in[0]
             return (new_grad_in,)
 
     def avgpool_forward_hook_fn(self, module, input, output):
         if self.avgpool_current_index == 0:
             self.avgpool_output.clear()
-        self.avgpool_output.append(input[0])
+        self.avgpool_output.append(output)
         self.avgpool_current_index = self.avgpool_current_index + 1
         if self.avgpool_current_index % self.num_avgpool_layers == 0:
             self.avgpool_current_index = 0
@@ -482,112 +423,44 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             self.avgpool_output_obtain_index = self.avgpool_output_obtain_index - 1
             avgpool_output = self.avgpool_output[self.avgpool_output_obtain_index]
 
-            num_sub_batch = avgpool_output.shape[0] // self.multiply_input
-            avgpool_out_sub = [avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-            bias_input = grad_in_sub[1]
-
-            if self.bias_back_type == 1:
-                new_grad_in = grad_in[0]
-            elif self.bias_back_type == 2:
-                num_solo = module.num_solo_activation_neuron
-                num_pool = module.num_pool_activation_neuron
-                ratio = num_solo/ num_pool
-
-                ratio_sub = [ratio[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-                new_bias = bias_input * ratio_sub[0]
-
-                new_grad_in_sub = [grad_in_sub[0], new_bias]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-                new_grad_in = torch.cat([new_grad_in, grad_in_sub[2], grad_in_sub[3]])
-
+            new_grad_in = grad_in[0]
             return (new_grad_in,)
 
     def adaptive_avgpool_forward_hook_fn(self, module, input, output):
         if self.adaptive_avgpool_current_index == 0:
-            self.adaptive_avgpool_input.clear()
-        self.adaptive_avgpool_input.append(input[0])
+            self.adaptive_avgpool_output.clear()
+        self.adaptive_avgpool_output.append(output)
         self.adaptive_avgpool_current_index = self.adaptive_avgpool_current_index + 1
         if self.adaptive_avgpool_current_index % self.num_adaptive_avgpool_layers == 0:
             self.adaptive_avgpool_current_index = 0
 
     def adaptive_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
-            self.adaptive_avgpool_input_obtain_index = self.adaptive_avgpool_input_obtain_index - 1
-            adaptive_avgpool_input = self.adaptive_avgpool_input[self.adaptive_avgpool_input_obtain_index]
+            self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
+            adaptive_avgpool_output = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
 
-            if self.bias_back_type == 1:
-                if grad_in[0].ndimension() != 4:
-                    return grad_in
+            if grad_in[0].ndimension() != 4:
+                return grad_in
 
-                num_sub_batch = adaptive_avgpool_input.shape[0] // self.multiply_input
-                adaptive_avgpool_in_sub = [adaptive_avgpool_input[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                                            range(self.multiply_input)]
-                grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                                range(self.multiply_input)]
-                grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                               range(self.multiply_input)]
+            num_sub_batch = adaptive_avgpool_output.shape[0] // self.multiply_input
+            adaptive_avgpool_out_sub = [adaptive_avgpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-                bias_overall = grad_out_sub[1]
+            bias_overall = grad_out_sub[1]
 
-                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+            bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
 
-                new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum / (
-                            grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
+            new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum / (grad_in_sub[1].shape[2]*grad_in_sub[1].shape[3])
 
-                new_grad_in_sub = [grad_in_sub[0], new_bias]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-                #self.rest = self.rest + bias_overall.sum() - new_bias.sum()
-
-            elif self.bias_back_type == 2:
-                num_sub_batch = adaptive_avgpool_input.shape[0] // self.multiply_input
-                adaptive_avgpool_in_sub = [adaptive_avgpool_input[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-                grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-                # 此处将所有bias求和再重新分配
-                bias_overall = grad_out_sub[1]
-                bias_overall_sum = bias_overall.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
-
-                activation_map = adaptive_avgpool_in_sub[0].gt(0).float()
-                activation_map_sum = activation_map.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
-
-                # activation map 全体与非0个数的比例
-                ratio = activation_map.shape[1] * activation_map.shape[2] * activation_map.shape[3] / activation_map_sum
-
-                if grad_in[0].ndimension() == 1:
-                    channels = grad_out[0].shape[1]
-                    grad_in_sub = [grad_in[0][i * channels: (i + 1) * channels] for i in range(self.multiply_input)]
-
-                    grad_in_sub1 = grad_in_sub[1].unsqueeze(0).unsqueeze(-1).unsqueeze(-1).view(-1, channels, 1, 1)
-                    new_bias = torch.ones_like(grad_in_sub1) * bias_overall_sum * ratio / grad_in_sub[1].shape[0]
-
-                    new_bias = new_bias.view_as(grad_in_sub[1])
-
-                    new_grad_in_sub = [grad_in_sub[0], new_bias]
-                    new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-                    # 注：此时的new_bias必须在后面avg-pool backward后与activation_map相乘才好
-
-                else:
-                    grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-                    new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum * ratio/ (
-                            grad_in_sub[1].shape[1] * grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
-
-                    new_bias = new_bias * activation_map
-
-                    new_grad_in_sub = [grad_in_sub[0], new_bias]
-                    new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-                #self.rest = self.rest + bias_overall.sum() - new_bias.sum()
+            new_grad_in_sub = [grad_in_sub[0], new_bias]
+            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
             new_grad_in = torch.cat([new_grad_in, grad_in_sub[2], grad_in_sub[3]])
-            return (new_grad_in,)
 
+            self.rest = self.rest + bias_overall.sum() - new_bias.sum()
+
+            return (new_grad_in,)
 
     def bn_forward_hook_fn(self, module, input, output):
         """
@@ -657,23 +530,14 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
             bias_overall = grad_out_sub[1]
 
-            if self.bias_back_type == 1:
-                identity_ratio = module.num_identity_neuron / (module.num_identity_neuron + module.num_residual_neuron)
-                residual_ratio = module.num_residual_neuron / (module.num_identity_neuron + module.num_residual_neuron)
-            elif self.bias_back_type == 2:
-                num_identity_an_sub = [module.num_identity_activation_neuron[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-                num_residual_an_sub = [module.num_residual_activation_neuron[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-                identity_ratio = num_identity_an_sub[0] / (num_identity_an_sub[0] + num_residual_an_sub[0])
-                residual_ratio = num_residual_an_sub[0] / (num_identity_an_sub[0] + num_residual_an_sub[0])
+            identity_ratio = module.num_identity_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+            residual_ratio = module.num_residual_neuron / (module.num_identity_neuron + module.num_residual_neuron)
 
             new_identity_bias = bias_overall * identity_ratio
             new_residual_bias = bias_overall * residual_ratio
 
             new_grad_in0 = torch.cat([identity_grad_in_sub[0], new_identity_bias], dim=0)
             new_grad_in1 = torch.cat([residual_grad_in_sub[0], new_residual_bias], dim=0)
-
-            new_grad_in0 = torch.cat([new_grad_in0, identity_grad_in_sub[2], identity_grad_in_sub[3]])
-            new_grad_in1 = torch.cat([new_grad_in1, residual_grad_in_sub[2], residual_grad_in_sub[3]])
 
             return (new_grad_in0, new_grad_in1)
 
@@ -710,18 +574,18 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.conv_input_obtain_index = len(self.conv_input)
         self.bn_input_obtain_index = len(self.bn_input)
         self.relu_output_obtain_index = len(self.relu_output)
-        self.maxpool_input_obtain_index = len(self.maxpool_input)
+        self.maxpool_output_obtain_index = len(self.maxpool_output)
         self.avgpool_output_obtain_index = len(self.avgpool_output)
-        self.adaptive_avgpool_input_obtain_index = len(self.adaptive_avgpool_input)
+        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
 
         self.add_output_obtain_index = len(self.add_output)
 
         self.rest = 0
-        self.CAM = 1
 
         if self.multiply_input >= 1:
             #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0], dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0,
+                                             gcam_one_hot_labels * 1, gcam_one_hot_labels * (-1)], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
@@ -797,18 +661,29 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
         num_sub_batch = inter_output.shape[0] // self.multiply_input
-        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                            range(self.multiply_input)]
+        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                              range(self.multiply_input)]
 
         inter_output = inter_output_sub[0]
         inter_gradient = inter_gradient_sub[0]
         inter_bias = inter_gradient_sub[1]
 
-        if self.bias_back_type == 2:
-            if inter_output.shape[1] != 3:
-                inter_bias = inter_output.gt(0).float() * inter_bias
+        pos_guided_gradient = inter_gradient_sub[2]
+        neg_guided_gradient = inter_gradient_sub[3]
 
-        gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
+        db_gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
+
+        pos_gcam = torch.sum((pos_guided_gradient * inter_output).relu(), dim=1, keepdim=True)
+        neg_gcam = torch.sum((neg_guided_gradient * inter_output).relu(), dim=1, keepdim=True)
+        cg_gcam = pos_gcam - neg_gcam
+
+        norm_cggcam, _ = self.gcamNormalization(cg_gcam.relu())
+        norm_cggcam = (norm_cggcam - 0.5) * 2 if self.reservePos == False else norm_cggcam
+
+        self.threshold = 0.1
+        gcam = db_gcam * norm_cggcam.gt(self.threshold).float()
 
         gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)
@@ -822,9 +697,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
     # Generate Overall CAM
     def GenerateOverallCAM(self, gcam_list, input_size):
-        # 多尺度下的gcam进行融合
         """
-        #1.concat -  max or mean
+        # 多尺度下的gcam进行融合
         resized_gcam_list = []
         for gcam in gcam_list:
             gcam = torch.nn.functional.interpolate(gcam, input_size, mode='bilinear')  # mode='nearest'  'bilinear'
@@ -836,31 +710,30 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         # overall_gcam = torch.max(overall_gcam, dim=1, keepdim=True)[0]
         """
         """
-        #2.norm multiply
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
-            if self.target_layer[self.num_target_layer - index - 1] == "":
+            if self.target_layer[self.num_target_layer - index - 1]=="":
                 continue
 
             if overall_gcam is 0:
                 if self.reservePos == True:
                     overall_gcam = gcam
                 else:
-                    overall_gcam = (gcam - 0.5).relu() * 2
+                    overall_gcam = gcam - 0.5
             else:
                 overall_gcam = torch.nn.functional.interpolate(overall_gcam, (gcam.shape[2], gcam.shape[3]), mode='bilinear')
                 if self.reservePos == True:
                     overall_gcam = overall_gcam * gcam
                 else:
-                    overall_gcam = overall_gcam * (gcam - 0.5).relu() * 2
-        overall_gcam, _ = self.gcamNormalization(overall_gcam)        
+                    overall_gcam = overall_gcam * (gcam-0.5)
+        overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
         #"""
-        #"""
-        #3. weighted add
+
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
-            if self.target_layer[self.num_target_layer - index - 1] == "":
+            if self.target_layer[self.num_target_layer - index - 1]=="":
                 continue
+
             if overall_gcam is 0:
                 if self.reservePos == True:
                     overall_gcam = gcam
@@ -872,10 +745,10 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
                     overall_gcam = (overall_gcam + gcam)#/2
                 else:
                     overall_gcam = (overall_gcam + (gcam-0.5))#/2
-        #"""
-
-        overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear') if overall_gcam is not 0 else None
-
+        if overall_gcam is not 0:
+            overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear')
+        else:
+            overall_gcam = None
 
         return overall_gcam
 
