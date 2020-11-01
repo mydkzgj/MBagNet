@@ -721,7 +721,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
         if self.multiply_input >= 1:
             #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0], dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0,
+                                             gcam_one_hot_labels * 1, gcam_one_hot_labels * (-1)], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
@@ -797,18 +798,29 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
         num_sub_batch = inter_output.shape[0] // self.multiply_input
-        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                            range(self.multiply_input)]
+        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
+                              range(self.multiply_input)]
 
         inter_output = inter_output_sub[0]
         inter_gradient = inter_gradient_sub[0]
         inter_bias = inter_gradient_sub[1]
 
-        if self.bias_back_type == 2:
-            if inter_output.shape[1] != 3:
-                inter_bias = inter_output.gt(0).float() * inter_bias
+        pos_guided_gradient = inter_gradient_sub[2]
+        neg_guided_gradient = inter_gradient_sub[3]
 
-        gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
+        db_gcam = torch.sum(inter_gradient * inter_output + inter_bias, dim=1, keepdim=True)
+
+        pos_gcam = torch.sum((pos_guided_gradient * inter_output).relu(), dim=1, keepdim=True)
+        neg_gcam = torch.sum((neg_guided_gradient * inter_output).relu(), dim=1, keepdim=True)
+        cg_gcam = pos_gcam - neg_gcam
+
+        norm_cggcam, _ = self.gcamNormalization(cg_gcam.relu())
+        norm_cggcam = (norm_cggcam - 0.5) * 2 if self.reservePos == False else norm_cggcam
+
+        self.threshold = 0.1
+        gcam = db_gcam * norm_cggcam.gt(self.threshold).float()
 
         gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)
