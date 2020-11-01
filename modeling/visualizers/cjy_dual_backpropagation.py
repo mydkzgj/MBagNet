@@ -35,7 +35,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
-        self.useGuidedMAXPOOL = False  # True  #False  # GuideBackPropagation的变体
+        self.useGuidedMAXPOOL = True  # True  #False  # GuideBackPropagation的变体
         self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_maxpool_layers = 0
         self.maxpool_output = []
