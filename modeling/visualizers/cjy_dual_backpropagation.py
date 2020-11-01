@@ -373,6 +373,19 @@ class CJY_DUAL_BACKPROPAGATION():
             elif self.bias_back_type == 2:
                 new_grad_in = grad_in[0]
 
+            #"""
+            if self.relu_output_obtain_index in self.stem_relu_index_list:
+                self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                cam = self.CAM
+            else:
+                if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
+                    cam = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
+                else:
+                    cam = self.CAM
+                cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+            new_grad_in = new_grad_in * cam
+            #"""
+
             """
             if grad_out[0].ndimension() == 4:
                 cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
@@ -397,12 +410,28 @@ class CJY_DUAL_BACKPROPAGATION():
 
             new_grad_in = grad_in[0]
 
-            #"""
-            if grad_out[0].ndimension() == 4:
-                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-                cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
-                new_grad_out = grad_out[0] * cam
-                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
+            # """
+            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+            if self.relu_output_obtain_index in self.stem_relu_index_list:
+                self.CAM = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
+                cam = self.CAM
+            else:
+                if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
+                    cam = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
+                else:
+                    cam = self.CAM
+                cam = cam * self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
+            new_grad_in = new_grad_in * cam
+            new_grad_out = grad_out[0] * cam
+            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
+                                                           module.padding, output_size=maxpool_input.shape)
+            # """
+
+            """            
+            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+            cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
+            new_grad_out = grad_out[0] * cam
+            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             #"""
             return (new_grad_in,)
 
