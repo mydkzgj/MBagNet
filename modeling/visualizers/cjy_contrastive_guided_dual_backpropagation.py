@@ -442,6 +442,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             new_grad_out_sub = [new_grad_out0, new_grad_out1, new_grad_out2]
             new_grad_out = torch.cat(new_grad_out_sub, dim=0)
 
+            new_grad_out = torch.cat([new_grad_out, grad_out_sub[2], grad_out_sub[3]])
+
             new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
 
             """
@@ -465,7 +467,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             #"""
 
-            new_grad_in = torch.cat([new_grad_in, grad_in_sub[2], grad_in_sub[3]])
+
 
             return (new_grad_in,)
 
