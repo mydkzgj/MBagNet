@@ -778,7 +778,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
-            if self.target_layer[self.num_target_layer - index - 1]=="":
+            if self.target_layer[self.num_target_layer - index - 1] == "":
                 continue
 
             if overall_gcam is 0:
@@ -892,7 +892,7 @@ class CJY_DUAL_BACKPROPAGATION():
                     draw_visualization(imgs[j], gcam[j], None, threshold, savePath, imgsName[j], label_prefix, visual_prefix, draw_flag_dict)
 
             # 绘制一下overall_gcam
-            if 0:#self.overall_gcam is not None:
+            if self.overall_gcam is not None:
                 layer_name = "overall"
                 visual_prefix = layer_name.replace(".", "-") + "_S{}".format(self.observation_class[j])
                 if gtmasks is not None:
