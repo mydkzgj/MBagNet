@@ -38,7 +38,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.useGuidedMAXPOOL = True  # True  #False  # GuideBackPropagation的变体
         self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_maxpool_layers = 0
-        self.maxpool_output = []
+        self.maxpool_input = []
         self.maxpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_maxpool_index_list = []
 
@@ -384,8 +384,8 @@ class CJY_DUAL_BACKPROPAGATION():
 
     def maxpool_forward_hook_fn(self, module, input, output):
         if self.maxpool_current_index == 0:
-            self.maxpool_output.clear()
-        self.maxpool_output.append(output)
+            self.maxpool_input.clear()
+        self.maxpool_input.append(input[0])
         self.maxpool_current_index = self.maxpool_current_index + 1
         if self.maxpool_current_index % self.num_maxpool_layers == 0:
             self.maxpool_current_index = 0
@@ -393,9 +393,12 @@ class CJY_DUAL_BACKPROPAGATION():
     def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedMAXPOOLstate == True:
             self.maxpool_output_obtain_index = self.maxpool_output_obtain_index - 1
-            maxpool_output = self.maxpool_output[self.maxpool_output_obtain_index]
+            maxpool_input = self.maxpool_input[self.maxpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
+
+            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+            torch.nn.functional.max_unpool2d(maxpool_output, indices)
 
             """
             if grad_out[0].ndimension() == 4:
@@ -639,7 +642,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.conv_input_obtain_index = len(self.conv_input)
         self.bn_input_obtain_index = len(self.bn_input)
         self.relu_output_obtain_index = len(self.relu_output)
-        self.maxpool_output_obtain_index = len(self.maxpool_output)
+        self.maxpool_output_obtain_index = len(self.maxpool_input)
         self.avgpool_output_obtain_index = len(self.avgpool_output)
         self.adaptive_avgpool_input_obtain_index = len(self.adaptive_avgpool_input)
 
