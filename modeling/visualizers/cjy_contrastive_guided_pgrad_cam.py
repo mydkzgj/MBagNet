@@ -370,7 +370,20 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
             maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
 
-            new_grad_in = grad_in[0]
+            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+
+            num_sub_batch = maxpool_input.shape[0]//self.multiply_input
+            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+            new_grad_out0 = grad_out_sub[0] + grad_out_sub[1] * grad_out_sub[1].lt(0).float() - grad_out_sub[2] * grad_out_sub[2].lt(0).float()
+            new_grad_out1 = grad_out_sub[1] * grad_out_sub[1].gt(0).float()
+            new_grad_out2 = grad_out_sub[2] * grad_out_sub[2].gt(0).float()
+
+            new_grad_out_sub = [new_grad_out0, new_grad_out1, new_grad_out2]
+            new_grad_out = torch.cat(new_grad_out_sub, dim=0)
+
+            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
 
             """
             if self.firstCAM == 1:
