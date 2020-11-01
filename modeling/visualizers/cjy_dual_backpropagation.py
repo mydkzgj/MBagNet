@@ -387,7 +387,7 @@ class CJY_DUAL_BACKPROPAGATION():
             #"""
             #"""
             if self.relu_output_obtain_index in self.stem_relu_index_list:
-                self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is 1 else 1
+                self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
                 self.CAM = self.CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
                 cam = self.CAM
                 new_grad_in = new_grad_in * cam
@@ -424,7 +424,7 @@ class CJY_DUAL_BACKPROPAGATION():
             # """
             #"""
             maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-            self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is 1 else 1
+            self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
             self.CAM = self.CAM * self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
             cam = self.CAM
             new_grad_out = grad_out[0] * cam
