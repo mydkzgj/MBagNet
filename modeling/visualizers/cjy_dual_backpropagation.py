@@ -761,7 +761,7 @@ class CJY_DUAL_BACKPROPAGATION():
         #2.norm multiply
         overall_gcam = 0
         for index, gcam in enumerate(reversed(gcam_list)):
-            if self.target_layer[self.num_target_layer - index - 1]=="":
+            if self.target_layer[self.num_target_layer - index - 1] == "":
                 continue
 
             if overall_gcam is 0:
@@ -796,6 +796,8 @@ class CJY_DUAL_BACKPROPAGATION():
         #"""
 
         overall_gcam = torch.nn.functional.interpolate(overall_gcam, input_size, mode='bilinear') if overall_gcam is not 0 else None
+
+        overall_gcam, _ = self.gcamNormalization(overall_gcam)
         return overall_gcam
 
 
