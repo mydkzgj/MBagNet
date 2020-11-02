@@ -39,6 +39,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM():
         gcam_list, _, _ = self.gcam.GenerateVisualiztions(logits, multiply_labels, input_size, multiply_viusal_num)
         cg_pgcam_list, _, _ = self.cg_pgcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
 
+        self.gcam_list = []
         for i, cg_pgcam in enumerate(cg_pgcam_list):
             gcam = gcam_list[0][0:cg_pgcam.shape[0]]
             resized_gcam = torch.nn.functional.interpolate(gcam, (cg_pgcam.shape[2], cg_pgcam.shape[3]), mode='bilinear')
