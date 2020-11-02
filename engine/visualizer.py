@@ -122,7 +122,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         run_image_maxnum = -1#20
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
         showFlag = 1
-        max_show_num = 200
+        max_show_num = 100
         computeMetirc = 3
         model.visualizer.reservePos = False#True  # CJY at 2020.10.20 全局控制开关
 
