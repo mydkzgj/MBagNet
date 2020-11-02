@@ -818,7 +818,9 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.threshold = 0.1
         gcam = db_gcam * norm_cggcam.gt(self.threshold).float()
 
-        gcam = self.gradcam * cg_gcam
+
+        gradcam = torch.nn.functional.interpolate(self.gradcam, (cg_gcam.shape[2], cg_gcam.shape[3]), mode="bilinear")
+        gcam = gradcam.relu() * cg_gcam.relu()
 
         gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)
@@ -909,7 +911,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         inter_gradient0 = self.inter_gradient[-2][batch_num - visual_num:batch_num]
         avg_gradient0 = torch.nn.functional.adaptive_avg_pool2d(inter_gradient0, 1)
         self.gradcam = torch.sum(avg_gradient0 * inter_output0, dim=1, keepdim=True)
-        self.gradcam = torch.nn.functional.interpolate(self.gradcam, input_size, mode="bilinear")
+
 
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
