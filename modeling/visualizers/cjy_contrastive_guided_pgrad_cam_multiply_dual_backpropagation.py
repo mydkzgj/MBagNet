@@ -10,7 +10,7 @@ from .cjy_contrastive_guided_pgrad_cam import *
 from .draw_tool import draw_visualization
 
 
-class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_BACKPROPAGATION():
+class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_DUAL_BACKPROPAGATION():
     def __init__(self, model, num_classes, target_layer, guided_type="grad"):
         self.num_classes = num_classes
         self.target_layer = target_layer
@@ -38,7 +38,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_BACKPROPAGATION():
     # Generate Visualiztions Function   # 统一用GenerateVisualiztion这个名字吧
     def GenerateVisualiztions(self, logits, labels, input_size, visual_num):
         self.observation_class = labels.cpu().numpy().tolist()
-        db_pgcam_list, _, _ = self.db_pgcam.GenerateVisualiztions(logits,labels, input_size, viusal_num)
+        db_pgcam_list, _, _ = self.db_pgcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
         cg_pgcam_list, _, _ = self.cg_pgcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
 
         self.gcam_list = []

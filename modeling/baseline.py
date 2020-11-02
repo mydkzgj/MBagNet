@@ -44,6 +44,7 @@ from .visualizers.cjy_dual_backpropagation import *
 from .visualizers.cjy_contrastive_guided_dual_backpropagation import *
 from .visualizers.cjy_dual_backpropagation_bn import *
 from .visualizers.cjy_contrastive_guided_pgrad_cam_multiply_gcam import *
+from .visualizers.cjy_contrastive_guided_pgrad_cam_multiply_dual_backpropagation import *
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -180,6 +181,7 @@ class Baseline(nn.Module):
 
         # "cjy-contrastive-grad-guided-pgrad-cam", "cjy-contrastive-cam-guided-pgrad-cam"
         # "cjy-contrastive-grad-guided-pgrad-cam-multiply-gcam", "cjy-contrastive-cam-guided-pgrad-cam-multiply-gcam"
+        # "cjy-contrastive-grad-guided-pgrad-cam-multiply-dbp", "cjy-contrastive-cam-guided-pgrad-cam-multiply-dbp"
         # "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
 
         # "cjy-dual-backpropagation",
@@ -558,6 +560,10 @@ class Baseline(nn.Module):
             self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
         elif self.visualizer_name == "cjy-contrastive-cam-guided-pgrad-cam-multiply-gcam":
             self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
+        elif self.visualizer_name == "cjy-contrastive-grad-guided-pgrad-cam-multiply-dbp":
+            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
+        elif self.visualizer_name == "cjy-contrastive-cam-guided-pgrad-cam-multiply-dbp":
+            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
 
         elif self.visualizer_name == "cjy-dual-backpropagation":
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
