@@ -68,7 +68,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
         self.normFlag = True
 
-        self.multiply_input = 3
+        self.multiply_input = 2
 
         self.setHook(model)
 
@@ -299,11 +299,10 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             #1.
             if relu_output.ndimension() == 2:
                 return grad_in
-            new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+            new_grad_in0 = grad_in_sub[0] * grad_in_sub[0].gt(0).float()
             new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
-            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
 
-            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+            new_grad_in_sub = [new_grad_in0, new_grad_in1]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             #"""
 
@@ -376,11 +375,10 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            new_grad_out0 = grad_out_sub[0] + grad_out_sub[1] * grad_out_sub[1].lt(0).float() - grad_out_sub[2] * grad_out_sub[2].lt(0).float()
+            new_grad_out0 = grad_out_sub[0] * grad_out_sub[0].gt(0).float()
             new_grad_out1 = grad_out_sub[1] * grad_out_sub[1].gt(0).float()
-            new_grad_out2 = grad_out_sub[2] * grad_out_sub[2].gt(0).float()
 
-            new_grad_out_sub = [new_grad_out0, new_grad_out1, new_grad_out2]
+            new_grad_out_sub = [new_grad_out0, new_grad_out1]
             new_grad_out = torch.cat(new_grad_out_sub, dim=0)
 
             new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
@@ -432,7 +430,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
         if self.multiply_input >= 1:
             #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels*0, gcam_one_hot_labels, gcam_one_hot_labels*(-1)], dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels*(-1)], dim=0)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
@@ -532,15 +530,14 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         else:
             gcam_all = torch.sum(inter_output * inter_gradient.relu(), dim=1, keepdim=True)
         #"""
-        ori_gcam = gcam_all[0: num_sub_batch]
-        pos_gcam = gcam_all[num_sub_batch: 2 * num_sub_batch]
-        neg_gcam = gcam_all[2 * num_sub_batch: 3 * num_sub_batch]
+        pos_gcam = gcam_all[0: num_sub_batch]
+        neg_gcam = gcam_all[num_sub_batch: 2 * num_sub_batch]
         gcam = pos_gcam - neg_gcam
 
-        Remainder0 = torch.sum((inter_output_sub[0] * inter_gradient_sub[0]), dim=1, keepdim=True)
-        Remainder1 = -torch.sum((-inter_output_sub[1] * inter_gradient_sub[1]).relu(), dim=1, keepdim=True)
-        Remainder2 = -torch.sum((-inter_output_sub[2] * inter_gradient_sub[2]).relu(), dim=1, keepdim=True)
-        Remainder = Remainder0 + Remainder1 - Remainder2
+        #Remainder0 = torch.sum((inter_output_sub[0] * inter_gradient_sub[0]), dim=1, keepdim=True)
+        #Remainder1 = -torch.sum((-inter_output_sub[1] * inter_gradient_sub[1]).relu(), dim=1, keepdim=True)
+        #Remainder2 = -torch.sum((-inter_output_sub[2] * inter_gradient_sub[2]).relu(), dim=1, keepdim=True)
+        #Remainder = Remainder0 + Remainder1 - Remainder2
 
         #gcam = gcam + ori_gcam
         #gcam = gcam + Remainder
