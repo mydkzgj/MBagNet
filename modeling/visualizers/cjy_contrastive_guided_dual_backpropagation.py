@@ -905,8 +905,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         # CJY at 2020.11.2
         batch_num = logits.shape[0]
         visual_num = visual_num
-        inter_output0 = self.inter_output0[-2][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
-        inter_gradient0 = self.inter_gradient0[-2][batch_num - visual_num:batch_num]
+        inter_output0 = self.inter_output[-2][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
+        inter_gradient0 = self.inter_gradient[-2][batch_num - visual_num:batch_num]
         avg_gradient0 = torch.nn.functional.adaptive_avg_pool2d(inter_gradient0, 1)
         self.gradcam = torch.sum(avg_gradient0 * inter_output0, dim=1, keepdim=True)
         self.gradcam = torch.nn.functional.interpolate(self.gradcam, input_size, mode="bilinear")
