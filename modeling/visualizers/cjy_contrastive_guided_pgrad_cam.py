@@ -70,7 +70,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
         self.multiply_input = 2
 
-        self.guided_type == "grad"   #"grad", "cam"
+        self.guided_type = guided_type  #"grad", "cam"
 
         self.setHook(model)
 
