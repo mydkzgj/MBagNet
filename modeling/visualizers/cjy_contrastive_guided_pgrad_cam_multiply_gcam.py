@@ -16,12 +16,16 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM():
         self.target_layer = target_layer
         self.draw_index = 0
 
+        self.guided_type = guided_type
+
         if self.target_layer[-1] != "":
             self.target_layer.append("")
 
         # 子模块
         self.gcam = GradCAM(model, num_classes, target_layer=[self.target_layer[-2]])
-        self.cg_pgcam = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model, num_classes, target_layer=[self.target_layer[i] for i in range(len(self.target_layer))])
+        self.cg_pgcam = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model, num_classes,
+                                                         target_layer=[self.target_layer[i] for i in range(len(self.target_layer))],
+                                                         guided_type=self.guided_type)
 
         self.target_layer.append("grad-cam")
 
