@@ -434,15 +434,9 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            new_grad_out0 = grad_out_sub[0] + grad_out_sub[1] * grad_out_sub[1].lt(0).float() - grad_out_sub[2] * \
-                            grad_out_sub[2].lt(0).float()
-            new_grad_out1 = grad_out_sub[1] * grad_out_sub[1].gt(0).float()
-            new_grad_out2 = grad_out_sub[2] * grad_out_sub[2].gt(0).float()
-
-            new_grad_out_sub = [new_grad_out0, new_grad_out1, new_grad_out2]
-            new_grad_out = torch.cat(new_grad_out_sub, dim=0)
-
-            new_grad_out = torch.cat([new_grad_out, grad_out_sub[2], grad_out_sub[3]])
+            new_grad_pos = grad_out_sub[2] * grad_out_sub[2].gt(0).float()
+            new_grad_neg = grad_out_sub[3] * grad_out_sub[3].gt(0).float()
+            new_grad_out = torch.cat([grad_out_sub[0], grad_out_sub[1], new_grad_pos, new_grad_neg])
 
             new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
 
@@ -824,6 +818,8 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         self.threshold = 0.1
         gcam = db_gcam * norm_cggcam.gt(self.threshold).float()
 
+        gcam = self.gradcam * cg_gcam
+
         gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         gcam_b = torch.sum(inter_bias, dim=1, keepdim=True)
         print("linear:{}, bias:{}, sum:{}".format(gcam_l.sum(), gcam_b.sum(), gcam.sum()))
@@ -905,6 +901,15 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
 
         # obtain gradients
         self.ObtainGradient(logits, labels)
+
+        # CJY at 2020.11.2
+        batch_num = logits.shape[0]
+        visual_num = visual_num
+        inter_output0 = self.inter_output0[-2][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
+        inter_gradient0 = self.inter_gradient0[-2][batch_num - visual_num:batch_num]
+        avg_gradient0 = torch.nn.functional.adaptive_avg_pool2d(inter_gradient0, 1)
+        self.gradcam = torch.sum(avg_gradient0 * inter_output0, dim=1, keepdim=True)
+        self.gradcam = torch.nn.functional.interpolate(self.gradcam, input_size, mode="bilinear")
 
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
