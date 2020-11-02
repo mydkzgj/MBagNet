@@ -819,7 +819,7 @@ class CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION():
         gcam = db_gcam * norm_cggcam.gt(self.threshold).float()
 
 
-        gradcam = torch.nn.functional.interpolate(self.gradcam, (cg_gcam.shape[2], cg_gcam.shape[3]), mode="bilinear")
+        gradcam = torch.nn.functional.interpolate(self.gradcam[0:num_sub_batch], (cg_gcam.shape[2], cg_gcam.shape[3]), mode="bilinear")
         gcam = gradcam.relu() * cg_gcam.relu()
 
         gcam_l = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
