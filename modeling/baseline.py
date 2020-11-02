@@ -178,7 +178,8 @@ class Baseline(nn.Module):
         # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient", "cjy-cam-screen",
         # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
 
-        # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
+        # "cjy-contrastive-grad-guided-pgrad-cam", "cjy-contrastive-cam-guided-pgrad-cam"
+        # "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
         # "cjy-dual-backpropagation", "cjy-cam-screen-dual-backpropagation",
         # "cjy-contrastive-guided-dual-backpropagation"
         # "cjy-contrastive-guided-pgrad-cam-multiply-gcam"
@@ -544,8 +545,10 @@ class Baseline(nn.Module):
         elif self.visualizer_name == "cjy-cam-screen":
             self.visualizer = CJY_CAM_SCREEN(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
-        elif self.visualizer_name == "cjy-contrastive-guided-pgrad-cam":
-            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "cjy-contrastive-grad-guided-pgrad-cam":
+            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
+        elif self.visualizer_name == "cjy-contrastive-cam-guided-pgrad-cam":
+            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
         elif self.visualizer_name == "cjy-contrastive-guided-pgrad-cam-with-dual-exchange":
             self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-dual-backpropagation":

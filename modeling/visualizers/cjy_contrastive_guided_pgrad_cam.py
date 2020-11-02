@@ -15,7 +15,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
     单独观察pos-gcam和neg-gcam并没有明显的类别差别
     而由于pos和neg的值越来越大，导致误差越来越大，所以前几层的gcam不再保持pgcam
     """
-    def __init__(self, model, num_classes, target_layer):
+    def __init__(self, model, num_classes, target_layer, guided_type="grad"):
         self.model = model
         self.num_classes = num_classes
 
@@ -69,6 +69,8 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         self.normFlag = True
 
         self.multiply_input = 2
+
+        self.guided_type == "grad"   #"grad", "cam"
 
         self.setHook(model)
 
@@ -295,33 +297,36 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            #"""
-            #1.
-            if relu_output.ndimension() == 2:
-                return grad_in
-            new_grad_in0 = grad_in_sub[0] * grad_in_sub[0].gt(0).float()
-            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
+            if self.guided_type == "grad":
+                # 1.依据梯度gradient正负进行导向Guided
+                if relu_output.ndimension() == 2:
+                    return grad_in
+                new_grad_in_pos = grad_in_sub[0] * grad_in_sub[0].gt(0).float()
+                new_grad_in_neg = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
 
-            new_grad_in_sub = [new_grad_in0, new_grad_in1]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-            #"""
+                new_grad_in_sub = [new_grad_in_pos, new_grad_in_neg]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                """
+                new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
+                new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(0).float()
 
-            """
-            #2.
-            new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(0).float()
+                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                #"""
+            elif self.guided_type == "cam":
+                # 2.依据位置的共同贡献进行导向Guided
+                if relu_output.ndimension() == 2:
+                    return grad_in
 
-            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-            #"""
+                cam_pos = torch.sum(relu_out_sub[0] * grad_out_sub[0], dim=1, keepdim=True)
+                cam_neg = torch.sum(relu_out_sub[1] * grad_out_sub[1], dim=1, keepdim=True)
+                new_grad_in_pos = grad_in_sub[0] * cam_pos.gt(0).float()
+                new_grad_in_neg = grad_in_sub[1] * cam_neg.gt(0).float()
 
-            """
-            if self.firstCAM == 1:
-                cam = self.GenerateCAM(relu_output, new_grad_in)
-                new_grad_in = new_grad_in * cam.relu()
-                self.firstCAM = 0
-            #"""
+                new_grad_in_sub = [new_grad_in_pos, new_grad_in_neg]
+                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+
 
             return (new_grad_in,)
 
@@ -372,25 +377,28 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
 
             num_sub_batch = maxpool_input.shape[0]//self.multiply_input
+            maxpool_out_sub = [maxpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-            new_grad_out0 = grad_out_sub[0] * grad_out_sub[0].gt(0).float()
-            new_grad_out1 = grad_out_sub[1] * grad_out_sub[1].gt(0).float()
+            if self.guided_type == "grad":
+                # 1.依据梯度gradient正负进行导向Guided
+                new_grad_out_pos = grad_out_sub[0] * grad_out_sub[0].gt(0).float()
+                new_grad_out_neg = grad_out_sub[1] * grad_out_sub[1].gt(0).float()
 
-            new_grad_out_sub = [new_grad_out0, new_grad_out1]
-            new_grad_out = torch.cat(new_grad_out_sub, dim=0)
-
-            new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-
-            """
-            if self.firstCAM == 1:
-                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-                cam = self.GenerateCAM(maxpool_output, grad_out[0])
-                new_grad_out = grad_out[0] * cam.relu()
+                new_grad_out_sub = [new_grad_out_pos, new_grad_out_neg]
+                new_grad_out = torch.cat(new_grad_out_sub, dim=0)
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-                self.firstCAM = 0
-            #"""
+            elif self.guided_type == "cam":
+                # 2.依据位置的共同贡献进行导向Guided
+                cam_pos = torch.sum(maxpool_out_sub[0] * grad_out_sub[0], dim=1, keepdim=True)
+                cam_neg = torch.sum(maxpool_out_sub[0] * grad_out_sub[0], dim=1, keepdim=True)
+                new_grad_out_pos = grad_out_sub[0] * cam_pos.gt(0).float()
+                new_grad_out_neg = grad_out_sub[1] * cam_neg.gt(0).float()
+
+                new_grad_out_sub = [new_grad_out_pos, new_grad_out_neg]
+                new_grad_out = torch.cat(new_grad_out_sub, dim=0)
+                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
 
             return (new_grad_in,)
 
