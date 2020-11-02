@@ -544,6 +544,7 @@ class Baseline(nn.Module):
             self.visualizer = CJY_CONV_POS_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-cam-screen":
             self.visualizer = CJY_CAM_SCREEN(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+
         # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
         elif self.visualizer_name == "cjy-contrastive-grad-guided-pgrad-cam":
             self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
@@ -551,14 +552,18 @@ class Baseline(nn.Module):
             self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
         elif self.visualizer_name == "cjy-contrastive-guided-pgrad-cam-with-dual-exchange":
             self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "cjy-contrastive-grad-guided-pgrad-cam-multiply-gcam":
+            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM(model=self, num_classes=self.num_classes, guided_type="grad")
+        elif self.visualizer_name == "cjy-contrastive-cam-guided-pgrad-cam-multiply-gcam":
+            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM(model=self, num_classes=self.num_classes, guided_type="cam")
+                
         elif self.visualizer_name == "cjy-dual-backpropagation":
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-cam-screen-dual-backpropagation":
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer, select_specified_paths=True)
         elif self.visualizer_name == "cjy-contrastive-guided-dual-backpropagation":
             self.visualizer = CJY_CONTRASTIVE_GUIDED_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-        elif self.visualizer_name == "cjy-contrastive-guided-pgrad-cam-multiply-gcam":
-            self.visualizer = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+
         elif self.visualizer_name == "none":
             self.visualizer = None
             print("Without Visualizer!")
