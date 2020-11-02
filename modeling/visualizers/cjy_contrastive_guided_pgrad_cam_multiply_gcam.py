@@ -16,7 +16,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM():
         self.target_layer = target_layer
         self.draw_index = 0
 
-        if self.target_layer[-1] != [""]:
+        if self.target_layer[-1] != "":
             self.target_layer.append("")
 
         # 子模块
