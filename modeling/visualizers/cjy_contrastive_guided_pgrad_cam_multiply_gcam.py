@@ -40,14 +40,17 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM():
         cg_pgcam_list, _, _ = self.cg_pgcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
 
         self.gcam_list = []
+        self.gcam_max_list = []
         for i, cg_pgcam in enumerate(cg_pgcam_list):
             gcam = gcam_list[0][0:cg_pgcam.shape[0]]
             resized_gcam = torch.nn.functional.interpolate(gcam, (cg_pgcam.shape[2], cg_pgcam.shape[3]), mode='bilinear')
             cam = resized_gcam.relu() * cg_pgcam.relu()
             norm_cam, cam_max = self.gcamNormalization(cam)  #使用guidedBP的归一化，即reserve-pos为False
             self.gcam_list.append(norm_cam)
+            self.gcam_max_list.append(cam_max)
 
         self.gcam_list.append(gcam)
+        self.overall_gcam = None
 
         return self.gcam_list, self.gcam_max_list, self.overall_gcam
 
