@@ -20,7 +20,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM():
             self.target_layer.append("")
 
         # 子模块
-        self.gcam = GradCAM(model, num_classes, target_layer=[self.target_layer[len(self.target_layer)-2]], useGuidedBP=False)
+        self.gcam = GradCAM(model, num_classes, target_layer=[self.target_layer[-2]], useGuidedBP=False)
         self.cg_pgcam = CJY_CONTRASTIVE_GUIDED_PGRAD_CAM(model, num_classes, target_layer=[self.target_layer[i] for i in range(len(self.target_layer))])
 
         self.target_layer.append("grad-cam")
@@ -123,7 +123,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM():
             "gray_visualization": 0,
             "binary_visualization": 0,
             "color_visualization": 1,
-            "binary_visualization_on_image": 1,
+            "binary_visualization_on_image": 0,
             "color_visualization_on_image": 0,
             "binary_visualization_on_segmentation": 0,
             "color_visualization_on_segmentation": 0,
