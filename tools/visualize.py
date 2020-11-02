@@ -114,7 +114,11 @@ def main():
     else:
         step = 0
 
-    metrics = do_visualization(cfg, model, train_loader, classes_list, loss_funcs, plotFlag=True)
+    model.run_sub_dataset_name = "train"
+    if model.run_sub_dataset_name == "train":
+        metrics = do_visualization(cfg, model, train_loader, classes_list, loss_funcs, plotFlag=True)
+    elif model.run_sub_dataset_name == "test":
+        metrics = do_visualization(cfg, model, test_loader, classes_list, loss_funcs, plotFlag=True)
 
     for preKey in metrics['precision'].keys():
         writer_test.add_scalar("Precision/" + str(preKey), metrics['precision'][preKey], step)

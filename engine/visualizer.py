@@ -119,7 +119,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
 
         heatmapType = "visualization"
         show_imagename_type = "number"
-        run_image_maxnum = -1#20
+        run_image_maxnum = -1 if model.run_sub_dataset_name == "test" else 100
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
         showFlag = 1
         max_show_num = 100
