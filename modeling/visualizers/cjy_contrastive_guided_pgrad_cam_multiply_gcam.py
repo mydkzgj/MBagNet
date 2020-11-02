@@ -34,7 +34,9 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_MULTIPLY_GCAM():
     # Generate Visualiztions Function   # 统一用GenerateVisualiztion这个名字吧
     def GenerateVisualiztions(self, logits, labels, input_size, visual_num):
         self.observation_class = labels.cpu().numpy().tolist()
-        gcam_list, _, _ = self.gcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
+        multiply_labels = torch.cat([labels] * self.multiply_input, dim=0)
+        multiply_viusal_num = visual_num * self.multiply_input
+        gcam_list, _, _ = self.gcam.GenerateVisualiztions(logits, multiply_labels, input_size, multiply_viusal_num)
         cg_pgcam_list, _, _ = self.cg_pgcam.GenerateVisualiztions(logits, labels, input_size, visual_num)
 
         for i, cg_pgcam in enumerate(cg_pgcam_list):
