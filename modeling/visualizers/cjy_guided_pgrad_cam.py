@@ -361,7 +361,7 @@ class CJY_GUIDED_PGRAD_CAM():
 
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
-        self.pool_output_obtain_index = len(self.pool_output)
+        self.maxpool_input_obtain_index = len(self.maxpool_input)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
         self.bn_input_obtain_index = len(self.bn_input)
