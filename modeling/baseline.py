@@ -177,7 +177,7 @@ class Baseline(nn.Module):
 
         # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient",
 
-        # "cjy-cam-guided-pgrad-cam", "cjy-grad-guied-pgrad-cam"(与 "pgrad-cam-GBP" 差别在于classifier中的relu是否处理)
+        # "cjy-cam-guided-pgrad-cam", "cjy-grad-guided-pgrad-cam"(与 "pgrad-cam-GBP" 差别在于classifier中的relu是否处理)
 
         # "cjy-contrastive-grad-guided-pgrad-cam", "cjy-contrastive-cam-guided-pgrad-cam"
         # "cjy-contrastive-grad-guided-pgrad-cam-multiply-gcam", "cjy-contrastive-cam-guided-pgrad-cam-multiply-gcam"
