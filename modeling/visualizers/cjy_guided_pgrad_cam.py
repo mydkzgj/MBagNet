@@ -8,11 +8,11 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class CJY_CAM_SCREEN():
+class CJY_GUIDED_PGRAD_CAM():
     """
     在每个relu(maxpool)处利用gcam进行逐层筛选
     """
-    def __init__(self, model, num_classes, target_layer):
+    def __init__(self, model, num_classes, target_layer, guided_type="cam"):
         self.model = model
         self.num_classes = num_classes
 
@@ -28,13 +28,6 @@ class CJY_CAM_SCREEN():
         self.relu_output = []
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
-
-        self.useGuidedPOOL = False  # True  #False  # GuideBackPropagation的变体
-        self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-        self.num_pool_layers = 0
-        self.pool_output = []
-        self.pool_current_index = 0  # 后续设定为len(relu_input)
-        self.stem_pool_index_list = []
 
         self.useGuidedLINEAR = False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
@@ -54,9 +47,18 @@ class CJY_CAM_SCREEN():
         self.bn_input = []
         self.bn_current_index = 0
 
+        self.useGuidedMAXPOOL = True  # True  #False  # GuideBackPropagation的变体
+        self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.num_maxpool_layers = 0
+        self.maxpool_input = []
+        self.maxpool_current_index = 0  # 后续设定为len(relu_input)
+        self.stem_maxpool_index_list = []
+
         self.firstCAM = 1
 
         self.reservePos = False  #True
+
+        self.guided_type = guided_type  # "grad", "cam"
 
         self.setHook(model)
 
@@ -108,23 +110,6 @@ class CJY_CAM_SCREEN():
                     self.num_relu_layers = self.num_relu_layers + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
-
-        if self.useGuidedPOOL == True:
-            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
-            for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
-                    if "densenet" in self.model.base_name and "denseblock" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "vgg" in self.model.base_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    self.num_pool_layers = self.num_pool_layers + 1
-                    module.register_forward_hook(self.pool_forward_hook_fn)
-                    module.register_backward_hook(self.pool_backward_hook_fn)
 
         if self.useGuidedCONV == True:
             print("Set GuidedBP Hook on CONV")
@@ -262,45 +247,25 @@ class CJY_CAM_SCREEN():
                 CAM = CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
             """
 
-            if grad_out[0].ndimension() == 4:
-                CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                new_grad_in = CAM * grad_in[0]
+            # 以何种方式进行回传路径筛选
+            if self.guided_type == "grad":  # 有bias项的话应该怎么筛选呢
+                # 1.依据梯度gradient正负进行导向Guided
+                if relu_output.ndimension() == 2:
+                    return grad_in[0]
 
-                return (new_grad_in,)
+                new_grad_in = grad_in[0] * grad_out[0].gt(0).float()
 
+            elif self.guided_type == "cam":
+                # 2.依据位置的共同贡献进行导向Guided
+                if relu_output.ndimension() == 2:
+                    return grad_in[0]
 
-    def pool_forward_hook_fn(self, module, input, output):
-        if self.pool_current_index == 0:
-            self.pool_output.clear()
-        self.pool_output.append(output)
-        self.pool_current_index = self.pool_current_index + 1
-        if self.pool_current_index % self.num_pool_layers == 0:
-            self.pool_current_index = 0
+                cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
+                new_grad_in = grad_in[0] * cam.gt(0).float()
 
-    def pool_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedPOOLstate == True:
-            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
-            pool_output = self.pool_output[self.pool_output_obtain_index]
+            else:
+                new_grad_in = grad_in[0]
 
-            gcam = self.GenerateCAM(pool_output, grad_out[0])
-            mask = gcam.gt(0).float()
-
-            # prepare for transposed conv
-            channels = grad_out[0].shape[1]
-            stride = module.stride
-            kernel_size = module.kernel_size
-            padding = module.padding
-
-            output_size = (grad_out[0].shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
-            output_padding = grad_in[0].shape[3] - output_size
-
-            new_weight = torch.ones((channels, 1, kernel_size, kernel_size))
-            new_weight = new_weight.cuda()
-
-            mask = torch.nn.functional.conv_transpose2d(mask.expand_as(grad_out[0]), new_weight, stride=stride, padding=padding,
-                                                     output_padding=output_padding, groups=channels)
-
-            new_grad_in = mask * grad_in[0]
             return (new_grad_in,)
 
 
@@ -338,6 +303,37 @@ class CJY_CAM_SCREEN():
             new_grad_in = grad_in[0] * bn_output / (bn_input + non_zero) * (1-non_zero)
             return (new_grad_in, grad_in[1], grad_in[2])
 
+
+    def maxpool_forward_hook_fn(self, module, input, output):
+        if self.maxpool_current_index == 0:
+            self.maxpool_input.clear()
+        self.maxpool_input.append(input[0])
+        self.maxpool_current_index = self.maxpool_current_index + 1
+        if self.maxpool_current_index % self.num_maxpool_layers == 0:
+            self.maxpool_current_index = 0
+
+    def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
+        if self.guidedMAXPOOLstate == True:
+            self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
+            maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
+
+            # 以何种方式进行回传路径筛选
+            if self.guided_type == "grad":
+                # 1.依据梯度gradient正负进行导向Guided
+                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+                new_grad_out = grad_out[0] * grad_out[0].gt(0).float()
+                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
+            elif self.guided_type == "cam":
+                # 2.依据位置的共同贡献进行导向Guided
+                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+                cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
+                new_grad_out = grad_out[0] * cam.gt(0).float()
+                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
+            else:
+                new_grad_in = grad_in[0]
+
+            return (new_grad_in,)
+
     # Obtain Gradient
     def ObtainGradient(self, logits, labels):
         self.observation_class = labels.cpu().numpy().tolist()
@@ -358,7 +354,7 @@ class CJY_CAM_SCREEN():
 
         #self.bn_weight_reserve_state = 1
         self.guidedReLUstate = 1  # 是否开启guidedBP
-        self.guidedPOOLstate = 1
+        self.guidedMAXPOOLstate = 1
         self.guidedCONVstate = 1
         self.guidedLINEARstate = 1
         self.guidedBNstate = 1
@@ -377,7 +373,7 @@ class CJY_CAM_SCREEN():
         self.guidedBNstate = 0
         self.guidedLINEARstate = 0
         self.guidedCONVstate = 0
-        self.guidedPOOLstate = 0
+        self.guidedMAXPOOLstate = 0
         self.guidedReLUstate = 0
 
 

@@ -3,13 +3,11 @@
 @author:  Jiayang Chen
 @contact: sychenjiayang@163.com
 """
-import re
 
 from .backbones.alexnet import *
 from .backbones.googlenet import *
 from .backbones.inception import *
 from .backbones.resnet import *
-from .backbones.densenet import *
 from .backbones.multi_bagnet import *
 from .backbones.bagnet import *
 from .backbones.vgg import *
@@ -20,12 +18,10 @@ from .classifiers.vgg_classifier import *
 
 from .segmenters.fc_mbagnet import *
 
-from .visualizers.grad_cam import *
 from .visualizers.pgrad_cam import *
 from .visualizers.grad_cam_plusplus import *
 from .visualizers.backpropagation import *
 from .visualizers.deconvolution import *
-from .visualizers.guided_backpropagation import *
 from .visualizers.guided_grad_cam import *
 from .visualizers.visual_backpropagation import *
 from .visualizers.visualbplemma3 import *
@@ -34,18 +30,17 @@ from .visualizers.marginal_winning_probability import *
 from .visualizers.xgrad_cam import *
 from .visualizers.dual_backpropagation import *
 
-from .visualizers.cjy_marginal_winning_probability import *
-from .visualizers.cjy_dual_gradient import *
-from .visualizers.cjy_conv_pos_gradient import *
-from .visualizers.cjy_cam_screen import *
+from modeling.visualizers.discard.cjy_marginal_winning_probability import *
+from modeling.visualizers.discard.cjy_dual_gradient import *
+from modeling.visualizers.discard.cjy_conv_pos_gradient import *
 
-from .visualizers.cjy_contrastive_guided_pgrad_cam import *
-from .visualizers.cjy_contrastive_guided_pgrad_cam_with_dual_exchange import *
+from .visualizers.cjy_guided_pgrad_cam import *
+
+from modeling.visualizers.discard.cjy_contrastive_guided_pgrad_cam_with_dual_exchange import *
 from .visualizers.cjy_contrastive_guided_pgrad_cam_multiply_gcam import *
 from .visualizers.cjy_contrastive_guided_pgrad_cam_multiply_dbp import *
 
 from .visualizers.cjy_dual_backpropagation import *
-from .visualizers.cjy_dual_backpropagation_bn import *
 from .visualizers.cjy_dual_backpropagation_with_contrastive_guided_pgrad_cam import *
 
 
@@ -180,7 +175,9 @@ class Baseline(nn.Module):
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
         # "dual-backpropagation"
 
-        # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient", "cjy-cam-screen",
+        # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient",
+
+        # "cjy-cam-guided-pgrad-cam", "cjy-grad-guied-pgrad-cam"(与 "pgrad-cam-GBP" 差别在于classifier中的relu是否处理)
 
         # "cjy-contrastive-grad-guided-pgrad-cam", "cjy-contrastive-cam-guided-pgrad-cam"
         # "cjy-contrastive-grad-guided-pgrad-cam-multiply-gcam", "cjy-contrastive-cam-guided-pgrad-cam-multiply-gcam"
@@ -550,8 +547,11 @@ class Baseline(nn.Module):
             self.visualizer = CJY_DUAL_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
         elif self.visualizer_name == "cjy-conv-pos-gradient":
             self.visualizer = CJY_CONV_POS_GRADIENT(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-        elif self.visualizer_name == "cjy-cam-screen":
-            self.visualizer = CJY_CAM_SCREEN(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+
+        elif self.visualizer_name == "cjy-grad-guided-pgrad-cam":
+            self.visualizer = CJY_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
+        elif self.visualizer_name == "cjy-cam-guided-pgrad-cam":
+            self.visualizer = CJY_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
 
         # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
         elif self.visualizer_name == "cjy-contrastive-grad-guided-pgrad-cam":

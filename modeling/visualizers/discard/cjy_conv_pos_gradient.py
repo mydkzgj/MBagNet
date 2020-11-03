@@ -5,7 +5,7 @@ Created on 2020.7.4
 """
 
 import torch
-from .draw_tool import draw_visualization
+from modeling.visualizers.draw_tool import draw_visualization
 
 
 class CJY_CONV_POS_GRADIENT():

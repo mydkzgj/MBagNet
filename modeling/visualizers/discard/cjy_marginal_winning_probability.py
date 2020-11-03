@@ -5,17 +5,17 @@ Created on 2020.7.4
 """
 
 import torch
-from .draw_tool import draw_visualization
+from modeling.visualizers.draw_tool import draw_visualization
 
+"""
+# marginal winning probability
+《Top-down Neural Attention by Excitation Backprop》
+ECCV16
+原本只是适用于vgg，并未说明BN层，以及Resnet跨越连接的反向传播方式，本程序已实现。
+"""
 
-class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
-    """
-    说明：将每个特征activation的gradient分为正负两部分，可以分别观测这两部分的作用
-    gcam = pos_gcam + neg_gcam 即为 pgrad-cam
-    单独观察pos-gcam和neg-gcam并没有明显的类别差别
-    而由于pos和neg的值越来越大，导致误差越来越大，所以前几层的gcam不再保持pgcam
-    """
-    def __init__(self, model, num_classes, target_layer):
+class CJY_MWP():
+    def __init__(self, model, num_classes, target_layer, contrastive=False):
         self.model = model
         self.num_classes = num_classes
 
@@ -25,43 +25,41 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
         self.inter_gradient = []
         self.targetHookIndex = 0
 
-        self.useGuidedReLU = True   #True  #False  # GuideBackPropagation的变体
-        self.guidedReLUstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
+        self.contrastive = contrastive
+        self.contrastive_first_state = 0  #使用时开启
+
+        self.useGuidedBP = True #False  #True  #False  # GuideBackPropagation的变体
+        self.guidedBPstate = 0    # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_relu_layers = 0
         self.relu_output = []
-        self.relu_current_index = 0  #后续设定为len(relu_input)
+        self.relu_current_index = 0
         self.stem_relu_index_list = []
 
-        self.useGuidedPOOL = False  # True  #False  # GuideBackPropagation的变体
-        self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-        self.num_pool_layers = 0
-        self.pool_output = []
-        self.pool_current_index = 0  # 后续设定为len(relu_input)
-        self.stem_pool_index_list = []
-
-        self.useGuidedLINEAR = True#False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
-        self.guidedLINEARstate = 0
-        self.num_linear_layers = 0
-        self.linear_input = []
-        self.linear_current_index = 0
-
-        self.useGuidedCONV = False  # True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedCONV = True  #True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的conv，保证conv的输入为非负
         self.guidedCONVstate = 0
         self.num_conv_layers = 0
         self.conv_input = []
         self.conv_current_index = 0
 
-        self.useGuidedBN = False    #True  # True#False  # GuideBackPropagation的变体
+        self.useGuidedBN = True  #True  # True#False  # GuideBackPropagation的变体
         self.guidedBNstate = 0
         self.num_bn_layers = 0
 
+        self.backpropagtionBNWeightstate = 0
+        self.bn_weight = []   # weight/(var+e).sqrt() 保存
+
+        self.useGuidedLINEAR = True  #True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
+        self.guidedLINEARstate = 0
+        self.num_linear_layers = 0
+        self.linear_input = []
+        self.linear_current_index = 0
+
+
         self.firstCAM = 1
 
-        self.reservePos = False    #True
+        self.reservePos = False #True
 
         self.normFlag = True
-
-        self.multiply_input = 3
 
         self.setHook(model)
 
@@ -97,7 +95,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             raise Exception("Without target layer can not generate Visualization")
 
         # 2.Set Guided-Backpropagation Hook
-        if self.useGuidedReLU == True:
+        if self.useGuidedBP == True:
             print("Set GuidedBP Hook on ReLU")
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.ReLU) == True and "segmenter" not in module_name:
@@ -111,25 +109,8 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
                     self.num_relu_layers = self.num_relu_layers + 1
-                    module.register_forward_hook(self.relu_forward_hook_fn)
+                    #module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
-
-        if self.useGuidedPOOL == True:
-            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
-            for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
-                    if "densenet" in self.model.base_name and "denseblock" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "vgg" in self.model.base_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    self.num_pool_layers = self.num_pool_layers + 1
-                    module.register_forward_hook(self.pool_forward_hook_fn)
-                    module.register_backward_hook(self.pool_backward_hook_fn)
 
         if self.useGuidedCONV == True:
             print("Set GuidedBP Hook on CONV")
@@ -139,6 +120,15 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
                     module.register_backward_hook(self.conv_backward_hook_fn)
                     self.num_conv_layers = self.num_conv_layers + 1
 
+
+        if self.useGuidedBN == True:
+            print("Set GuidedBP Hook on BN")
+            for module_name, module in model.named_modules():
+                if isinstance(module, torch.nn.BatchNorm2d) == True and "segmenter" not in module_name:
+                    module.register_backward_hook(self.bn_backward_hook_fn)
+                    #module.register_forward_hook(self.bn_forward_hook_fn)
+                    self.num_bn_layers = self.num_bn_layers + 1
+
         if self.useGuidedLINEAR == True:
             print("Set GuidedBP Hook on LINEAR")
             for module_name, module in model.named_modules():
@@ -146,18 +136,6 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
                     module.register_forward_hook(self.linear_forward_hook_fn)
                     module.register_backward_hook(self.linear_backward_hook_fn)
                     self.num_linear_layers = self.num_linear_layers + 1
-
-
-        if self.useGuidedBN == True:
-            print("Set GuidedBP Hook on BN")
-            for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.BatchNorm2d) == True and "segmenter" not in module_name:
-                    if "resnet" in self.model.base_name and "bn3" in module_name:
-                        module.register_backward_hook(self.bn_backward_hook_fn_with_zero_input)
-                    else:
-                        module.register_backward_hook(self.bn_backward_hook_fn)
-                    #module.register_forward_hook(self.bn_forward_hook_fn)
-                    self.num_bn_layers = self.num_bn_layers + 1
 
 
     # Hook Function
@@ -180,6 +158,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
         self.inter_output.append(output)
         self.targetHookIndex = self.targetHookIndex + 1
 
+
     def linear_forward_hook_fn(self, module, input, output):
         if self.linear_current_index == 0:
             self.linear_input.clear()
@@ -193,23 +172,91 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_grad_in = grad_in[1]
+            """
+            # 版本一
+            new_weight = module.weight.relu()
+            x = torch.nn.functional.linear(linear_input, new_weight)
+            x_nonzero = x.ne(0).float()
+            y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
-            if self.firstCAM == True:
-                num_sub_batch = linear_input.shape[0]//self.multiply_input
-                grad_in_sub = [grad_in[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            new_grad_in = linear_input * z
+            #"""
 
-                new_grad_in0 = grad_in_sub[0] * 0
-                new_grad_in1 = grad_in_sub[1] * 1           #* grad_in_sub[1].gt(0).float()
-                new_grad_in2 = grad_in_sub[2] * (-1)        #* grad_in_sub[2].lt(0).float()
+            # 版本二
+            """
+            contribution_backprop = grad_out[0]
+            bias_current = module.bias.unsqueeze(0).expand_as(contribution_backprop) if module.bias is not None else 0
+            # (1)
+            new_weight = module.weight
+            x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
+            y = contribution_backprop / x
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            contribution_assignment1 = linear_input * z
+            # print(old_bias_assignment1.sum())
 
-                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            # (2)
+            new_weight = torch.ones_like(module.weight)
 
-                self.firstCAM = 0
+            # x为0的点为死点，不将bias分给这种点
+            activation_map = linear_input.ne(0).float()
+            activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
+            x_nonzero = (x * activation_num_map).ne(0).float()
+            y = contribution_backprop * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
 
-            return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
+            #y = contribution_backprop * bias_current / (x * module.weight.shape[1])
+            z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+            contribution_assignment2 = z * activation_map
+            # print(old_bias_assignment2.sum())
 
+            contribution_assignment = contribution_assignment1 + contribution_assignment2
+            new_grad_in = contribution_assignment
+            #"""
+
+            if self.contrastive_first_state == 1:
+                # 版本一
+                """
+                new_weight = module.weight
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                x_nonzero = x.ne(0).float()
+                y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+
+                new_grad_in = linear_input * z
+                #"""
+
+
+                #"""
+                new_weight = module.weight.relu()
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                x_nonzero = x.ne(0).float()
+                y = x * grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+
+                new_grad_in = linear_input * z
+
+
+                new_weight_c = (-module.weight).relu()
+                x_c = torch.nn.functional.linear(linear_input, new_weight_c)
+                x_c_nonzero = x_c.gt(0).float()
+                y_c = x_c * grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
+                z_c = torch.nn.functional.linear(y_c, new_weight_c.permute(1, 0))
+
+                new_grad_in_c = linear_input * z_c
+
+                new_grad_in = new_grad_in - new_grad_in_c
+                #"""
+                self.contrastive_first_state = 0
+            else:
+                new_weight = module.weight.relu()
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                x_nonzero = x.ne(0).float()
+                y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+
+                new_grad_in = linear_input * z
+
+            return (grad_in[0], new_grad_in, grad_in[2])
 
     def conv_forward_hook_fn(self, module, input, output):
         if self.conv_current_index == 0:
@@ -221,37 +268,95 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
 
     def conv_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedCONVstate == True:
+            if self.backpropagtionBNWeightstate == True:
+                self.bn_weight.insert(0, grad_out[0])
+                return grad_in
+
             self.conv_input_obtain_index = self.conv_input_obtain_index - 1
             conv_input = self.conv_input[self.conv_input_obtain_index]
 
-            num_batch = grad_out[0].shape[0]
-            pos_gard_out = grad_out[0][0:num_batch//2]
-            neg_gard_out = grad_out[0][num_batch // 2:num_batch]
+            if self.bn_weight != []:
+                back_bn_weight = self.bn_weight[self.conv_input_obtain_index]   #回传得到的bn值
+                back_bn_weight = back_bn_weight[0, :, 0, 0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+                #print(module.weight.shape)
+                #print(back_bn_weight.shape)
+                weight = module.weight * back_bn_weight
+            else:
+                weight = module.weight
 
-            # prepare for transposed conv
+            #"""
+            new_weight = weight.relu()
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            x_nonzero = x.ne(0).float()
+            y = grad_out[0]/(x + (1-x_nonzero)) * x_nonzero   # 文章中并没有说应该怎么处理分母为0的情况
+
+            new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+            output_size = (y.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+            output_padding = grad_in[0].shape[3] - output_size
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+
+            new_grad_in = conv_input * z
+            #"""
+
+            # 版本二
+            """
+            contribution_backprop = grad_out[0]
+            print(1)
+            print(contribution_backprop.sum())
+            bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(contribution_backprop) if module.bias is not None else 0
+            # bias分为两部分 current 后续传递
+            # 1.首先依靠当前节点对后面回传的bias进行分配，需要将current bias先均匀分配
+            # 0.for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
             output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
-            pos_weight = module.weight.relu()
-            neg_weight = -(-module.weight).relu()
+            # (1)
+            new_weight = module.weight
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding) + bias_current
+            x_nonzero = x.ne(0).float()
+            y = contribution_backprop / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
 
-            pp_new_grad_in = torch.nn.functional.conv_transpose2d(pos_gard_out, pos_weight, stride=module.stride,
-                                                               padding=new_padding, output_padding=output_padding)
+            contribution_assignment1 = conv_input * z
+            print(contribution_assignment1.sum())
 
-            pn_new_grad_in = torch.nn.functional.conv_transpose2d(pos_gard_out, neg_weight, stride=module.stride,
-                                                               padding=new_padding, output_padding=output_padding)
+            # (2)
+            new_weight = torch.ones_like(module.weight)  # module.weight * 0 + 1 / (module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3])
 
-            np_new_grad_in = torch.nn.functional.conv_transpose2d(neg_gard_out, pos_weight, stride=module.stride,
-                                                               padding=new_padding, output_padding=output_padding)
+            # x为0的点为死点，不将bias分给这种点
+            activation_map = conv_input.ne(0).float()
+            activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride, padding=module.padding)  #计算非死点个数之和
+            x_nonzero = (x * activation_num_map).ne(0).float()
+            y = contribution_backprop * bias_current / ((x * activation_num_map) + (1 - x_nonzero)) * x_nonzero
 
-            nn_new_grad_in = torch.nn.functional.conv_transpose2d(neg_gard_out, neg_weight, stride=module.stride,
-                                                               padding=new_padding, output_padding=output_padding)
+            #y = contribution_backprop * bias_current / ((x + (1 - x_nonzero)) * module.weight.shape[1] * module.weight.shape[2] * module.weight.shape[3]) * x_nonzero
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+            contribution_assignment2 = z * activation_map
+            print(contribution_assignment2.sum())
 
-            pos_new_grad_in = pp_new_grad_in + nn_new_grad_in
-            neg_new_grad_in = pn_new_grad_in + np_new_grad_in
+            contribution_assignment = contribution_assignment1 + contribution_assignment2
+            print(contribution_assignment.sum())
+            print("max:{}".format(contribution_assignment.max()))
+            print("min:{}".format(contribution_assignment.min()))
 
-            new_grad_in = torch.cat([pos_new_grad_in, neg_new_grad_in], dim=0)
+            new_grad_in = contribution_assignment
+            """
+
+            if self.contrastive_first_state == 1:
+                new_weight_c = (-weight).relu()
+                x_c = torch.nn.functional.conv2d(conv_input, new_weight_c, stride=module.stride, padding=module.padding)
+                x_c_nonzero = x_c.gt(0).int()
+                y_c = grad_out[0] / (x_c + (1 - x_c_nonzero)) * x_c_nonzero
+
+                new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
+                output_size = (y_c.shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
+                output_padding = grad_in[0].shape[3] - output_size
+                z_c = torch.nn.functional.conv_transpose2d(y_c, new_weight, stride=module.stride, padding=new_padding, output_padding=output_padding)
+
+                new_grad_in_c = conv_input * z_c
+                new_grad_in = new_grad_in - new_grad_in_c
+                self.contrastive_first_state = 0
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -265,132 +370,12 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             self.relu_current_index = 0
 
     def relu_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedReLUstate == True:
-            self.relu_output_obtain_index = self.relu_output_obtain_index - 1
-            relu_output = self.relu_output[self.relu_output_obtain_index]
-
-            num_sub_batch = relu_output.shape[0]//self.multiply_input
-            relu_out_sub = [relu_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-            """
-            #1.
-            if relu_output.ndimension() == 2:
-                new_grad_in = grad_in[0]            
-            new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
-            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
-
-            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-            #"""
-
-            """
-            #2.
-            new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(0).float()
-
-            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-            #"""
-
-            """
-            #3. consider negtive
-            if relu_output.ndimension() == 2:
-                new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-                new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(0).float()
-
-                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-                #new_grad_in = grad_in[0]
-            else:
-                cam_old = torch.sum(relu_output * grad_in[0], dim=1, keepdim=True)
-                new_grad_in = (cam_old.gt(0).float() * grad_in[0].gt(0).float() + cam_old.lt(0).float() * grad_in[0].lt(0).float()) * grad_in[0]
-
-                cam_new = torch.sum(relu_output * new_grad_in.abs(), dim=1, keepdim=True)
-                ratio = cam_old.abs() / cam_new.clamp(1E-12)
-                new_grad_in = new_grad_in * ratio
-
-                new_grad_in_sub = [new_grad_in[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-                new_grad_in0 = new_grad_in_sub[0] * 0
-                new_grad_in1 = new_grad_in_sub[1] * new_grad_in_sub[1].gt(0).float() - new_grad_in_sub[2] * new_grad_in_sub[2].lt(0).float()
-                new_grad_in2 = new_grad_in_sub[2] * new_grad_in_sub[2].gt(0).float() - new_grad_in_sub[1] * new_grad_in_sub[1].lt(0).float()
-
-                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-            #"""
-            """
-            # 4. consider negtive
-            if relu_output.ndimension() == 2:
-                new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * \
-                               grad_in_sub[2].lt(0).float()
-                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(
-                    0).float()
-                new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(
-                    0).float()
-
-                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-                # new_grad_in = grad_in[0]
-            else:
-                cam_old = torch.sum(relu_output * grad_in[0], dim=1, keepdim=True)
-                cam_old_sub = [cam_old[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-                new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - cam_old_sub[2].lt(0).float() * grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-                new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - cam_old_sub[1].lt(0).float() * grad_in_sub[1] * grad_in_sub[1].lt(0).float()
-
-                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-
-            # """
-            #"""
-            # 5. consider negtive
-            if relu_output.ndimension() == 2:
-                return grad_in
-
-            if self.relu_output_obtain_index in self.stem_relu_index_list:
-                self.stem_relu_index = self.stem_relu_index - 1
-
-            if len(self.stem_relu_index_list) - self.stem_relu_index < 5:
-                return grad_in
-
-            new_grad_in0 = grad_in_sub[0] #+ grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-            new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
-            new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float()
-
-            gcam = torch.sum(relu_out_sub[0]*new_grad_in1, dim=1, keepdim=True) - torch.sum(relu_out_sub[0]*new_grad_in2, dim=1, keepdim=True)
-            cam = torch.sum(relu_out_sub[0]*grad_in_sub[0], dim=1, keepdim=True)
-            new_grad_in0 = new_grad_in0 * gcam.gt(0).float() * cam.gt(0).float()
-
-            new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-            # """
-
-            return (new_grad_in,)
-
-
-    def pool_forward_hook_fn(self, module, input, output):
-        if self.pool_current_index == 0:
-            self.pool_output.clear()
-        self.pool_output.append(output)
-        self.pool_current_index = self.pool_current_index + 1
-        if self.pool_current_index % self.num_pool_layers == 0:
-            self.pool_current_index = 0
-
-    def pool_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedPOOLstate == True:
-            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
-            pool_output = self.pool_output[self.pool_output_obtain_index]
-
-            new_grad_in = grad_in[0]
-            return (new_grad_in,)
-
+        if self.guidedBPstate == True:
+            if self.backpropagtionBNWeightstate == True:
+                return (grad_in[0]*0+1 , )
+            return (grad_out[0],)
+        else:
+            pass
 
     def bn_forward_hook_fn(self, module, input, output):
         eps = module.eps
@@ -398,12 +383,20 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
         var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        output = (input[0] - mean) / (var+eps).sqrt() * weight + bias
+        output = (input[0] - mean) / (var + eps).sqrt() * weight + bias
 
     def bn_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedBNstate == True:
-            new_grad_in = grad_in[0]
-            return (new_grad_in, grad_in[1], grad_in[2])
+            result_grad = grad_out[0]
+            if self.backpropagtionBNWeightstate == True:
+                eps = module.eps
+                mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                var = module.running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                bias = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                result_grad = weight / (var + eps).sqrt()
+                result_grad = result_grad.expand_as(grad_in[0])
+            return (result_grad, grad_in[1], grad_in[2])
 
 
     # Obtain Gradient
@@ -425,32 +418,73 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
         # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
 
         #self.bn_weight_reserve_state = 1
-        self.guidedReLUstate = 1  # 是否开启guidedBP
-        self.guidedPOOLstate = 1
+        self.guidedBPstate = 1  # 是否开启guidedBP
         self.guidedCONVstate = 1
-        self.guidedLINEARstate = 1
         self.guidedBNstate = 1
+        self.guidedLINEARstate = 1
 
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
-        self.pool_output_obtain_index = len(self.pool_output)
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
 
-        if self.multiply_input >= 1:
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
-
-        self.stem_relu_index = len(self.stem_relu_index_list)
+        if self.contrastive == True:
+            self.contrastive_first_state = 1
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
         self.inter_gradient = list(inter_gradients)
 
-        self.guidedBNstate = 0
         self.guidedLINEARstate = 0
+        self.guidedBNstate = 0
         self.guidedCONVstate = 0
-        self.guidedPOOLstate = 0
-        self.guidedReLUstate = 0
+        self.guidedBPstate = 0
+
+    # BackpropagationBNWeight
+    def BackpropagationBNWeight(self, logits, labels):
+        self.observation_class = labels.cpu().numpy().tolist()
+        # 将label转为one - hot
+        gcam_one_hot_labels = torch.nn.functional.one_hot(labels, self.num_classes).float()
+        # gcam_one_hot_labels = gcam_one_hot_labels.to(device) if torch.cuda.device_count() >= 1 else gcam_one_hot_labels
+        try:
+            labels.get_device()
+            gcam_one_hot_labels = gcam_one_hot_labels.cuda()
+        except:
+            pass
+
+        # 回传one-hot向量  已弃用 由于其会对各变量生成梯度，而使用op.zero_grad 或model.zero_grad 都会使程序出现问题，故改用torch.autograd.grad
+        # logits.backward(gradient=one_hot_labels, retain_graph=True)#, create_graph=True)  #这样会对所有w求取梯度，且建立回传图会很大
+
+        # 求取model.inter_output对应的gradient
+        # 回传one-hot向量, 可直接传入想要获取梯度的inputs列表，返回也是列表
+
+        # self.bn_weight_reserve_state = 1
+        self.guidedBPstate = 1  # 是否开启guidedBP
+        self.guidedCONVstate = 1
+        self.guidedBNstate = 1
+        self.guidedLINEARstate = 1
+
+        if self.useGuidedBN == True:
+            self.backpropagtionBNWeightstate = 1
+            self.bn_weight.clear()
+
+        self.firstCAM = 1
+        self.relu_output_obtain_index = len(self.relu_output)
+        self.conv_input_obtain_index = len(self.conv_input)
+        self.linear_input_obtain_index = len(self.linear_input)
+
+
+        if self.contrastive == True:
+            self.contrastive_first_state = 1
+        inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
+                                              grad_outputs=gcam_one_hot_labels,
+                                              retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
+
+        self.backpropagtionBNWeightstate = 0
+        self.guidedLINEARstate = 0
+        self.guidedBNstate = 0
+        self.guidedCONVstate = 0
+        self.guidedBPstate = 0
 
 
     def gcamNormalization(self, gcam):
@@ -511,49 +545,14 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
     # Generate Single CAM (backward)
     def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
-        """
-        avg_gradient = torch.nn.functional.adaptive_max_pool2d(inter_gradient, 1).squeeze(-1).squeeze(-1).squeeze(0)
-        m = torch.sort(avg_gradient)
-        i = m[0][-1]
-        v = m[1][-1]
-        gcam = inter_output[:, v:v+1]#torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
-        """
-
-        #gcam = torch.sum(inter_output * torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1), dim=1, keepdim=True)
-
-        #gcam = torch.sum(inter_output, dim=1, keepdim=True)
+        gcam = torch.sum(inter_gradient, dim=1, keepdim=True)
         #gcam = torch.sum(torch.nn.functional.adaptive_avg_pool2d(inter_gradient, 1) * inter_output, dim=1, keepdim=True)
-        #gcam = inter_output[:, 435:436,]
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-
-        num_sub_batch = inter_output.shape[0] // self.multiply_input
-        inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-
-        gcam_all = torch.sum((inter_output * inter_gradient).relu(), dim=1, keepdim=True)
-        """
-        if inter_output.min() < 0:
-            gcam_all = torch.sum(inter_output * inter_gradient, dim=1, keepdim=True)
-        else:
-            gcam_all = torch.sum(inter_output * inter_gradient.relu(), dim=1, keepdim=True)
-        #"""
-        ori_gcam = gcam_all[0: num_sub_batch]
-        pos_gcam = gcam_all[num_sub_batch: 2 * num_sub_batch]
-        neg_gcam = gcam_all[2 * num_sub_batch: 3 * num_sub_batch]
-        gcam = pos_gcam - neg_gcam
-
-        Remainder0 = torch.sum((inter_output_sub[0] * inter_gradient_sub[0]), dim=1, keepdim=True)
-        Remainder1 = -torch.sum((-inter_output_sub[1] * inter_gradient_sub[1]).relu(), dim=1, keepdim=True)
-        Remainder2 = -torch.sum((-inter_output_sub[2] * inter_gradient_sub[2]).relu(), dim=1, keepdim=True)
-        Remainder = Remainder0 + Remainder1 - Remainder2
-
-        #gcam = gcam + ori_gcam
-        #gcam = gcam + Remainder
-
         if self.reservePos == True:
-            gcam = torch.relu(gcam)
+            gcam = torch.relu(gcam)  # CJY at 2020.4.18
 
+        print("max:{}".format(gcam.max()))
         return gcam
 
     # Generate Overall CAM
@@ -620,8 +619,9 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
         self.gcam_list = []
         self.gcam_max_list = [] # 记录每个Grad-CAM的归一化最大值
 
-        if self.multiply_input >= 1:
-            visual_num = visual_num * self.multiply_input
+        # 如果有bn，则回传相应的BNweight
+        if self.num_bn_layers != 0:
+            self.BackpropagationBNWeight(logits, labels)
 
         # obtain gradients
         self.ObtainGradient(logits, labels)
@@ -629,13 +629,13 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
         for i in range(target_layer_num):
             # 1.获取倒数visual_num个样本的activation以及gradient
             batch_num = logits.shape[0]
-            visual_num = visual_num
+            visual_num = visual_num #gcamBatchDistribution[1]
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
             inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
 
             # 2.生成CAM
             gcam = self.GenerateCAM(inter_output, inter_gradient)
-            #print("{}: {}".format(self.target_layer[i], gcam.sum()))
+            print("{}: {}".format(self.target_layer[i], gcam.sum()))
 
             # 3.Post Process
             # Amplitude Normalization
@@ -644,12 +644,18 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM_WITH_DUAL_EXCHANGE():
             # gcam = torch.nn.functional.interpolate(gcam, (seg_gt_masks.shape[-2], seg_gt_masks.shape[-1]), mode='bilinear')  #mode='nearest'  'bilinear'
 
             # 4.Save in List
-            self.gcam_list.append(norm_gcam)  # 将不同模块的gcam保存到gcam_list中
+            self.gcam_list.append(gcam)  # 将不同模块的gcam保存到gcam_list中
             self.gcam_max_list.append(gcam_max.detach().mean().item() / 2) # CJY for pos_masked
+
 
         # Generate Overall CAM
         self.overall_gcam = self.GenerateOverallCAM(gcam_list=self.gcam_list, input_size=input_size)
-        #print("logits:{} label:{}".format(logits[0][labels].item(), labels.item()))
+
+        # Normalization
+        if self.normFlag == True:
+            for index in range(len(self.gcam_list)):
+                self.gcam_list[index], _ = self.gcamNormalization(self.gcam_list[index])
+            self.overall_gcam, _ = self.gcamNormalization(self.overall_gcam)
 
         # Clear Reservation
         #self.inter_output.clear()

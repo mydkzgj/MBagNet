@@ -32,13 +32,6 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         self.relu_current_index = 0  #后续设定为len(relu_input)
         self.stem_relu_index_list = []
 
-        self.useGuidedPOOL = False  # True  #False  # GuideBackPropagation的变体
-        self.guidedPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
-        self.num_pool_layers = 0
-        self.pool_output = []
-        self.pool_current_index = 0  # 后续设定为len(relu_input)
-        self.stem_pool_index_list = []
-
         self.useGuidedLINEAR = False #False  # True  # True#False  # GuideBackPropagation的变体  #只适用于前置为relu的linear，保证linear的输入为非负
         self.guidedLINEARstate = 0
         self.num_linear_layers = 0
@@ -122,23 +115,6 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
                     self.num_relu_layers = self.num_relu_layers + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
-
-        if self.useGuidedPOOL == True:
-            print("Set GuidedBP Hook on POOL")  #MaxPool也算非线性吧
-            for module_name, module in model.named_modules():
-                if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
-                    if "densenet" in self.model.base_name and "denseblock" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    elif "vgg" in self.model.base_name:
-                        self.stem_pool_index_list.append(self.num_pool_layers)
-                        print("Stem POOL:{}".format(module_name))
-                    self.num_pool_layers = self.num_pool_layers + 1
-                    module.register_forward_hook(self.pool_forward_hook_fn)
-                    module.register_backward_hook(self.pool_backward_hook_fn)
 
         if self.useGuidedCONV == True:
             print("Set GuidedBP Hook on CONV")
@@ -330,24 +306,6 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
             return (new_grad_in,)
 
-
-    def pool_forward_hook_fn(self, module, input, output):
-        if self.pool_current_index == 0:
-            self.pool_output.clear()
-        self.pool_output.append(output)
-        self.pool_current_index = self.pool_current_index + 1
-        if self.pool_current_index % self.num_pool_layers == 0:
-            self.pool_current_index = 0
-
-    def pool_backward_hook_fn(self, module, grad_in, grad_out):
-        if self.guidedPOOLstate == True:
-            self.pool_output_obtain_index = self.pool_output_obtain_index - 1
-            pool_output = self.pool_output[self.pool_output_obtain_index]
-
-            new_grad_in = grad_in[0]
-            return (new_grad_in,)
-
-
     def bn_forward_hook_fn(self, module, input, output):
         eps = module.eps
         mean = module.running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
@@ -423,11 +381,11 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
         #self.bn_weight_reserve_state = 1
         self.guidedReLUstate = 1  # 是否开启guidedBP
-        self.guidedPOOLstate = 1
+        self.guidedMAXPOOLstate = 1
         self.guidedCONVstate = 1
         self.guidedLINEARstate = 1
         self.guidedBNstate = 1
-        self.guidedMAXPOOLstate = 1
+
 
         self.firstCAM = 1
         self.relu_output_obtain_index = len(self.relu_output)
@@ -448,9 +406,8 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         self.guidedBNstate = 0
         self.guidedLINEARstate = 0
         self.guidedCONVstate = 0
-        self.guidedPOOLstate = 0
-        self.guidedReLUstate = 0
         self.guidedMAXPOOLstate = 0
+        self.guidedReLUstate = 0
 
 
     def gcamNormalization(self, gcam):
