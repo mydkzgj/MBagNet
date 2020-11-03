@@ -18,7 +18,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
     比dual backpropagation写的更好
     """
-    def __init__(self, model, num_classes, target_layer, select_specified_paths=False):
+    def __init__(self, model, num_classes, target_layer, guided_type="none"):
         self.model = model
         self.num_classes = num_classes
 
@@ -90,7 +90,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
         self.bias_back_type = 1  #1,2,3
 
-        self.select_specified_paths = select_specified_paths
+        self.guided_type = guided_type  #"grad", "cam"
 
         self.setHook(model)
 
@@ -375,31 +375,22 @@ class CJY_DUAL_BACKPROPAGATION():
             elif self.bias_back_type == 2:
                 new_grad_in = grad_in[0]
 
-            # 是否进行路径筛选
-            if self.select_specified_paths == True:
-                if grad_out[0].ndimension() == 4:
-                    """
-                    print()
-                    if self.relu_output_obtain_index in self.stem_relu_index_list:
-                        self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                        cam = self.CAM
-                    else:
-                        if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
-                            cam = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
-                        else:
-                            cam = self.CAM
-                        cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                    new_grad_in = new_grad_in * cam                               
-                    #"""
-                    """
-                    if self.relu_output_obtain_index in self.stem_relu_index_list:
-                        self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
-                        self.CAM = self.CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                        cam = self.CAM
-                        new_grad_in = new_grad_in * cam
-                    #"""
-                    cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                    new_grad_in = new_grad_in * cam
+            # 以何种方式进行回传路径筛选
+            if self.guided_type == "grad":  # 有bias项的话应该怎么筛选呢
+                # 1.依据梯度gradient正负进行导向Guided
+                if relu_output.ndimension() == 2:
+                    return grad_in
+
+                sum = relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1]
+                new_grad_in = new_grad_in * sum.gt(0).float()
+
+            elif self.guided_type == "cam":
+                # 2.依据位置的共同贡献进行导向Guided
+                if relu_output.ndimension() == 2:
+                    return grad_in
+
+                cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                new_grad_in = new_grad_in * cam.gt(0).float()
 
             return (new_grad_in,)
 
@@ -417,24 +408,30 @@ class CJY_DUAL_BACKPROPAGATION():
             self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
             maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
 
-            new_grad_in = grad_in[0]
+            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
 
-            # 是否进行路径筛选
-            if self.select_specified_paths == True:
-                #"""
-                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-                cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()            
-                new_grad_out = grad_out[0] * cam
-                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-                #"""
-                """
-                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
-                self.CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode="nearest") if self.CAM is not 1 else 1
-                self.CAM = self.CAM * self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
-                cam = self.CAM
-                new_grad_out = grad_out[0] * cam
-                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
-                #"""
+            num_sub_batch = maxpool_input.shape[0] // self.multiply_input
+            maxpool_out_sub = [maxpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+
+            # 以何种方式进行回传路径筛选
+            if self.guided_type == "grad":
+                # 1.依据梯度gradient正负进行导向Guided
+                sum = maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1]
+                new_grad_out = grad_out[0] * sum.gt(0).float()
+
+                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
+                                                               module.padding, output_size=maxpool_input.shape)
+            elif self.guided_type == "cam":
+                # 2.依据位置的共同贡献进行导向Guided
+                cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                new_grad_out = grad_out[0] * cam.gt(0).float()
+
+                new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
+                                                               module.padding, output_size=maxpool_input.shape)
+            else:
+                new_grad_in = grad_in[0]
 
             return (new_grad_in,)
 

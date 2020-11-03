@@ -375,7 +375,7 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
             elif self.bias_back_type == 2:
                 new_grad_in = grad_in[0]
 
-            # 以何种方式进行筛选
+            # 以何种方式进行回传路径筛选
             if self.guided_type == "grad":   #有bias项的话应该怎么筛选呢
                 # 1.依据梯度gradient正负进行导向Guided
                 if relu_output.ndimension() == 2:
@@ -412,11 +412,11 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
                                                                      module.padding, return_indices=True)
 
             num_sub_batch = maxpool_input.shape[0] // self.multiply_input
-            maxpool_out_sub = [maxpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in
-                               range(self.multiply_input)]
+            maxpool_out_sub = [maxpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
+            # 以何种方式进行回传路径筛选
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
                 sum = maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1]
