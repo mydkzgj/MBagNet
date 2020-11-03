@@ -376,35 +376,21 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
                 new_grad_in = grad_in[0]
 
             # 以何种方式进行筛选
-            if self.guided_type == "grad":
+            if self.guided_type == "grad":   #有bias项的话应该怎么筛选呢
                 # 1.依据梯度gradient正负进行导向Guided
                 if relu_output.ndimension() == 2:
                     return grad_in
-                new_grad_in_pos = grad_in_sub[0] * grad_in_sub[0].gt(0).float()
-                new_grad_in_neg = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
 
-                new_grad_in_sub = [new_grad_in_pos, new_grad_in_neg]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-                """
-                new_grad_in0 = grad_in_sub[0] + grad_in_sub[1] * grad_in_sub[1].lt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-                new_grad_in1 = grad_in_sub[1] * grad_in_sub[1].gt(0).float() - grad_in_sub[2] * grad_in_sub[2].lt(0).float()
-                new_grad_in2 = grad_in_sub[2] * grad_in_sub[2].gt(0).float() - grad_in_sub[1] * grad_in_sub[1].lt(0).float()
+                sum = relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1]
+                new_grad_in = new_grad_in * sum.gt(0).float()
 
-                new_grad_in_sub = [new_grad_in0, new_grad_in1, new_grad_in2]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
-                #"""
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
                 if relu_output.ndimension() == 2:
                     return grad_in
 
-                cam_pos = torch.sum(relu_out_sub[0] * grad_out_sub[0], dim=1, keepdim=True)
-                cam_neg = torch.sum(relu_out_sub[1] * grad_out_sub[1], dim=1, keepdim=True)
-                new_grad_in_pos = grad_in_sub[0] * cam_pos.gt(0).float()
-                new_grad_in_neg = grad_in_sub[1] * cam_neg.gt(0).float()
-
-                new_grad_in_sub = [new_grad_in_pos, new_grad_in_neg]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                new_grad_in = new_grad_in * cam.gt(0).float()
 
             return (new_grad_in,)
 
@@ -433,22 +419,16 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
-                new_grad_out_pos = grad_out_sub[0] * grad_out_sub[0].gt(0).float()
-                new_grad_out_neg = grad_out_sub[1] * grad_out_sub[1].gt(0).float()
+                sum = maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1]
+                new_grad_out = grad_out[0] * sum.gt(0).float()
 
-                new_grad_out_sub = [new_grad_out_pos, new_grad_out_neg]
-                new_grad_out = torch.cat(new_grad_out_sub, dim=0)
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
                                                                module.padding, output_size=maxpool_input.shape)
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
-                cam_pos = torch.sum(maxpool_out_sub[0] * grad_out_sub[0], dim=1, keepdim=True)
-                cam_neg = torch.sum(maxpool_out_sub[0] * grad_out_sub[0], dim=1, keepdim=True)
-                new_grad_out_pos = grad_out_sub[0] * cam_pos.gt(0).float()
-                new_grad_out_neg = grad_out_sub[1] * cam_neg.gt(0).float()
+                cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                new_grad_out = grad_out[0] * cam.gt(0).float()
 
-                new_grad_out_sub = [new_grad_out_pos, new_grad_out_neg]
-                new_grad_out = torch.cat(new_grad_out_sub, dim=0)
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
                                                                module.padding, output_size=maxpool_input.shape)
             else:
