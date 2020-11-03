@@ -189,7 +189,8 @@ class Baseline(nn.Module):
 
         # "cjy-dual-backpropagation", "cjy-dual-backpropagation-bn"
         # "cjy-dual-backpropagation-with-grad-guided-screen", "cjy-dual-backpropagation-with-cam-guided-screen"
-        # "cjy-dual-backpropagation-with-contrastive-guided-pgrad-cam":
+        # "cjy-dual-backpropagation-with-contrastive-grad-guided-pgrad-cam",
+        # "cjy-dual-backpropagation-with-contrastive-cam-guided-pgrad-cam",
 
         self.visualizer_name = "cjy-dual-backpropagation"
         #"""
@@ -574,7 +575,9 @@ class Baseline(nn.Module):
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
         elif self.visualizer_name == "cjy-dual-backpropagation-with-cam-guided-screen":
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
-        elif self.visualizer_name == "cjy-dual-backpropagation-with-contrastive-guided-pgrad-cam":
+        elif self.visualizer_name == "cjy-dual-backpropagation-with-contrastive-grad-guided-pgrad-cam":
+            self.visualizer = CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
+        elif self.visualizer_name == "cjy-dual-backpropagation-with-contrastive-cam-guided-pgrad-cam":
             self.visualizer = CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
 
         elif self.visualizer_name == "none":
