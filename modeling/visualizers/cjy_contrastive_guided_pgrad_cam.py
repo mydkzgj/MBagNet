@@ -487,16 +487,15 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
         inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
         inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
+        """
         if self.guided_type == "grad":
             gcam_all = torch.sum((inter_output * inter_gradient).relu(), dim=1, keepdim=True)
         elif self.guided_type == "cam":
             gcam_all = torch.sum((inter_output * inter_gradient), dim=1, keepdim=True)
-        """
-        if inter_output.min() < 0:
-            gcam_all = torch.sum(inter_output * inter_gradient, dim=1, keepdim=True)
-        else:
-            gcam_all = torch.sum(inter_output * inter_gradient.relu(), dim=1, keepdim=True)
         #"""
+
+        gcam_all = torch.sum((inter_output * inter_gradient), dim=1, keepdim=True)
+
         pos_gcam = gcam_all[0: num_sub_batch]
         neg_gcam = gcam_all[num_sub_batch: 2 * num_sub_batch]
         gcam = pos_gcam - neg_gcam

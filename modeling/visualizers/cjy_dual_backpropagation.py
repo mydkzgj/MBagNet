@@ -379,7 +379,7 @@ class CJY_DUAL_BACKPROPAGATION():
             if self.guided_type == "grad":  # 有bias项的话应该怎么筛选呢
                 # 1.依据梯度gradient正负进行导向Guided
                 if relu_output.ndimension() == 2:
-                    return new_grad_in
+                    return (new_grad_in,)
 
                 sum = relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1]
                 new_grad_in = new_grad_in * sum.gt(0).float()
@@ -387,7 +387,7 @@ class CJY_DUAL_BACKPROPAGATION():
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
                 if relu_output.ndimension() == 2:
-                    return new_grad_in
+                    return (new_grad_in,)
 
                 cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 new_grad_in = new_grad_in * cam.gt(0).float()
