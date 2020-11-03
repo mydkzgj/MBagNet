@@ -251,14 +251,14 @@ class CJY_GUIDED_PGRAD_CAM():
             if self.guided_type == "grad":  # 有bias项的话应该怎么筛选呢
                 # 1.依据梯度gradient正负进行导向Guided
                 if relu_output.ndimension() == 2:
-                    return grad_in[0]
+                    return grad_in
 
                 new_grad_in = grad_in[0] * grad_out[0].gt(0).float()
 
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
                 if relu_output.ndimension() == 2:
-                    return grad_in[0]
+                    return grad_in
 
                 cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
                 new_grad_in = grad_in[0] * cam.gt(0).float()
