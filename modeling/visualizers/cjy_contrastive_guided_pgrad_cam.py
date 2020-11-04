@@ -273,10 +273,13 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
+            if self.relu_output_obtain_index not in self.stem_relu_index_list: return grad_in
+
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
                 if relu_output.ndimension() == 2:
                     return grad_in
+
                 new_grad_in_pos = grad_in_sub[0] * grad_in_sub[0].gt(0).float()
                 new_grad_in_neg = grad_in_sub[1] * grad_in_sub[1].gt(0).float()
 
