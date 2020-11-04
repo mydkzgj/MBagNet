@@ -274,8 +274,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
             # 以何种方式进行回传路径筛选
-            if self.relu_output_obtain_index not in self.stem_relu_index_list: return grad_in
-
+            #if self.relu_output_obtain_index not in self.stem_relu_index_list: return grad_in
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
                 if relu_output.ndimension() == 2:
