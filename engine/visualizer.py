@@ -123,7 +123,8 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         savePath = os.path.join(r"D:\Visualization\results", model.visualizer_name)
         showFlag = 1
         max_show_num = 100
-        computeMetirc = 3 if model.run_sub_dataset_name == "test" else 0
+        computeMetircType = 3
+        computeFlag = True if model.run_sub_dataset_name == "test" else False
         model.visualizer.reservePos = True if model.run_sub_dataset_name == "test" else False# CJY at 2020.10.20 全局控制开关
 
         if engine.state.iteration == 1:
@@ -216,15 +217,15 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                 s_p_labels = torch.argmax(logits, dim=1)
                 oblabelList = [s_labels*243, s_labels*250, s_labels*281, s_labels*333]
 
-            if computeMetirc == 1:    #观察全部类别
+            if computeMetircType == 1:    #观察全部类别
                 s_labels = labels
                 s_p_labels = torch.argmax(logits, dim=1)
                 oblabelList = [labels.sum(1) * 0 + i for i in range(model.num_classes)]
-            elif computeMetirc == 2:  #观察gt-label的类别
+            elif computeMetircType == 2:  #观察gt-label的类别
                 num_labels = labels.gt(0).sum().item()
                 s_labels = torch.sort(labels, dim=1, descending=True)[1][:, 0:num_labels]
                 oblabelList = [s_labels[:, j] for j in range(s_labels.shape[1])]
-            elif computeMetirc == 3:  #观察预测正确的gt-label的类别
+            elif computeMetircType == 3:  #观察预测正确的gt-label的类别
                 pright_labels = labels.float() * logits[0:labels.shape[0]].gt(0).float()
                 num_labels = pright_labels.gt(0).sum().item()
                 s_pr_labels = torch.sort(pright_labels, dim=1, descending=True)[1][:, 0:num_labels]
@@ -259,7 +260,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
                         elif vannotations is not None:
                             model.visualizer.DrawVisualization(vimgs, vlabels, vplabels, vannotations, binary_threshold, savePath, engine.state.imgs_name)
 
-                if computeMetirc != 0:
+                if computeFlag == True:
                     if dataType == "seg" and (model.num_classes == 4 or model.num_classes == 20):
                         if hasattr(engine.state, "MPG") != True:
                             engine.state.MPG = MultiPointingGameForSegmentation(visual_class_list=range(model.num_classes), seg_class_list=range(model.num_classes))
