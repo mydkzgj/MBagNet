@@ -321,12 +321,14 @@ class CJY_GUIDED_PGRAD_CAM():
             # 以何种方式进行回传路径筛选
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
-                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding,
+                                                                         module.dilation, module.ceil_mode, return_indices=True,)
                 new_grad_out = grad_out[0] * grad_out[0].gt(0).float()
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
-                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+                maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding,
+                                                                         module.dilation, module.ceil_mode, return_indices=True,)
                 cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
                 new_grad_out = grad_out[0] * cam.gt(0).float()
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)

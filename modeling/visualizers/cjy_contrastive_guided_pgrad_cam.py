@@ -335,7 +335,8 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
             maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
 
-            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding, return_indices=True)
+            maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding,
+                                                                     module.dilation, module.ceil_mode, return_indices=True,)
 
             num_sub_batch = maxpool_input.shape[0]//self.multiply_input
             maxpool_out_sub = [maxpool_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
