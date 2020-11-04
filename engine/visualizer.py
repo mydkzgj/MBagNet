@@ -124,7 +124,7 @@ def create_supervised_visualizer(model, metrics, loss_fn, device=None):
         showFlag = 1
         max_show_num = 100
         computeMetirc = 3 if model.run_sub_dataset_name == "test" else 0
-        model.visualizer.reservePos = False if model.run_sub_dataset_name == "test" else True# CJY at 2020.10.20 全局控制开关
+        model.visualizer.reservePos = True if model.run_sub_dataset_name == "test" else False# CJY at 2020.10.20 全局控制开关
 
         if engine.state.iteration == 1:
             if os.path.exists(savePath) != True:
