@@ -413,7 +413,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
                 # (2).拓展cam的范围
                 cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
-                cam = torch.max_pool2d(cam, kernel_size=3)
+                cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
 
                 # (0).直接计算
                 #cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
@@ -466,7 +466,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 # """
                 # (2).拓展cam的范围
                 cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
-                cam = torch.max_pool2d(cam, kernel_size=3)
+                cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
 
                 # (0).直接计算
                 #cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
