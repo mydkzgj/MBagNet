@@ -250,7 +250,7 @@ class CJY_GUIDED_PGRAD_CAM():
                     return grad_in
 
                 # 不同的CAM生成方式
-                #"""
+                """
                 #1.使用主干的cam限制分支的cam范围
                 if self.relu_output_obtain_index in self.stem_relu_index_list:
                     self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
@@ -261,6 +261,15 @@ class CJY_GUIDED_PGRAD_CAM():
                     else:
                         cam = self.CAM
                     cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                #"""
+                #"""
+                # 2.使用主干的cam限制分支的cam范围
+                current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                if self.CAM.shape[-1] != current_cam.shape and self.CAM is not 1:
+                    self.CAM = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                    cam = self.CAM * current_cam
+                if self.relu_output_obtain_index in self.stem_relu_index_list:
+                    self.CAM = cam
                 #"""
 
                 # 0.直接计算
@@ -332,6 +341,17 @@ class CJY_GUIDED_PGRAD_CAM():
                 # 2.依据位置的共同贡献进行导向Guided
                 maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding,
                                                                          module.dilation, module.ceil_mode, return_indices=True,)
+
+                # """
+                # 2.使用主干的cam限制分支的cam范围
+                current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
+                if self.CAM.shape[-1] != current_cam.shape and self.CAM is not 1:
+                    self.CAM = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                    cam = self.CAM * current_cam
+                if self.relu_output_obtain_index in self.stem_relu_index_list:
+                    self.CAM = cam
+                # """
+
                 cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
                 new_grad_out = grad_out[0] * cam.gt(0).float()
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
@@ -371,6 +391,9 @@ class CJY_GUIDED_PGRAD_CAM():
         self.conv_input_obtain_index = len(self.conv_input)
         self.linear_input_obtain_index = len(self.linear_input)
         self.bn_input_obtain_index = len(self.bn_input)
+
+        self.CAM = 1
+
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
                                               retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
