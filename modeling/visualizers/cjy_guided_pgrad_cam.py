@@ -294,12 +294,14 @@ class CJY_GUIDED_PGRAD_CAM():
                 #"""
 
                 # (2).拓展cam的范围
+                """
                 cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
+                #"""
 
                 # (0).直接计算
-                #cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
-                new_grad_in = grad_in[0] * cam.gt(0).float()
+                cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                new_grad_in = grad_in[0] * cam
 
             else:
                 new_grad_in = grad_in[0]
@@ -380,12 +382,14 @@ class CJY_GUIDED_PGRAD_CAM():
                 # """
 
                 # (2).拓展cam的范围
+                """
                 cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
+                #"""
 
                 # (0).直接计算
-                #cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
-                new_grad_out = grad_out[0] * cam.gt(0).float()
+                cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                new_grad_out = grad_out[0] * cam
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             else:
                 new_grad_in = grad_in[0]
