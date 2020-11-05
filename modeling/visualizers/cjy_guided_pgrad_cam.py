@@ -235,18 +235,6 @@ class CJY_GUIDED_PGRAD_CAM():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
-            """"
-            if self.relu_output_obtain_index in self.stem_relu_index_list:
-                self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                CAM = self.CAM
-            else:
-                if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
-                    CAM = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
-                else:
-                    CAM = self.CAM
-                CAM = CAM * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-            """
-
             # 以何种方式进行回传路径筛选
             #if self.relu_output_obtain_index not in self.stem_relu_index_list: return grad_in
             if self.guided_type == "grad":  # 有bias项的话应该怎么筛选呢
@@ -261,7 +249,22 @@ class CJY_GUIDED_PGRAD_CAM():
                 if relu_output.ndimension() == 2:
                     return grad_in
 
-                cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
+                # 不同的CAM生成方式
+                #"""
+                #1.使用主干的cam限制分支的cam范围
+                if self.relu_output_obtain_index in self.stem_relu_index_list:
+                    self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                    cam = self.CAM
+                else:
+                    if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
+                        cam = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
+                    else:
+                        cam = self.CAM
+                    cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                #"""
+
+                # 0.直接计算
+                #cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
                 new_grad_in = grad_in[0] * cam.gt(0).float()
 
             else:
