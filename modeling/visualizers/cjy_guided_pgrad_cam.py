@@ -107,6 +107,10 @@ class CJY_GUIDED_PGRAD_CAM():
                     elif "vgg" in self.model.base_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
+                    elif "googlenet" in self.model.base_name and "branch" not in module_name:
+                        self.stem_relu_index_list.append(self.num_relu_layers)
+                        # print("Stem ReLU:{}".format(module_name))
+
                     self.num_relu_layers = self.num_relu_layers + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
