@@ -151,8 +151,13 @@ class CJY_DUAL_BACKPROPAGATION():
             print("Set GuidedBP Hook on MAXPOOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
-                    self.stem_maxpool_index_list.append(self.num_maxpool_layers)
-                    print("Stem MAXPOOL:{}".format(module_name))
+                    if "googlenet" in self.model.base_name:
+                        if "branch" not in module_name:
+                            self.stem_maxpool_index_list.append(self.num_maxpool_layers)
+                            print("Stem MAXPOOL:{}".format(module_name))
+                    else:
+                        self.stem_maxpool_index_list.append(self.num_maxpool_layers)
+                        print("Stem MAXPOOL:{}".format(module_name))
                     self.num_maxpool_layers = self.num_maxpool_layers + 1
                     module.register_forward_hook(self.maxpool_forward_hook_fn)
                     module.register_backward_hook(self.maxpool_backward_hook_fn)
@@ -395,17 +400,16 @@ class CJY_DUAL_BACKPROPAGATION():
                     return (new_grad_in,)
 
                 # """
-                # 2.使用主干的cam限制分支的cam范围
+                # (1).使用主干的cam限制分支的cam范围
                 current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
                 if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
-                    self.CAM = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]),
-                                                               mode='nearest')
+                    self.CAM = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
                 cam = self.CAM * current_cam
                 if self.relu_output_obtain_index in self.stem_relu_index_list:
                     self.CAM = cam
                 # """
 
-                # 0.直接计算
+                # (0).直接计算
                 #cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 new_grad_in = new_grad_in * cam.gt(0).float()
 
@@ -444,15 +448,15 @@ class CJY_DUAL_BACKPROPAGATION():
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
                 # """
-                # 2.使用主干的cam限制分支的cam范围
+                # (1).使用主干的cam限制分支的cam范围
                 current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
                 if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
                     self.CAM = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
                 cam = self.CAM * current_cam
-                if self.relu_output_obtain_index in self.stem_relu_index_list:
+                if self.maxpool_input_obtain_index in self.stem_maxpool_index_list:
                     self.CAM = cam
                 # """
-                # 0.直接计算
+                # (0).直接计算
                 #cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 new_grad_out = grad_out[0] * cam.gt(0).float()
 

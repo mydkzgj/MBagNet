@@ -115,7 +115,7 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
                     elif "googlenet" in self.model.base_name and "branch" not in module_name:
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         # print("Stem ReLU:{}".format(module_name))
-                        
+
                     self.num_relu_layers = self.num_relu_layers + 1
                     module.register_forward_hook(self.relu_forward_hook_fn)
                     module.register_backward_hook(self.relu_backward_hook_fn)
@@ -152,8 +152,13 @@ class CJY_CONTRASTIVE_GUIDED_PGRAD_CAM():
             print("Set GuidedBP Hook on MAXPOOL")  #MaxPool也算非线性吧
             for module_name, module in model.named_modules():
                 if isinstance(module, torch.nn.MaxPool2d) == True and "segmenter" not in module_name:
-                    self.stem_maxpool_index_list.append(self.num_maxpool_layers)
-                    print("Stem MAXPOOL:{}".format(module_name))
+                    if "googlenet" in self.model.base_name:
+                        if "branch" not in module_name:
+                            self.stem_maxpool_index_list.append(self.num_maxpool_layers)
+                            print("Stem MAXPOOL:{}".format(module_name))
+                    else:
+                        self.stem_maxpool_index_list.append(self.num_maxpool_layers)
+                        print("Stem MAXPOOL:{}".format(module_name))
                     self.num_maxpool_layers = self.num_maxpool_layers + 1
                     module.register_forward_hook(self.maxpool_forward_hook_fn)
                     module.register_backward_hook(self.maxpool_backward_hook_fn)
