@@ -10,7 +10,7 @@ from .draw_tool import draw_visualization
 from modeling.backbones.resnet import add_op
 
 
-class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
+class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_EXCHANGEABLE_GUIDED_PGRAD_CAM():
     """
     说明：dual 包括 gradient 和 bias
 
