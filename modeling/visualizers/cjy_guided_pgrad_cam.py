@@ -267,7 +267,7 @@ class CJY_GUIDED_PGRAD_CAM():
                 current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
                 if self.CAM.shape[-1] != current_cam.shape and self.CAM is not 1:
                     self.CAM = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
-                    cam = self.CAM * current_cam
+                cam = self.CAM * current_cam
                 if self.relu_output_obtain_index in self.stem_relu_index_list:
                     self.CAM = cam
                 #"""
@@ -347,7 +347,7 @@ class CJY_GUIDED_PGRAD_CAM():
                 current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
                 if self.CAM.shape[-1] != current_cam.shape and self.CAM is not 1:
                     self.CAM = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
-                    cam = self.CAM * current_cam
+                cam = self.CAM * current_cam
                 if self.relu_output_obtain_index in self.stem_relu_index_list:
                     self.CAM = cam
                 # """
