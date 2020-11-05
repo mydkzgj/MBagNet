@@ -889,10 +889,10 @@ class CJY_DUAL_BACKPROPAGATION():
     def AvgPoolCAM(self):
         ocam = self.gcam_list[-1]
         for i in range(len(self.target_layer)):
-            ocam = torch.nn.functional.avg_pool2d(ocam, kernel_size=3, stride=1, padding=1)
+            ocam = torch.nn.functional.avg_pool2d(ocam, kernel_size=2, stride=2, padding=1)
             norm_gcam, gcam_max = self.gcamNormalization(ocam)
             self.gcam_list[-(2+i)] = norm_gcam
-            if i == 6:
+            if i == 4:
                 return 0
 
     # Generate Visualiztions Function   # 统一用GenerateVisualiztion这个名字吧
