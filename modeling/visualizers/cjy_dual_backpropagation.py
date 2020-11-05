@@ -399,7 +399,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 if relu_output.ndimension() == 2:
                     return (new_grad_in,)
 
-                # """
+                """
                 # (1).使用主干的cam限制分支的cam范围
                 current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
                 if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
@@ -410,6 +410,10 @@ class CJY_DUAL_BACKPROPAGATION():
                 if self.relu_output_obtain_index in self.stem_relu_index_list:
                     self.CAM = cam
                 # """
+
+                # (2).拓展cam的范围
+                cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
+                cam = torch.max_pool2d(cam, kernel_size=3)
 
                 # (0).直接计算
                 #cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
@@ -449,7 +453,7 @@ class CJY_DUAL_BACKPROPAGATION():
                                                                module.padding, output_size=maxpool_input.shape)
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
-                # """
+                """
                 # (1).使用主干的cam限制分支的cam范围
                 current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
                 if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
@@ -460,6 +464,10 @@ class CJY_DUAL_BACKPROPAGATION():
                 if self.maxpool_input_obtain_index in self.stem_maxpool_index_list:
                     self.CAM = cam
                 # """
+                # (2).拓展cam的范围
+                cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
+                cam = torch.max_pool2d(cam, kernel_size=3)
+
                 # (0).直接计算
                 #cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 new_grad_out = grad_out[0] * cam.gt(0).float()

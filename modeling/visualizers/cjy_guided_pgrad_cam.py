@@ -281,7 +281,7 @@ class CJY_GUIDED_PGRAD_CAM():
                         cam = self.CAM
                     cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
                 #"""
-                #"""
+                """
                 # (1).使用主干的cam限制分支的cam范围
                 current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
                 if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
@@ -292,6 +292,10 @@ class CJY_GUIDED_PGRAD_CAM():
                 if self.relu_output_obtain_index in self.stem_relu_index_list:
                     self.CAM = cam
                 #"""
+
+                # (2).拓展cam的范围
+                cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
+                cam = torch.max_pool2d(cam, kernel_size=3)
 
                 # (0).直接计算
                 #cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True)
@@ -363,7 +367,7 @@ class CJY_GUIDED_PGRAD_CAM():
                 maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding,
                                                                          module.dilation, module.ceil_mode, return_indices=True,)
 
-                # """
+                """
                 # (1).使用主干的cam限制分支的cam范围
                 current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
                 if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
@@ -374,6 +378,10 @@ class CJY_GUIDED_PGRAD_CAM():
                 if self.maxpool_input_obtain_index in self.stem_maxpool_index_list:
                     self.CAM = cam
                 # """
+
+                # (2).拓展cam的范围
+                cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
+                cam = torch.max_pool2d(cam, kernel_size=3)
 
                 # (0).直接计算
                 #cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
