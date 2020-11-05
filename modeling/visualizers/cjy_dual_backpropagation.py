@@ -77,7 +77,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.useGuidedADD = True    #True  # True#False  # GuideBackPropagation的变体
         self.guidedADDstate = 0
         self.num_add_layers = 0
-        self.add_output = []
+        self.add_input = []
         self.add_current_index = 0
 
         self.firstCAM = 1
@@ -647,8 +647,8 @@ class CJY_DUAL_BACKPROPAGATION():
 
     def add_forward_hook_fn(self, module, input, output):
         if self.add_current_index == 0:
-            self.add_output.clear()
-        self.add_output.append(output)
+            self.add_input.clear()
+        self.add_input.append(input)
         self.add_current_index = self.add_current_index + 1
         if self.add_current_index % self.num_add_layers == 0:
             self.add_current_index = 0
@@ -656,13 +656,16 @@ class CJY_DUAL_BACKPROPAGATION():
     def add_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedADDstate == True:
             self.add_output_obtain_index = self.add_output_obtain_index - 1
-            add_output = self.add_output[self.add_output_obtain_index]
+            add_input = self.add_input[self.add_output_obtain_index]
 
-            num_sub_batch = add_output.shape[0] // self.multiply_input
+            num_sub_batch = add_input[0].shape[0] // self.multiply_input
+            identity_in_sub = [add_input[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+            residual_in_sub = [add_input[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             identity_grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             residual_grad_in_sub = [grad_in[1][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
+            gradient = grad_out_sub[0]
             bias_overall = grad_out_sub[1]
 
             if self.bias_back_type == 1:
@@ -679,6 +682,13 @@ class CJY_DUAL_BACKPROPAGATION():
 
             new_grad_in0 = torch.cat([identity_grad_in_sub[0], new_identity_bias], dim=0)
             new_grad_in1 = torch.cat([residual_grad_in_sub[0], new_residual_bias], dim=0)
+
+            # CJY
+            if self.guided_type == "cam":
+                cam_i = self.GenerateCAM(add_input[0], grad_out[0]).gt(0).float()
+                new_grad_in0 = new_grad_in0 * cam_i
+                cam_r = self.GenerateCAM(add_input[1], grad_out[0]).gt(0).float()
+                new_grad_in1 = new_grad_in1 * cam_r
 
             return (new_grad_in0, new_grad_in1)
 
@@ -719,7 +729,7 @@ class CJY_DUAL_BACKPROPAGATION():
         self.avgpool_output_obtain_index = len(self.avgpool_output)
         self.adaptive_avgpool_input_obtain_index = len(self.adaptive_avgpool_input)
 
-        self.add_output_obtain_index = len(self.add_output)
+        self.add_output_obtain_index = len(self.add_input)
 
         self.rest = 0
         self.CAM = 1
