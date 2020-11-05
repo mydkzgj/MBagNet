@@ -61,6 +61,8 @@ class GoogLeNet(nn.Module):
         self.aux_logits = aux_logits
         self.transform_input = transform_input
 
+        self.use_stem_relu = True
+
         self.conv1 = BasicConv2d(3, 64, kernel_size=7, stride=2, padding=3)
         self.maxpool1 = nn.MaxPool2d(3, stride=2, ceil_mode=True)
         self.conv2 = BasicConv2d(64, 64, kernel_size=1)
@@ -68,30 +70,27 @@ class GoogLeNet(nn.Module):
         self.maxpool2 = nn.MaxPool2d(3, stride=2, ceil_mode=True)
 
         self.inception3a = Inception(192, 64, 96, 128, 16, 32, 32)
+        if self.use_stem_relu == True: self.relu3a = torch.nn.ReLU(inplace=True)
         self.inception3b = Inception(256, 128, 128, 192, 32, 96, 64)
+        if self.use_stem_relu == True: self.relu3b = torch.nn.ReLU(inplace=True)
         self.maxpool3 = nn.MaxPool2d(3, stride=2, ceil_mode=True)
 
         self.inception4a = Inception(480, 192, 96, 208, 16, 48, 64)
+        if self.use_stem_relu == True: self.relu4a = torch.nn.ReLU(inplace=True)
         self.inception4b = Inception(512, 160, 112, 224, 24, 64, 64)
+        if self.use_stem_relu == True: self.relu4b = torch.nn.ReLU(inplace=True)
         self.inception4c = Inception(512, 128, 128, 256, 24, 64, 64)
+        if self.use_stem_relu == True: self.relu4c = torch.nn.ReLU(inplace=True)
         self.inception4d = Inception(512, 112, 144, 288, 32, 64, 64)
+        if self.use_stem_relu == True: self.relu4d = torch.nn.ReLU(inplace=True)
         self.inception4e = Inception(528, 256, 160, 320, 32, 128, 128)
+        if self.use_stem_relu == True: self.relu4e = torch.nn.ReLU(inplace=True)
         self.maxpool4 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
 
         self.inception5a = Inception(832, 256, 160, 320, 32, 128, 128)
+        if self.use_stem_relu == True: self.relu5a = torch.nn.ReLU(inplace=True)
         self.inception5b = Inception(832, 384, 192, 384, 48, 128, 128)
-
-        self.relu3a = torch.nn.ReLU(inplace=True)
-        self.relu3b = torch.nn.ReLU(inplace=True)
-
-        self.relu4a = torch.nn.ReLU(inplace=True)
-        self.relu4b = torch.nn.ReLU(inplace=True)
-        self.relu4c = torch.nn.ReLU(inplace=True)
-        self.relu4d = torch.nn.ReLU(inplace=True)
-        self.relu4e = torch.nn.ReLU(inplace=True)
-
-        self.relu5a = torch.nn.ReLU(inplace=True)
-        self.relu5b = torch.nn.ReLU(inplace=True)
+        if self.use_stem_relu == True: self.relu5b = torch.nn.ReLU(inplace=True)
 
         if aux_logits:
             self.aux1 = InceptionAux(512, num_classes)
