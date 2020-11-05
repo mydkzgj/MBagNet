@@ -288,7 +288,44 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
                 bias_input = linear_in_sub[0] * z
 
             new_grad_in_sub = [grad_input, bias_input]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            new_grad_in1 = torch.cat(new_grad_in_sub, dim=0)
+
+            # 2
+            grad_input = grad_in_sub[2]
+            grad_output = grad_out_sub[2]
+            bias_output = grad_out_sub[3]
+            bias_current = module.bias.unsqueeze(0).expand_as(grad_output) if module.bias is not None else 0
+            bias_overall = bias_output + bias_current * grad_output
+
+            # new_bias_input计算
+            if self.bias_back_type == 1:
+                # 1
+                new_weight = torch.ones_like(module.weight)  # module.weight
+                new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
+                bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
+            elif self.bias_back_type == 2:
+                # 2
+                new_weight = torch.ones_like(module.weight)
+                # x为0的点为死点，不将bias分给这种点
+                activation_map = linear_in_sub[0].ne(0).float()
+                activation_num_map = torch.nn.functional.linear(activation_map, new_weight)  # 计算非死点个数之和
+                x_nonzero = (activation_num_map).ne(0).float()
+                y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                bias_input = z * activation_map
+            elif self.bias_back_type == 3:
+                # 3
+                new_weight = module.weight.relu()
+                x = torch.nn.functional.linear(linear_in_sub[0], new_weight)
+                x_nonzero = x.ne(0).float()
+                y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                bias_input = linear_in_sub[0] * z
+
+            new_grad_in_sub = [grad_input, bias_input]
+            new_grad_in2 = torch.cat(new_grad_in_sub, dim=0)
+
+            new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -355,7 +392,52 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
             self.rest = self.rest + bias_overall.sum() - bias_input.sum()
 
             new_grad_in_sub = [grad_input, bias_input]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            new_grad_in1 = torch.cat(new_grad_in_sub, dim=0)
+
+            # 2
+            grad_input = grad_in_sub[2]
+            grad_output = grad_out_sub[2]
+            bias_output = grad_out_sub[3]
+            bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(
+                grad_output) if module.bias is not None else 0
+            bias_overall = bias_output + bias_current * grad_output
+
+            # new_bias_input计算
+            if self.bias_back_type == 1:
+                # 1
+                new_weight = torch.ones_like(module.weight)  # module.weight
+                new_weight = new_weight / (
+                    new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
+                bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
+                                                                  padding=new_padding, output_padding=output_padding)
+            elif self.bias_back_type == 2:
+                # 2
+                new_weight = torch.ones_like(module.weight)
+                # x为0的点为死点，不将bias分给这种点
+                activation_map = conv_in_sub[0].ne(0).float()
+                activation_num_map = torch.nn.functional.conv2d(activation_map, new_weight, stride=module.stride,
+                                                                padding=module.padding)  # 计算非死点个数之和
+                x_nonzero = (activation_num_map).ne(0).float()
+                y = bias_overall / (activation_num_map + (1 - x_nonzero)) * x_nonzero
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
+                                                         output_padding=output_padding)
+                bias_input = z * activation_map
+            elif self.bias_back_type == 3:
+                # 3
+                new_weight = module.weight.relu()
+                x = torch.nn.functional.conv2d(conv_in_sub[0], new_weight, stride=module.stride, padding=module.padding)
+                x_nonzero = x.ne(0).float()
+                y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
+                                                         output_padding=output_padding)
+                bias_input = conv_in_sub[0] * z
+
+            self.rest = self.rest + bias_overall.sum() - bias_input.sum()
+
+            new_grad_in_sub = [grad_input, bias_input]
+            new_grad_in2 = torch.cat(new_grad_in_sub, dim=0)
+
+            new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -379,7 +461,7 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
             if self.bias_back_type == 1:
-                new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1]]
+                new_grad_in_sub = [grad_in_sub[0], grad_out_sub[1], grad_in_sub[2], grad_out_sub[3]]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             elif self.bias_back_type == 2:
                 new_grad_in = grad_in[0]
@@ -399,7 +481,7 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
                 if relu_output.ndimension() == 2:
                     return new_grad_in
 
-                cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                cam = self.GenerateCAM(relu_output, new_grad_in)
                 new_grad_in = new_grad_in * cam.gt(0).float()
 
             return (new_grad_in,)
@@ -436,7 +518,7 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
                                                                module.padding, output_size=maxpool_input.shape)
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
-                cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                cam = self.GenerateCAM(maxpool_output, grad_out[0])
                 new_grad_out = grad_out[0] * cam.gt(0).float()
 
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
@@ -515,7 +597,21 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
                             grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
 
                 new_grad_in_sub = [grad_in_sub[0], new_bias]
-                new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+                new_grad_in1 = torch.cat(new_grad_in_sub, dim=0)
+
+                # 2
+                bias_overall = grad_out_sub[3]
+
+                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
+
+                new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum / (
+                        grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
+
+                new_grad_in_sub = [grad_in_sub[2], new_bias]
+                new_grad_in2 = torch.cat(new_grad_in_sub, dim=0)
+
+                new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
+
 
                 #self.rest = self.rest + bias_overall.sum() - new_bias.sum()
 
@@ -604,7 +700,22 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
             bias_input = bias_overall
 
             new_grad_in_sub = [grad_input, bias_input]
-            new_grad_in = torch.cat(new_grad_in_sub, dim=0)
+            new_grad_in1 = torch.cat(new_grad_in_sub, dim=0)
+
+            #2
+            grad_input = grad_in_sub[2]
+            grad_output = grad_out_sub[2]
+            bias_output = grad_out_sub[3]
+            bias_current = - (mean * weight) / (var + eps).sqrt() + bias
+            bias_overall = bias_output + bias_current * grad_output
+
+            # new_bias_input计算
+            bias_input = bias_overall
+
+            new_grad_in_sub = [grad_input, bias_input]
+            new_grad_in2 = torch.cat(new_grad_in_sub, dim=0)
+
+            new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -641,8 +752,31 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
             new_identity_bias = bias_overall * identity_ratio
             new_residual_bias = bias_overall * residual_ratio
 
-            new_grad_in0 = torch.cat([identity_grad_in_sub[0], new_identity_bias], dim=0)
-            new_grad_in1 = torch.cat([residual_grad_in_sub[0], new_residual_bias], dim=0)
+            new_grad_in01 = torch.cat([identity_grad_in_sub[0], new_identity_bias], dim=0)
+            new_grad_in11 = torch.cat([residual_grad_in_sub[0], new_residual_bias], dim=0)
+
+            #2
+            bias_overall = grad_out_sub[3]
+
+            if self.bias_back_type == 1:
+                identity_ratio = module.num_identity_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+                residual_ratio = module.num_residual_neuron / (module.num_identity_neuron + module.num_residual_neuron)
+            elif self.bias_back_type == 2:
+                num_identity_an_sub = [module.num_identity_activation_neuron[i * num_sub_batch: (i + 1) * num_sub_batch]
+                                       for i in range(self.multiply_input)]
+                num_residual_an_sub = [module.num_residual_activation_neuron[i * num_sub_batch: (i + 1) * num_sub_batch]
+                                       for i in range(self.multiply_input)]
+                identity_ratio = num_identity_an_sub[0] / (num_identity_an_sub[0] + num_residual_an_sub[0])
+                residual_ratio = num_residual_an_sub[0] / (num_identity_an_sub[0] + num_residual_an_sub[0])
+
+            new_identity_bias = bias_overall * identity_ratio
+            new_residual_bias = bias_overall * residual_ratio
+
+            new_grad_in02 = torch.cat([identity_grad_in_sub[2], new_identity_bias], dim=0)
+            new_grad_in12 = torch.cat([residual_grad_in_sub[2], new_residual_bias], dim=0)
+
+            new_grad_in0 = torch.cat([new_grad_in01, new_grad_in02], dim=0)
+            new_grad_in1 = torch.cat([new_grad_in11, new_grad_in12], dim=0)
 
             return (new_grad_in0, new_grad_in1)
 
@@ -690,16 +824,15 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
         if self.multiply_input >= 1:
             #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
-            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0], dim=0)
+            gcam_one_hot_labels = torch.cat([gcam_one_hot_labels, gcam_one_hot_labels * 0,
+                                             -gcam_one_hot_labels, gcam_one_hot_labels * 0], dim=0)
 
         pos_inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                                   grad_outputs=gcam_one_hot_labels,
                                                   retain_graph=True)#, create_graph=True)   #由于显存的问题，不得已将retain_graph
-        neg_inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
-                                                  grad_outputs=-gcam_one_hot_labels,
-                                                  retain_graph=True)  # , create_graph=True)   #由于显存的问题，不得已将retain_graph
-        self.pos_inter_gradient = list(pos_inter_gradients)
-        self.neg_inter_gradient = list(neg_inter_gradients)
+
+        self.inter_gradient = list(pos_inter_gradients)
+
 
         self.guidedLINEARstate = 0
         self.guidedCONVstate = 0
@@ -767,18 +900,17 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
 
 
     # Generate Single CAM (backward)
-    def GenerateCAM(self, inter_output, pos_inter_gradient, neg_inter_gradient):
+    def GenerateCAM(self, inter_output, inter_gradient):
         # backward形式
         num_sub_batch = inter_output.shape[0] // self.multiply_input
         inter_output_sub = [inter_output[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-        pos_inter_gradient_sub = [pos_inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
-        neg_inter_gradient_sub = [neg_inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
+        inter_gradient_sub = [inter_gradient[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
         inter_output = inter_output_sub[0]
-        pos_inter_gradient = pos_inter_gradient_sub[0]
-        pos_inter_bias = pos_inter_gradient_sub[1]
-        neg_inter_gradient = neg_inter_gradient_sub[0]
-        neg_inter_bias = neg_inter_gradient_sub[1]
+        pos_inter_gradient = inter_gradient_sub[0]
+        pos_inter_bias = inter_gradient_sub[1]
+        neg_inter_gradient = inter_gradient_sub[2]
+        neg_inter_bias = inter_gradient_sub[3]
 
         if self.bias_back_type == 2:
             if inter_output.shape[1] != 3:
@@ -877,11 +1009,10 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM():
             batch_num = logits.shape[0]
             visual_num = visual_num
             inter_output = self.inter_output[i][batch_num - visual_num:batch_num]  # 此处分离节点，别人皆不分离  .detach()
-            pos_inter_gradient = self.pos_inter_gradient[i][batch_num - visual_num:batch_num]
-            neg_inter_gradient = self.neg_inter_gradient[i][batch_num - visual_num:batch_num]
+            inter_gradient = self.inter_gradient[i][batch_num - visual_num:batch_num]
 
             # 2.生成CAM
-            gcam = self.GenerateCAM(inter_output, pos_inter_gradient, neg_inter_gradient)
+            gcam = self.GenerateCAM(inter_output, inter_gradient)
             #print("{}: {}".format(self.target_layer[i], gcam.sum()))
 
             # 3.Post Process
