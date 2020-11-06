@@ -684,11 +684,13 @@ class CJY_DUAL_BACKPROPAGATION():
             new_grad_in1 = torch.cat([residual_grad_in_sub[0], new_residual_bias], dim=0)
 
             # CJY
+            """
             if self.guided_type == "cam":
                 cam_i = self.GenerateCAM(add_input[0], grad_out[0]).gt(0).float()
                 new_grad_in0 = new_grad_in0 * cam_i
                 cam_r = self.GenerateCAM(add_input[1], grad_out[0]).gt(0).float()
                 new_grad_in1 = new_grad_in1 * cam_r
+            #"""
 
             return (new_grad_in0, new_grad_in1)
 
