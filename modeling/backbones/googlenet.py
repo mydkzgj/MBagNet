@@ -64,9 +64,12 @@ class GoogLeNet(nn.Module):
         self.use_stem_relu = True
 
         self.conv1 = BasicConv2d(3, 64, kernel_size=7, stride=2, padding=3)
+        if self.use_stem_relu == True: self.relu1 = torch.nn.ReLU(inplace=True)
         self.maxpool1 = nn.MaxPool2d(3, stride=2, ceil_mode=True)
         self.conv2 = BasicConv2d(64, 64, kernel_size=1)
+        if self.use_stem_relu == True: self.relu2 = torch.nn.ReLU(inplace=True)
         self.conv3 = BasicConv2d(64, 192, kernel_size=3, padding=1)
+        if self.use_stem_relu == True: self.relu3 = torch.nn.ReLU(inplace=True)
         self.maxpool2 = nn.MaxPool2d(3, stride=2, ceil_mode=True)
 
         self.inception3a = Inception(192, 64, 96, 128, 16, 32, 32)
@@ -204,12 +207,12 @@ class Inception(nn.Module):
         self.branch1 = BasicConv2d(in_channels, ch1x1, kernel_size=1)
 
         self.branch2 = nn.Sequential(
-            BasicConv2d(in_channels, ch3x3red, kernel_size=1),
+            BasicConv2d(in_channels, ch3x3red, kernel_size=1, with_relu=True),
             BasicConv2d(ch3x3red, ch3x3, kernel_size=3, padding=1)
         )
 
         self.branch3 = nn.Sequential(
-            BasicConv2d(in_channels, ch5x5red, kernel_size=1),
+            BasicConv2d(in_channels, ch5x5red, kernel_size=1, with_relu=True),
             BasicConv2d(ch5x5red, ch5x5, kernel_size=3, padding=1)
         )
 
@@ -257,14 +260,17 @@ class InceptionAux(nn.Module):
 
 class BasicConv2d(nn.Module):
 
-    def __init__(self, in_channels, out_channels, **kwargs):
+    def __init__(self, in_channels, out_channels, with_relu=False, **kwargs):
         super(BasicConv2d, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
         self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
-        self.relu = torch.nn.ReLU(inplace=True)  #CJY
+        self.with_relu = with_relu
+        if self.with_relu == True:
+            self.relu = torch.nn.ReLU(inplace=True)  #CJY
 
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
-        x = self.relu(x)
+        if self.with_relu == True:
+            x = self.relu(x)
         return x #F.relu(x, inplace=True)
