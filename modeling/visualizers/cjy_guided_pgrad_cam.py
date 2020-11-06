@@ -409,7 +409,7 @@ class CJY_GUIDED_PGRAD_CAM():
                 # """
 
                 # (0).直接计算
-                cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                #cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 new_grad_out = grad_out[0] * cam
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             else:
