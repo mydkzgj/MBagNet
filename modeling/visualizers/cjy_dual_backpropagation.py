@@ -134,6 +134,8 @@ class CJY_DUAL_BACKPROPAGATION():
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
                     elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
+                        if "relu0" in module_name:
+                            continue
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
                     elif "vgg" in self.model.base_name:
