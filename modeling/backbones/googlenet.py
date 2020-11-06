@@ -136,12 +136,15 @@ class GoogLeNet(nn.Module):
 
         # N x 3 x 224 x 224
         x = self.conv1(x)
+        x = self.relu1(x)
         # N x 64 x 112 x 112
         x = self.maxpool1(x)
         # N x 64 x 56 x 56
         x = self.conv2(x)
+        x = self.relu2(x)
         # N x 64 x 56 x 56
         x = self.conv3(x)
+        x = self.relu3(x)
         # N x 192 x 56 x 56
         x = self.maxpool2(x)
 
@@ -271,6 +274,6 @@ class BasicConv2d(nn.Module):
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
-        if self.with_relu == True:
+        if self.with_relu == True:   #CJY
             x = self.relu(x)
         return x #F.relu(x, inplace=True)
