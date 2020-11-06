@@ -418,7 +418,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
                 #"""
 
-                # (3).AvgPool限制值的大小
+                # (3).将neg-cam的值均分用以抑制周边的pos-cam
                 #"""
                 cam_o = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 cam_p = cam_o * cam_o.gt(0).float()
@@ -483,8 +483,18 @@ class CJY_DUAL_BACKPROPAGATION():
                 cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
                 """
 
+                # (3).将neg-cam的值均分用以抑制周边的pos-cam
+                # """
+                cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                cam_p = cam_o * cam_o.gt(0).float()
+                cam_n = cam_o * cam_o.lt(0).float()
+                cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                cam_o_new = cam_p + cam_n_avg
+                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
+                # """
+
                 # (0).直接计算
-                cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
+                #cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
                 new_grad_out = grad_out[0] * cam
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
                                                                module.padding, output_size=maxpool_input.shape)
