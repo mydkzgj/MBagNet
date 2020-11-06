@@ -310,7 +310,7 @@ class CJY_GUIDED_PGRAD_CAM():
                 # """
 
                 # (0).直接计算
-                cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                #cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 new_grad_in = grad_in[0] * cam
 
             else:
