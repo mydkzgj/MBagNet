@@ -486,11 +486,12 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_EXCHANGEABLE_GUIDED_PGRAD_CAM():
                     return (new_grad_in,)
 
                 new_grad_in1_sub = [new_grad_in1[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input//2)]
-                new_grad_in2_sub = [new_grad_in2[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input//2)]
                 cam1 = torch.sum(relu_output[0] * new_grad_in1_sub[0] + new_grad_in1_sub[1], dim=0, keepdim=True)
-                cam2 = torch.sum(relu_output[2] * new_grad_in2_sub[0] + new_grad_in2_sub[1], dim=0, keepdim=True)
                 new_grad_in1 = new_grad_in1 * cam1.gt(0).float()
-                new_grad_in2 = new_grad_in2 * cam2.gt(0).float() - new_grad_in1 * cam1.le(0).float()
+                new_grad_in2 = new_grad_in2 - new_grad_in1 * cam1.le(0).float()
+                new_grad_in2_sub = [new_grad_in2[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input // 2)]
+                cam2 = torch.sum(relu_output[2] * new_grad_in2_sub[0] + new_grad_in2_sub[1], dim=0, keepdim=True)
+                new_grad_in2 = new_grad_in2 * cam2.gt(0).float()
                 new_grad_in = torch.cat([new_grad_in1, new_grad_in2], dim=0)
 
             return (new_grad_in,)
@@ -528,11 +529,12 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_EXCHANGEABLE_GUIDED_PGRAD_CAM():
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
                 cam1 = torch.sum(maxpool_output * grad_out_sub[0] + grad_out_sub[1], dim=0, keepdim=True)
-                cam2 = torch.sum(maxpool_output * grad_out_sub[2] + grad_out_sub[3], dim=0, keepdim=True)
+                new_grad_out_sub2 = grad_out_sub[2] - grad_out_sub[0] * cam1.le(0).float()
+                new_grad_out_sub3 = grad_out_sub[3] - grad_out_sub[1] * cam1.le(0).float()
+                cam2 = torch.sum(maxpool_output * new_grad_out_sub2 + new_grad_out_sub3, dim=0, keepdim=True)
 
                 new_grad_out = torch.cat([grad_out_sub[0] * cam1.gt(0).float(), grad_out_sub[1] * cam1.gt(0).float(),
-                                          grad_out_sub[2] * cam2.gt(0).float() - grad_out_sub[0] * cam1.le(0).float(),
-                                          grad_out_sub[3] * cam2.gt(0).float() - grad_out_sub[1] * cam1.le(0).float()], dim=0)
+                                          new_grad_out_sub2 * cam2.gt(0).float(), new_grad_out_sub3 * cam2.gt(0).float()], dim=0)
 
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
                                                                module.padding, output_size=maxpool_input.shape)
