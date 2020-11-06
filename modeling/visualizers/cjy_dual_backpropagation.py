@@ -421,13 +421,13 @@ class CJY_DUAL_BACKPROPAGATION():
                 # (3).AvgPool限制值的大小
                 #"""
                 cam_o = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
-                cam_avg = torch.nn.functional.avg_pool2d(cam_o, kernel_size=3, stride=1, padding=1)
+                cam_avg = torch.nn.functional.avg_pool2d(cam_o, kernel_size=3, stride=1, padding=1) + cam_o * 8/9
                 cam_ratio = (cam_o.gt(0).float() * cam_avg.relu()) / cam_o.relu().clamp(1E-12)
                 cam = cam_ratio
                 #"""
 
                 # (0).直接计算
-                cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
+                #cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
                 new_grad_in = new_grad_in * cam
 
             return (new_grad_in,)
