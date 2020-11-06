@@ -456,6 +456,7 @@ class CJY_DUAL_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
+
             # 以何种方式进行回传路径筛选
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
@@ -465,6 +466,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
                                                                module.padding, output_size=maxpool_input.shape)
             elif self.guided_type == "cam":
+                #if self.maxpool_input_obtain_index not in self.stem_maxpool_index_list: return grad_in
                 # 2.依据位置的共同贡献进行导向Guided
                 """
                 # (1).使用主干的cam限制分支的cam范围
