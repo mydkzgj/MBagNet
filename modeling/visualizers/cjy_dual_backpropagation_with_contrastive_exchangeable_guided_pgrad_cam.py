@@ -475,7 +475,7 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_EXCHANGEABLE_GUIDED_PGRAD_CAM():
             if self.guided_type == "grad":   #有bias项的话应该怎么筛选呢
                 # 1.依据梯度gradient正负进行导向Guided
                 if relu_output.ndimension() == 2:
-                    return new_grad_in
+                    return (new_grad_in,)
 
                 sum = relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1]
                 new_grad_in = new_grad_in * sum.gt(0).float()
@@ -483,7 +483,7 @@ class CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_EXCHANGEABLE_GUIDED_PGRAD_CAM():
             elif self.guided_type == "cam":
                 # 2.依据位置的共同贡献进行导向Guided
                 if relu_output.ndimension() == 2:
-                    return new_grad_in
+                    return (new_grad_in,)
 
                 new_grad_in1_sub = [new_grad_in1[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input//2)]
                 new_grad_in2_sub = [new_grad_in2[i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input//2)]
