@@ -134,8 +134,7 @@ class CJY_DUAL_BACKPROPAGATION():
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
                     elif "resnet" in self.model.base_name and "relu1" not in module_name and "relu2" not in module_name:
-                        if "relu0" in module_name:
-                            continue
+                        #if "base.relu" in module_name: continue
                         self.stem_relu_index_list.append(self.num_relu_layers)
                         #print("Stem ReLU:{}".format(module_name))
                     elif "vgg" in self.model.base_name:
@@ -417,6 +416,14 @@ class CJY_DUAL_BACKPROPAGATION():
                 """
                 cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
                 cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
+                #"""
+
+                # (3).AvgPool限制值的大小
+                #"""
+                cam_o = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                cam_avg = torch.avg_pool2d(cam_o, kernel_size=3, stride=1, padding=1)
+                cam_ratio = (cam_o.gt(0).float() * cam_avg.relu()) / cam_o.relu().clamp(1E-12)
+                cam = cam_ratio
                 #"""
 
                 # (0).直接计算
