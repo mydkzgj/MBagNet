@@ -295,12 +295,22 @@ class CJY_GUIDED_PGRAD_CAM():
 
                 # (2).拓展cam的范围
                 """
-                cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
                 #"""
 
+                # (3).将neg-cam的值均分用以抑制周边的pos-cam
+                # """
+                cam_o = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
+                cam_p = cam_o * cam_o.gt(0).float()
+                cam_n = cam_o * cam_o.lt(0).float()
+                cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                cam_o_new = cam_p + cam_n_avg
+                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
+                # """
+
                 # (0).直接计算
-                cam = torch.sum(relu_output[0] * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 new_grad_in = grad_in[0] * cam
 
             else:
@@ -357,6 +367,7 @@ class CJY_GUIDED_PGRAD_CAM():
             self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
             maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
 
+            if self.maxpool_input_obtain_index not in self.stem_maxpool_index_list: return grad_in
             # 以何种方式进行回传路径筛选
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
@@ -386,6 +397,16 @@ class CJY_GUIDED_PGRAD_CAM():
                 cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
                 #"""
+
+                # (3).将neg-cam的值均分用以抑制周边的pos-cam
+                # """
+                cam_o = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
+                cam_p = cam_o * cam_o.gt(0).float()
+                cam_n = cam_o * cam_o.lt(0).float()
+                cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                cam_o_new = cam_p + cam_n_avg
+                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
+                # """
 
                 # (0).直接计算
                 cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()

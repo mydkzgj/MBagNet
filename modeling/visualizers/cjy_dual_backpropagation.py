@@ -466,7 +466,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
                                                                module.padding, output_size=maxpool_input.shape)
             elif self.guided_type == "cam":
-                #if self.maxpool_input_obtain_index not in self.stem_maxpool_index_list: return grad_in
+                if self.maxpool_input_obtain_index not in self.stem_maxpool_index_list: return grad_in
                 # 2.依据位置的共同贡献进行导向Guided
                 """
                 # (1).使用主干的cam限制分支的cam范围
