@@ -486,7 +486,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 """
 
                 # (3).将neg-cam的值均分用以抑制周边的pos-cam
-                """
+                #"""
                 cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 cam_p = cam_o * cam_o.gt(0).float()
                 cam_n = cam_o * cam_o.lt(0).float()
@@ -496,7 +496,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 # """
 
                 # (4).将neg-cam的值按周边正值个数均分用以抑制周边的pos-cam
-                # """
+                """
                 cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 cam_p = cam_o * cam_o.gt(0).float()
                 cam_n = cam_o * cam_o.lt(0).float()
