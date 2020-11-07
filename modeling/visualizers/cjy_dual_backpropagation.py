@@ -486,11 +486,23 @@ class CJY_DUAL_BACKPROPAGATION():
                 """
 
                 # (3).将neg-cam的值均分用以抑制周边的pos-cam
-                # """
+                """
                 cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
                 cam_p = cam_o * cam_o.gt(0).float()
                 cam_n = cam_o * cam_o.lt(0).float()
                 cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                cam_o_new = cam_p + cam_n_avg
+                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
+                # """
+
+                # (4).将neg-cam的值按周边正值个数均分用以抑制周边的pos-cam
+                # """
+                cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                cam_p = cam_o * cam_o.gt(0).float()
+                cam_n = cam_o * cam_o.lt(0).float()
+                cam_p_sum = torch.nn.functional.avg_pool2d(cam_p, kernel_size=3, stride=1, padding=1)
+                new_cam_n = cam_n/(cam_p_sum * cam_n.lt(0).float()).clamp(1E-12)
+                cam_n_avg = torch.nn.functional.avg_pool2d(new_cam_n, kernel_size=3, stride=1, padding=1)
                 cam_o_new = cam_p + cam_n_avg
                 cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
                 # """
