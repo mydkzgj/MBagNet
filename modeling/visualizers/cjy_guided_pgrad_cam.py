@@ -376,6 +376,7 @@ class CJY_GUIDED_PGRAD_CAM():
                 new_grad_out = grad_out[0] * grad_out[0].gt(0).float()
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             elif self.guided_type == "cam":
+                if self.maxpool_input_obtain_index not in self.stem_maxpool_index_list: return grad_in
                 # 2.依据位置的共同贡献进行导向Guided
                 maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding,
                                                                          module.dilation, module.ceil_mode, return_indices=True,)
