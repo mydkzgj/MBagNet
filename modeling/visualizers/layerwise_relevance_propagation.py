@@ -311,7 +311,7 @@ class LRP():
     def maxpool_forward_hook_fn(self, module, input, output):
         if self.maxpool_current_index == 0:
             self.maxpool_input.clear()
-        self.maxpool_input.append(output)
+        self.maxpool_input.append(input[0])
         self.maxpool_current_index = self.maxpool_current_index + 1
         if self.maxpool_current_index % self.num_maxpool_layers == 0:
             self.maxpool_current_index = 0
@@ -327,7 +327,7 @@ class LRP():
     def avgpool_forward_hook_fn(self, module, input, output):
         if self.avgpool_current_index == 0:
             self.avgpool_input.clear()
-        self.avgpool_input.append(output)
+        self.avgpool_input.append(input[0])
         self.avgpool_current_index = self.avgpool_current_index + 1
         if self.avgpool_current_index % self.num_avgpool_layers == 0:
             self.avgpool_current_index = 0
@@ -343,7 +343,7 @@ class LRP():
     def adaptive_avgpool_forward_hook_fn(self, module, input, output):
         if self.adaptive_avgpool_current_index == 0:
             self.adaptive_avgpool_input.clear()
-        self.adaptive_avgpool_input.append(output)
+        self.adaptive_avgpool_input.append(input[0])
         self.adaptive_avgpool_current_index = self.adaptive_avgpool_current_index + 1
         if self.adaptive_avgpool_current_index % self.num_adaptive_avgpool_layers == 0:
             self.adaptive_avgpool_current_index = 0
