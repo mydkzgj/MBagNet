@@ -78,6 +78,8 @@ class LRP():
         # 256 输入时 vgg 的 adapt avg pool == avgpool k=2,d=1,p=0
 
         self.eps = 1E-5
+        self.a = 2
+        self.b = 1 - self.a
 
         self.setHook(model)
 
@@ -248,9 +250,6 @@ class LRP():
             self.conv_input_obtain_index = self.conv_input_obtain_index - 1
             conv_input = self.conv_input[self.conv_input_obtain_index]
 
-            a = 2
-            b = 1 - a
-
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
             output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
@@ -279,7 +278,7 @@ class LRP():
                                                      output_padding=output_padding)
             distribution_neg = conv_input * z
 
-            new_grad_in = a * distribution_pos + b * distribution_neg
+            new_grad_in = self.a * distribution_pos + self.b * distribution_neg
 
             if self.conv_input_obtain_index == 0:
                 # first layer  use uniform
