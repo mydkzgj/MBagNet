@@ -459,6 +459,9 @@ class Template():
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
         gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
 
+        if self.reservePos == True:
+            gcam = torch.relu(gcam)
+
         return gcam
 
     # Generate Overall CAM
