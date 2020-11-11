@@ -29,21 +29,21 @@ class Template():
         self.useGuidedMAXPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_maxpool_layers = 0
-        self.maxpool_output = []
+        self.maxpool_input = []
         self.maxpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_maxpool_index_list = []
 
         self.useGuidedAVGPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_avgpool_layers = 0
-        self.avgpool_output = []
+        self.avgpool_input = []
         self.avgpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_avgpool_index_list = []
 
         self.useGuidedAdaptiveAVGPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedAdaptiveAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_adaptive_avgpool_layers = 0
-        self.adaptive_avgpool_output = []
+        self.adaptive_avgpool_input = []
         self.adaptive_avgpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_adaptive_avgpool_index_list = []
 
@@ -264,8 +264,8 @@ class Template():
 
     def maxpool_forward_hook_fn(self, module, input, output):
         if self.maxpool_current_index == 0:
-            self.maxpool_output.clear()
-        self.maxpool_output.append(output)
+            self.maxpool_input.clear()
+        self.maxpool_input.append(input[0])
         self.maxpool_current_index = self.maxpool_current_index + 1
         if self.maxpool_current_index % self.num_maxpool_layers == 0:
             self.maxpool_current_index = 0
@@ -273,15 +273,15 @@ class Template():
     def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedMAXPOOLstate == True:
             self.maxpool_output_obtain_index = self.maxpool_output_obtain_index - 1
-            maxpool_output = self.maxpool_output[self.maxpool_output_obtain_index]
+            maxpool_output = self.maxpool_input[self.maxpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
 
     def avgpool_forward_hook_fn(self, module, input, output):
         if self.avgpool_current_index == 0:
-            self.avgpool_output.clear()
-        self.avgpool_output.append(output)
+            self.avgpool_input.clear()
+        self.avgpool_input.append(input[0])
         self.avgpool_current_index = self.avgpool_current_index + 1
         if self.avgpool_current_index % self.num_avgpool_layers == 0:
             self.avgpool_current_index = 0
@@ -289,23 +289,23 @@ class Template():
     def avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
             self.avgpool_output_obtain_index = self.avgpool_output_obtain_index - 1
-            avgpool_output = self.avgpool_output[self.avgpool_output_obtain_index]
+            avgpool_output = self.avgpool_input[self.avgpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
 
     def adaptive_avgpool_forward_hook_fn(self, module, input, output):
         if self.adaptive_avgpool_current_index == 0:
-            self.adaptive_avgpool_output.clear()
-        self.adaptive_avgpool_output.append(output)
+            self.adaptive_avgpool_input.clear()
+        self.adaptive_avgpool_input.append(input[0])
         self.adaptive_avgpool_current_index = self.adaptive_avgpool_current_index + 1
         if self.adaptive_avgpool_current_index % self.num_adaptive_avgpool_layers == 0:
             self.adaptive_avgpool_current_index = 0
 
-    def adpative_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
+    def adaptive_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
             self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
-            adaptive_avgpool_output = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
+            adaptive_avgpool_output = self.adaptive_avgpool_input[self.adaptive_avgpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
@@ -366,9 +366,9 @@ class Template():
         self.conv_input_obtain_index = len(self.conv_input)
         self.bn_input_obtain_index = len(self.bn_input)
         self.relu_output_obtain_index = len(self.relu_output)
-        self.maxpool_output_obtain_index = len(self.maxpool_output)
-        self.avgpool_output_obtain_index = len(self.avgpool_output)
-        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
+        self.maxpool_output_obtain_index = len(self.maxpool_input)
+        self.avgpool_output_obtain_index = len(self.avgpool_input)
+        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_input)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,

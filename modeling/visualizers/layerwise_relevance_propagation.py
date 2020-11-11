@@ -32,21 +32,21 @@ class LRP():
         self.useGuidedMAXPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedMAXPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_maxpool_layers = 0
-        self.maxpool_output = []
+        self.maxpool_input = []
         self.maxpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_maxpool_index_list = []
 
         self.useGuidedAVGPOOL = False  # True  #False  # GuideBackPropagation的变体
         self.guidedAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_avgpool_layers = 0
-        self.avgpool_output = []
+        self.avgpool_input = []
         self.avgpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_avgpool_index_list = []
 
-        self.useGuidedAdaptiveAVGPOOL = False  # True  #False  # GuideBackPropagation的变体
+        self.useGuidedAdaptiveAVGPOOL = True  # True  #False  # GuideBackPropagation的变体
         self.guidedAdaptiveAVGPOOLstate = 0  # 用于区分是进行导向反向传播还是经典反向传播，guidedBP只是用于设置hook。需要进行导向反向传播的要将self.guidedBPstate设置为1，结束后关上
         self.num_adaptive_avgpool_layers = 0
-        self.adaptive_avgpool_output = []
+        self.adaptive_avgpool_input = []
         self.adaptive_avgpool_current_index = 0  # 后续设定为len(relu_input)
         self.stem_adaptive_avgpool_index_list = []
 
@@ -76,6 +76,8 @@ class LRP():
 
         self.back_rule = "CMP_AB"   # 目前默认这个
         # 256 输入时 vgg 的 adapt avg pool == avgpool k=2,d=1,p=0
+
+        self.eps = 1E-5
 
         self.setHook(model)
 
@@ -219,11 +221,9 @@ class LRP():
 
             bias_current = module.bias.unsqueeze(0).expand_as(grad_out[0]) if module.bias is not None else 0
 
-            eps = 0.001
-
             new_weight = module.weight
             x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
-            x_eps = x.ne(0).float() + eps * (x.ge(0).float() + (1 - x.ge(0).float()))
+            x_eps = x.ne(0).float() + self.eps * (x.ge(0).float() + (1 - x.ge(0).float()))
             y = grad_out[0] / x_eps
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
@@ -254,13 +254,13 @@ class LRP():
                     module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
-            new_weight = module.weight
-            new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
-                                                               padding=new_padding, output_padding=output_padding)
+            bias_current = module.bias.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand_as(grad_out[0]) if module.bias is not None else 0
+            bias_pos = bias_current.relu()
+            bias_neg = -(-bias_current).relu()
 
             # 1.pos
             new_weight = module.weight.relu()
-            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)+bias_pos
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
@@ -269,7 +269,7 @@ class LRP():
 
             # 2.neg
             new_weight = -(-module.weight).relu()
-            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+            x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)+bias_neg
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
@@ -310,8 +310,8 @@ class LRP():
 
     def maxpool_forward_hook_fn(self, module, input, output):
         if self.maxpool_current_index == 0:
-            self.maxpool_output.clear()
-        self.maxpool_output.append(output)
+            self.maxpool_input.clear()
+        self.maxpool_input.append(output)
         self.maxpool_current_index = self.maxpool_current_index + 1
         if self.maxpool_current_index % self.num_maxpool_layers == 0:
             self.maxpool_current_index = 0
@@ -319,15 +319,15 @@ class LRP():
     def maxpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedMAXPOOLstate == True:
             self.maxpool_output_obtain_index = self.maxpool_output_obtain_index - 1
-            maxpool_output = self.maxpool_output[self.maxpool_output_obtain_index]
+            maxpool_output = self.maxpool_input[self.maxpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
 
     def avgpool_forward_hook_fn(self, module, input, output):
         if self.avgpool_current_index == 0:
-            self.avgpool_output.clear()
-        self.avgpool_output.append(output)
+            self.avgpool_input.clear()
+        self.avgpool_input.append(output)
         self.avgpool_current_index = self.avgpool_current_index + 1
         if self.avgpool_current_index % self.num_avgpool_layers == 0:
             self.avgpool_current_index = 0
@@ -335,25 +335,46 @@ class LRP():
     def avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
             self.avgpool_output_obtain_index = self.avgpool_output_obtain_index - 1
-            avgpool_output = self.avgpool_output[self.avgpool_output_obtain_index]
+            avgpool_output = self.avgpool_input[self.avgpool_output_obtain_index]
 
             new_grad_in = grad_in[0]
             return (new_grad_in,)
 
     def adaptive_avgpool_forward_hook_fn(self, module, input, output):
         if self.adaptive_avgpool_current_index == 0:
-            self.adaptive_avgpool_output.clear()
-        self.adaptive_avgpool_output.append(output)
+            self.adaptive_avgpool_input.clear()
+        self.adaptive_avgpool_input.append(output)
         self.adaptive_avgpool_current_index = self.adaptive_avgpool_current_index + 1
         if self.adaptive_avgpool_current_index % self.num_adaptive_avgpool_layers == 0:
             self.adaptive_avgpool_current_index = 0
 
-    def adpative_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
+    def adaptive_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
             self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
-            adaptive_avgpool_output = self.adaptive_avgpool_output[self.adaptive_avgpool_output_obtain_index]
+            adaptive_avgpool_intput = self.adaptive_avgpool_input[self.adaptive_avgpool_output_obtain_index]
 
-            new_grad_in = grad_in[0]
+            input_size = (adaptive_avgpool_intput.shape[2], adaptive_avgpool_intput.shape[3])
+            channels = grad_out[0].shape[1]
+
+            stride = ((input_size[0] // module.output_size[0]) if module.output_size[0] != 1 else 1) if hasattr(module,
+                                                                                                                "stride") == False else module.stride
+            kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module,
+                                                                                          "kernel_size") == False else module.kernel_size
+            padding = 0 if hasattr(module, "padding") == False else module.padding
+
+            new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / (kernel_size * kernel_size)
+            new_weight = new_weight.cuda()
+            x = torch.nn.functional.conv2d(adaptive_avgpool_intput, new_weight, stride=stride, padding=padding, groups=channels)
+            x_eps = x.ne(0).float() + self.eps * (x.ge(0).float() + (1 - x.ge(0).float()))
+            y = grad_out[0] / x_eps
+
+            output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
+            output_padding = adaptive_avgpool_intput.shape[3] - output_size
+            z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding,
+                                                     output_padding=output_padding, groups=channels)
+            new_grad_in = adaptive_avgpool_intput * z
+
+
             return (new_grad_in,)
 
 
@@ -412,9 +433,9 @@ class LRP():
         self.conv_input_obtain_index = len(self.conv_input)
         self.bn_input_obtain_index = len(self.bn_input)
         self.relu_output_obtain_index = len(self.relu_output)
-        self.maxpool_output_obtain_index = len(self.maxpool_output)
-        self.avgpool_output_obtain_index = len(self.avgpool_output)
-        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_output)
+        self.maxpool_output_obtain_index = len(self.maxpool_input)
+        self.avgpool_output_obtain_index = len(self.avgpool_input)
+        self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_input)
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
