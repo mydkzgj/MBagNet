@@ -179,7 +179,7 @@ class Baseline(nn.Module):
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
         # "dual-backpropagation"
 
-        # "lrp"
+        # "lrp-cmp-a1-flat", "lrp-cmp-a2-flat"
 
         # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient",
 
@@ -197,7 +197,7 @@ class Baseline(nn.Module):
 
         #"cjy-dual-backpropagation-with-contrastive-exchangeable-cam-guided-pgrad-cam"
 
-        self.visualizer_name = "lrp"#"cjy-dual-backpropagation"
+        self.visualizer_name = "lrp-cmp-a1-flat"  #"cjy-dual-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
@@ -548,8 +548,10 @@ class Baseline(nn.Module):
             self.visualizer = DualBackprogation(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
 
         # only for vgg
-        elif self.visualizer_name == "lrp":
-            self.visualizer = LRP(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+        elif self.visualizer_name == "lrp-cmp-a1-flat":
+            self.visualizer = LRP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, a=1)
+        elif self.visualizer_name == "lrp-cmp-a2-flat":
+            self.visualizer = LRP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, a=2)
 
         elif self.visualizer_name == "cjy-mwp":
             self.visualizer = CJY_MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=False)

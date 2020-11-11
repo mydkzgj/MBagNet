@@ -12,7 +12,7 @@ class LRP():
     """
     only for Vgg16
     """
-    def __init__(self, model, num_classes, target_layer):
+    def __init__(self, model, num_classes, target_layer, a):
         self.model = model
         self.num_classes = num_classes
 
@@ -78,7 +78,7 @@ class LRP():
         # 256 输入时 vgg 的 adapt avg pool == avgpool k=2,d=1,p=0
 
         self.eps = 1E-5
-        self.a = 2
+        self.a = a
         self.b = 1 - self.a
 
         self.setHook(model)
