@@ -223,7 +223,10 @@ class LRP():
 
             new_weight = module.weight
             x = torch.nn.functional.linear(linear_input, new_weight) + bias_current
-            x_eps = x.ne(0).float() + self.eps * (x.ge(0).float() + (1 - x.ge(0).float()))
+            if self.eps != 0:
+                x_eps = x + self.eps * (x.ge(0).float() - (1 - x.ge(0).float()))
+            else:
+                x_eps = x + x.eq(0).float() * 1E-12
             y = grad_out[0] / x_eps
             z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
 
@@ -365,7 +368,10 @@ class LRP():
             new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / (kernel_size * kernel_size)
             new_weight = new_weight.cuda()
             x = torch.nn.functional.conv2d(adaptive_avgpool_intput, new_weight, stride=stride, padding=padding, groups=channels)
-            x_eps = x.ne(0).float() + self.eps * (x.ge(0).float() + (1 - x.ge(0).float()))
+            if self.eps != 0:
+                x_eps = x + self.eps * (x.ge(0).float() - (1 - x.ge(0).float()))
+            else:
+                x_eps = x + x.eq(0).float() * 1E-12
             y = grad_out[0] / x_eps
 
             output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
