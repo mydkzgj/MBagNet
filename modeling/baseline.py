@@ -44,6 +44,9 @@ from .visualizers.cjy_dual_backpropagation import *
 from .visualizers.cjy_dual_backpropagation_with_contrastive_guided_pgrad_cam import *
 from .visualizers.cjy_dual_backpropagation_with_contrastive_exchangeable_guided_pgrad_cam import *
 
+from .visualizers.layerwise_relevance_propagation import *
+
+
 
 
 from ptflops import get_model_complexity_info   #计算模型参数量和计算能力
@@ -175,6 +178,8 @@ class Baseline(nn.Module):
         # "xgrad-cam", "xgrad-cam-GBP"
         # "guided-grad-cam","pgrad-back-cam","guided-deconv-pgrad-cam"
         # "dual-backpropagation"
+
+        # "lrp"
 
         # "cjy-mwp", "cjy-c-mwp", "cjy-dual-gradient", "cjy-conv-pos-gradient",
 
@@ -542,6 +547,10 @@ class Baseline(nn.Module):
         elif self.visualizer_name == "dual-backpropagation":
             self.visualizer = DualBackprogation(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
 
+        # only for vgg
+        elif self.visualizer_name == "lrp":
+            self.visualizer = LRP(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
+
         elif self.visualizer_name == "cjy-mwp":
             self.visualizer = CJY_MWP(model=self, num_classes=self.num_classes, target_layer=self.target_layer, contrastive=False)
         elif self.visualizer_name == "cjy-c-mwp":
@@ -584,6 +593,7 @@ class Baseline(nn.Module):
             self.visualizer = CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
         elif self.visualizer_name == "cjy-dual-backpropagation-with-contrastive-exchangeable-cam-guided-pgrad-cam":
             self.visualizer = CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_EXCHANGEABLE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
+
 
 
         elif self.visualizer_name == "none":
