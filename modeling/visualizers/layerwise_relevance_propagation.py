@@ -409,8 +409,8 @@ class LRP():
 
             self.current_bn_weight = module.weight/ (module.running_var + module.eps).sqrt()
             self.current_bn_weight = self.current_bn_weight.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            new_grad_in = grad_out[0]
 
-            new_grad_in = grad_in[0]
             return (new_grad_in, grad_in[1], grad_in[2])
 
     # Obtain Gradient
