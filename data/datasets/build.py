@@ -76,8 +76,8 @@ def make_dataset_for_classic_datasets(cfg, for_train, dataset_type="classificati
         classes_list = train_set.classes
     elif dataset_name == "pascal-voc-classification":
         root_path = os.path.join(root_path, "DATABASE", "PASCAL-VOC")
-        train_set = VOCClassification(root=root_path, year="2012", image_set="train", download=True, transform=train_transforms)
-        val_set = VOCClassification(root=root_path, year="2012", image_set="val", download=True, transform=val_transforms)
+        train_set = VOCClassification(root=root_path, year="2012", image_set="train", download=False, transform=train_transforms)
+        val_set = VOCClassification(root=root_path, year="2012", image_set="val", download=False, transform=val_transforms)
         test_set = val_set
         classes_list = train_set.classes
     elif dataset_name == "pascal-voc-detection":
