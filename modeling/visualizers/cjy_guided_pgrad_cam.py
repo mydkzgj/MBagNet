@@ -12,7 +12,7 @@ class CJY_GUIDED_PGRAD_CAM():
     """
     在每个relu(maxpool)处利用gcam进行逐层筛选
     """
-    def __init__(self, model, num_classes, target_layer, guided_type="cam"):
+    def __init__(self, model, num_classes, target_layer, guided_type="cam",  cam_guided_type=0):
         self.model = model
         self.num_classes = num_classes
 
@@ -59,6 +59,8 @@ class CJY_GUIDED_PGRAD_CAM():
         self.reservePos = False  #True
 
         self.guided_type = guided_type  # "grad", "cam"
+
+        self.cam_guided_type = cam_guided_type
 
         self.setHook(model)
 
@@ -269,50 +271,35 @@ class CJY_GUIDED_PGRAD_CAM():
                     return grad_in
 
                 # 不同的CAM生成方式
-                """
-                #1.使用主干的cam限制分支的cam范围
-                if self.relu_output_obtain_index in self.stem_relu_index_list:
-                    self.CAM = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                    cam = self.CAM
-                else:
-                    if self.CAM.shape[-1] != grad_out[0].shape[-1] and len(grad_out[0].shape) == 4:
-                        cam = torch.nn.functional.interpolate(self.CAM, (grad_out[0].shape[2], grad_out[0].shape[3]), mode='nearest')
+                if self.cam_guided_type == 0:
+                    # (0).直接计算
+                    cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                elif self.cam_guided_type == 1:
+                    # (1).使用主干的cam限制分支的cam范围
+                    current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                    if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
+                        cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
                     else:
                         cam = self.CAM
-                    cam = cam * self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                #"""
-                """
-                # (1).使用主干的cam限制分支的cam范围
-                current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
-                    cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                    cam = cam * current_cam
+                    if self.relu_output_obtain_index in self.stem_relu_index_list:
+                        self.CAM = cam
+                elif self.cam_guided_type == 2:
+                    # (2).拓展cam的范围
+                    cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                    cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
+                elif self.cam_guided_type == 3:
+                    # (3).将neg-cam的值均分用以抑制周边的pos-cam
+                    cam_o = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
+                    cam_p = cam_o * cam_o.gt(0).float()
+                    cam_n = cam_o * cam_o.lt(0).float()
+                    cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                    cam_o_new = cam_p + cam_n_avg
+                    cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
                 else:
-                    cam = self.CAM
-                cam = cam * current_cam
-                if self.relu_output_obtain_index in self.stem_relu_index_list:
-                    self.CAM = cam
-                #"""
+                    raise Exception("Wrong CAM Guided TYPE")
 
-                # (2).拓展cam的范围
-                """
-                cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
-                cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
-                #"""
-
-                # (3).将neg-cam的值均分用以抑制周边的pos-cam
-                # """
-                cam_o = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True)
-                cam_p = cam_o * cam_o.gt(0).float()
-                cam_n = cam_o * cam_o.lt(0).float()
-                cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
-                cam_o_new = cam_p + cam_n_avg
-                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
-                # """
-
-                # (0).直接计算
-                #cam = torch.sum(relu_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 new_grad_in = grad_in[0] * cam
-
             else:
                 new_grad_in = grad_in[0]
 
@@ -367,7 +354,6 @@ class CJY_GUIDED_PGRAD_CAM():
             self.maxpool_input_obtain_index = self.maxpool_input_obtain_index - 1
             maxpool_input = self.maxpool_input[self.maxpool_input_obtain_index]
 
-            if self.maxpool_input_obtain_index not in self.stem_maxpool_index_list: return grad_in
             # 以何种方式进行回传路径筛选
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
@@ -381,36 +367,34 @@ class CJY_GUIDED_PGRAD_CAM():
                 maxpool_output, indices = torch.nn.functional.max_pool2d(maxpool_input, module.kernel_size, module.stride, module.padding,
                                                                          module.dilation, module.ceil_mode, return_indices=True,)
 
-                """
-                # (1).使用主干的cam限制分支的cam范围
-                current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
-                if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
-                    cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                if self.cam_guided_type == 0:
+                    # (0).直接计算
+                    cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                elif self.cam_guided_type == 1:
+                    # (1).使用主干的cam限制分支的cam范围
+                    current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
+                    if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
+                        cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                    else:
+                        cam = self.CAM
+                    cam = cam * current_cam
+                    if self.maxpool_input_obtain_index in self.stem_maxpool_index_list:
+                        self.CAM = cam
+                elif self.cam_guided_type == 2:
+                    # (2).拓展cam的范围
+                    cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
+                    cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
+                elif self.cam_guided_type == 3:
+                    # (3).将neg-cam的值均分用以抑制周边的pos-cam
+                    cam_o = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
+                    cam_p = cam_o * cam_o.gt(0).float()
+                    cam_n = cam_o * cam_o.lt(0).float()
+                    cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                    cam_o_new = cam_p + cam_n_avg
+                    cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
                 else:
-                    cam = self.CAM
-                cam = cam * current_cam
-                if self.maxpool_input_obtain_index in self.stem_maxpool_index_list:
-                    self.CAM = cam
-                # """
+                    raise Exception("Wrong CAM Guided TYPE")
 
-                # (2).拓展cam的范围
-                """
-                cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
-                cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
-                #"""
-
-                # (3).将neg-cam的值均分用以抑制周边的pos-cam
-                # """
-                cam_o = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True)
-                cam_p = cam_o * cam_o.gt(0).float()
-                cam_n = cam_o * cam_o.lt(0).float()
-                cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
-                cam_o_new = cam_p + cam_n_avg
-                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
-                # """
-
-                # (0).直接计算
-                #cam = torch.sum(maxpool_output * grad_out[0], dim=1, keepdim=True).gt(0).float()
                 new_grad_out = grad_out[0] * cam
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride, module.padding, output_size=maxpool_input.shape)
             else:

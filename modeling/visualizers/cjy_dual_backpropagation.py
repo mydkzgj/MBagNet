@@ -18,7 +18,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
     比dual backpropagation写的更好
     """
-    def __init__(self, model, num_classes, target_layer, guided_type="none"):
+    def __init__(self, model, num_classes, target_layer, guided_type="none", cam_guided_type=0):
         self.model = model
         self.num_classes = num_classes
 
@@ -91,6 +91,8 @@ class CJY_DUAL_BACKPROPAGATION():
         self.bias_back_type = 1  #1,2,3
 
         self.guided_type = guided_type  #"grad", "cam"
+
+        self.cam_guided_type = cam_guided_type
 
         self.setHook(model)
 
@@ -400,36 +402,44 @@ class CJY_DUAL_BACKPROPAGATION():
                 if relu_output.ndimension() == 2:
                     return (new_grad_in,)
 
-                """
-                # (1).使用主干的cam限制分支的cam范围
-                current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
-                if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
-                    cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                if self.cam_guided_type == 0:
+                    # (0).直接计算
+                    cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
+                elif self.cam_guided_type == 1:
+                    # (1).使用主干的cam限制分支的cam范围
+                    current_cam = self.GenerateCAM(relu_output, grad_out[0]).gt(0).float()
+                    if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
+                        cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                    else:
+                        cam = self.CAM
+                    cam = cam * current_cam
+                    if self.relu_output_obtain_index in self.stem_relu_index_list:
+                        self.CAM = cam
+                elif self.cam_guided_type == 2:
+                    # (2).拓展cam的范围
+                    cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
+                    cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
+                elif self.cam_guided_type == 3:
+                    # (3).将neg-cam的值均分用以抑制周边的pos-cam
+                    cam_o = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                    cam_p = cam_o * cam_o.gt(0).float()
+                    cam_n = cam_o * cam_o.lt(0).float()
+                    cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                    cam_o_new = cam_p + cam_n_avg
+                    cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
+                elif self.cam_guided_type == 4:
+                    # (4).将neg-cam的值按周边正值个数均分用以抑制周边的pos-cam
+                    cam_o = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                    cam_p = cam_o * cam_o.gt(0).float()
+                    cam_n = cam_o * cam_o.lt(0).float()
+                    cam_p_sum = torch.nn.functional.avg_pool2d(cam_p, kernel_size=3, stride=1, padding=1)
+                    new_cam_n = cam_n / (cam_p_sum * cam_n.lt(0).float()).clamp(1E-12)
+                    cam_n_avg = torch.nn.functional.avg_pool2d(new_cam_n, kernel_size=3, stride=1, padding=1)
+                    cam_o_new = cam_p + cam_n_avg
+                    cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
                 else:
-                    cam = self.CAM
-                cam = cam * current_cam
-                if self.relu_output_obtain_index in self.stem_relu_index_list:
-                    self.CAM = cam
-                # """
+                    raise Exception("Wrong CAM Guided TYPE")
 
-                # (2).拓展cam的范围
-                """
-                cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
-                cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
-                #"""
-
-                # (3).将neg-cam的值均分用以抑制周边的pos-cam
-                #"""
-                cam_o = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
-                cam_p = cam_o * cam_o.gt(0).float()
-                cam_n = cam_o * cam_o.lt(0).float()
-                cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
-                cam_o_new = cam_p + cam_n_avg
-                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
-                #"""
-
-                # (0).直接计算
-                #cam = torch.sum(relu_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
                 new_grad_in = new_grad_in * cam
 
             return (new_grad_in,)
@@ -468,47 +478,44 @@ class CJY_DUAL_BACKPROPAGATION():
             elif self.guided_type == "cam":
                 if self.maxpool_input_obtain_index not in self.stem_maxpool_index_list: return grad_in
                 # 2.依据位置的共同贡献进行导向Guided
-                """
-                # (1).使用主干的cam限制分支的cam范围
-                current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
-                if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
-                    cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                if self.cam_guided_type == 0:
+                    # (0).直接计算
+                    cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
+                elif self.cam_guided_type == 1:
+                    # (1).使用主干的cam限制分支的cam范围
+                    current_cam = self.GenerateCAM(maxpool_output, grad_out[0]).gt(0).float()
+                    if self.CAM is not 1 and self.CAM.shape[-1] != current_cam.shape:
+                        cam = torch.nn.functional.interpolate(self.CAM, (current_cam.shape[2], current_cam.shape[3]), mode='nearest')
+                    else:
+                        cam = self.CAM
+                    cam = cam * current_cam
+                    if self.maxpool_input_obtain_index in self.stem_maxpool_index_list:
+                        self.CAM = cam
+                elif self.cam_guided_type == 2:
+                    # (2).拓展cam的范围
+                    cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
+                    cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
+                elif self.cam_guided_type == 3:
+                    # (3).将neg-cam的值均分用以抑制周边的pos-cam
+                    cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                    cam_p = cam_o * cam_o.gt(0).float()
+                    cam_n = cam_o * cam_o.lt(0).float()
+                    cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
+                    cam_o_new = cam_p + cam_n_avg
+                    cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
+                elif self.cam_guided_type == 4:
+                    # (4).将neg-cam的值按周边正值个数均分用以抑制周边的pos-cam
+                    cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
+                    cam_p = cam_o * cam_o.gt(0).float()
+                    cam_n = cam_o * cam_o.lt(0).float()
+                    cam_p_sum = torch.nn.functional.avg_pool2d(cam_p, kernel_size=3, stride=1, padding=1)
+                    new_cam_n = cam_n / (cam_p_sum * cam_n.lt(0).float()).clamp(1E-12)
+                    cam_n_avg = torch.nn.functional.avg_pool2d(new_cam_n, kernel_size=3, stride=1, padding=1)
+                    cam_o_new = cam_p + cam_n_avg
+                    cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
                 else:
-                    cam = self.CAM
-                cam = cam * current_cam
-                if self.maxpool_input_obtain_index in self.stem_maxpool_index_list:
-                    self.CAM = cam
-                # """
-                # (2).拓展cam的范围
-                """
-                cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
-                cam = torch.max_pool2d(cam, kernel_size=3, stride=1, padding=1)
-                """
+                    raise Exception("Wrong CAM Guided TYPE")
 
-                # (3).将neg-cam的值均分用以抑制周边的pos-cam
-                #"""
-                cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
-                cam_p = cam_o * cam_o.gt(0).float()
-                cam_n = cam_o * cam_o.lt(0).float()
-                cam_n_avg = torch.nn.functional.avg_pool2d(cam_n, kernel_size=3, stride=1, padding=1)
-                cam_o_new = cam_p + cam_n_avg
-                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
-                # """
-
-                # (4).将neg-cam的值按周边正值个数均分用以抑制周边的pos-cam
-                """
-                cam_o = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True)
-                cam_p = cam_o * cam_o.gt(0).float()
-                cam_n = cam_o * cam_o.lt(0).float()
-                cam_p_sum = torch.nn.functional.avg_pool2d(cam_p, kernel_size=3, stride=1, padding=1)
-                new_cam_n = cam_n/(cam_p_sum * cam_n.lt(0).float()).clamp(1E-12)
-                cam_n_avg = torch.nn.functional.avg_pool2d(new_cam_n, kernel_size=3, stride=1, padding=1)
-                cam_o_new = cam_p + cam_n_avg
-                cam = (cam_o_new.relu() * cam_o.gt(0).float()) / (cam_o.relu() * cam_o_new.gt(0).float()).clamp(1E-12)
-                # """
-
-                # (0).直接计算
-                #cam = torch.sum(maxpool_out_sub[0] * grad_out_sub[0] + grad_out_sub[1], dim=1, keepdim=True).gt(0).float()
                 new_grad_out = grad_out[0] * cam
                 new_grad_in = torch.nn.functional.max_unpool2d(new_grad_out, indices, module.kernel_size, module.stride,
                                                                module.padding, output_size=maxpool_input.shape)
