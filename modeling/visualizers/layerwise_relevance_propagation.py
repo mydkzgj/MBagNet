@@ -260,8 +260,13 @@ class LRP():
             bias_pos = bias_current.relu()
             bias_neg = -(-bias_current).relu()
 
+            print(self.current_bn_weight.shape)
+            weight = module.weight * self.current_bn_weight
+            self.current_bn_weight = 1
+            print(self.current_bn_weight)
+
             # 1.pos
-            new_weight = module.weight.relu()
+            new_weight = weight.relu()
             x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)+bias_pos
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
@@ -270,7 +275,7 @@ class LRP():
             distribution_pos = conv_input * z
 
             # 2.neg
-            new_weight = -(-module.weight).relu()
+            new_weight = -(-weight).relu()
             x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)+bias_neg
             x_nonzero = x.ne(0).float()
             y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
@@ -404,6 +409,8 @@ class LRP():
             self.bn_input_obtain_index = self.bn_input_obtain_index - 1
             bn_input = self.bn_input[self.bn_input_obtain_index]
 
+            self.current_bn_weight = module.weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+
             new_grad_in = grad_in[0]
             return (new_grad_in, grad_in[1], grad_in[2])
 
@@ -441,6 +448,8 @@ class LRP():
         self.maxpool_output_obtain_index = len(self.maxpool_input)
         self.avgpool_output_obtain_index = len(self.avgpool_input)
         self.adaptive_avgpool_output_obtain_index = len(self.adaptive_avgpool_input)
+
+        self.current_bn_weight = 1
 
         inter_gradients = torch.autograd.grad(outputs=logits, inputs=self.inter_output,
                                               grad_outputs=gcam_one_hot_labels,
