@@ -260,10 +260,8 @@ class LRP():
             bias_pos = bias_current.relu()
             bias_neg = -(-bias_current).relu()
 
-            print(self.current_bn_weight.shape)
             weight = module.weight * self.current_bn_weight
             self.current_bn_weight = 1
-            print(self.current_bn_weight)
 
             # 1.pos
             new_weight = weight.relu()
