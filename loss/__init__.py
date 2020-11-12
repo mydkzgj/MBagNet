@@ -64,7 +64,10 @@ def make_D_loss(cfg, num_classes):
             margin_loss = MarginLoss()
             lossClasses["margin_loss"] = margin_loss
         elif lossName == "multilabel_binary_cross_entropy_loss":
-            multilabel_binary_cross_entropy_loss = MultilabelBinaryCrossEntropy()
+            if "mse_loss" in lossKeys:
+                multilabel_binary_cross_entropy_loss = MultilabelBinaryCrossEntropy(foucusOnNegtiveLabel=True)
+            else:
+                multilabel_binary_cross_entropy_loss = MultilabelBinaryCrossEntropy(foucusOnNegtiveLabel=False)
             lossClasses["multilabel_binary_cross_entropy_loss"] = multilabel_binary_cross_entropy_loss
         elif lossName == "seg_mask_loss":
             seg_mask_loss = SegMaskLoss(cfg.MODEL.SEG_NUM_CLASSES)

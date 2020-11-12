@@ -14,11 +14,11 @@ class MultilabelBinaryCrossEntropy(nn.Module):
         num_classes (int): number of classes.
         epsilon (float): weight.
     """
-    def __init__(self):
+    def __init__(self, foucusOnNegtiveLabel=False):
         super(MultilabelBinaryCrossEntropy, self).__init__()
         self.BCEL = torch.nn.BCEWithLogitsLoss(reduction="none")
         #self.BCE = torch.nn.BCELoss()
-        self.ignore_th = 0
+        self.foucusOnNegtiveLabel = foucusOnNegtiveLabel   #只计算0label的样本，大于0的样本交给MSE_LOSS
 
     def forward(self, inputs, targets):
         """
@@ -27,18 +27,14 @@ class MultilabelBinaryCrossEntropy(nn.Module):
             targets: ground truth labels with shape (num_classes)
         """
 
-        #log_probs = self.logsoftmax(inputs)
-
-        #计算多标签对应的label
-        #targets = targets/torch.sum(targets, dim=1, keepdim=True)
-
-        #loss = (- targets * log_probs).mean(0).sum()
-
         targets = targets.float()
         loss = self.BCEL(inputs, targets)
-        #loss = torch.mean(loss)
 
-        #CJY at 2020.9.17 为了配合回归  版本二
-        input_target_both_gt_zero = ~ (inputs.ge(self.ignore_th) * targets.gt(0))
-        loss = torch.mean(loss * input_target_both_gt_zero.float())
+        if self.foucusOnNegtiveLabel == False:
+            loss = torch.mean(loss)
+        else:
+            # CJY at 2020.9.17 为了配合回归  版本二
+            input_target_both_gt_zero = ~ (inputs.ge(0) * targets.gt(0))
+            loss = torch.mean(loss * input_target_both_gt_zero.float())
+
         return loss

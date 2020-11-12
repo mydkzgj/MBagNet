@@ -237,13 +237,9 @@ class Baseline(nn.Module):
         #nn.init.constant_(self.regression_linear[1].weight, 1)
         #"""
 
-        # 均值 3.5  max 42 联通域
+        # 用于对multi-label 回归标签进行归一化
         self.lesion_area_mean = 0  #120
         self.lesion_area_std_dev = 10  #400
-
-        self.sigmoid_low_th = 5  # 5以上就算饱和了  0.993
-        #self.label_low_th = 1/self.lesion_area_std_dev
-        self.zoom_ratio = 1 #self.label_low_th / self.sigmoid_low_th
 
         # 参数初始化
         self.base.apply(weights_init_kaiming)

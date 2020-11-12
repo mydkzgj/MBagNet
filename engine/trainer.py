@@ -222,10 +222,7 @@ def create_supervised_trainer(model, optimizers, metrics, loss_fn, device=None,)
                 regression_logits = torch.zeros_like(labels)
             else:
                 regression_labels = (labels.float() - model.lesion_area_mean) / model.lesion_area_std_dev  # label 标准化
-                regression_logits = model.zoom_ratio * torch.relu(logits)
-                # regression_logits = logits
-                # regression_logits = model.regression_linear(model.base.r_feature)
-                # logits = model.sigmoid_low_th - torch.relu(model.sigmoid_low_th - logits)
+                regression_logits = torch.relu(logits)
         else:
             raise Exception("Wrong Classifier Output Type")
 
