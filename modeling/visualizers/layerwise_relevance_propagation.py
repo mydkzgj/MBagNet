@@ -409,7 +409,7 @@ class LRP():
             self.bn_input_obtain_index = self.bn_input_obtain_index - 1
             bn_input = self.bn_input[self.bn_input_obtain_index]
 
-            self.current_bn_weight = module.weight/ (module.var + module.eps).sqrt()
+            self.current_bn_weight = module.weight/ (module.running_var + module.eps).sqrt()
             self.current_bn_weight = self.current_bn_weight.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
             new_grad_in = grad_in[0]
