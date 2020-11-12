@@ -570,7 +570,7 @@ class Baseline(nn.Module):
             self.visualizer = CJY_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
         #elif self.visualizer_name == "cjy-cam-guided-pgrad-cam":
         elif "cjy-cam-guided-pgrad-cam" in self.visualizer_name:
-            cam_guided_type = str(self.visualizer_name.replace("cjy-cam-guided-pgrad-cam",""))
+            cam_guided_type = int(self.visualizer_name.replace("cjy-cam-guided-pgrad-cam",""))
             self.visualizer = CJY_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam", cam_guided_type=cam_guided_type)
 
         # "cjy-contrastive-guided-pgrad-cam", "cjy-contrastive-guided-pgrad-cam-with-dual-exchange"
@@ -595,7 +595,7 @@ class Baseline(nn.Module):
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
         #elif self.visualizer_name == "cjy-dual-backpropagation-with-cam-guided-screen":
         elif "cjy-dual-backpropagation-with-cam-guided-screen" in self.visualizer_name:
-            cam_guided_type = str(self.visualizer_name.replace("cjy-dual-backpropagation-with-cam-guided-screen", ""))
+            cam_guided_type = int(self.visualizer_name.replace("cjy-dual-backpropagation-with-cam-guided-screen", ""))
             self.visualizer = CJY_DUAL_BACKPROPAGATION(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam", cam_guided_type=cam_guided_type)
         elif self.visualizer_name == "cjy-dual-backpropagation-with-contrastive-grad-guided-pgrad-cam":
             self.visualizer = CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="grad")
