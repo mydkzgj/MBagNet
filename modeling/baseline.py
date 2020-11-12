@@ -197,7 +197,7 @@ class Baseline(nn.Module):
 
         #"cjy-dual-backpropagation-with-contrastive-exchangeable-cam-guided-pgrad-cam"
 
-        self.visualizer_name = "lrp-cmp-a1-flat"  #"cjy-dual-backpropagation"
+        self.visualizer_name = "lrp-cmp-a2-flat"  #"cjy-dual-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
