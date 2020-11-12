@@ -35,7 +35,7 @@ DATA:
 MODEL:
  DEVICE: "cuda"
  #DEVICE_ID: '0'
- BACKBONE_NAME: "resnet50"                                         #'densenet121'#'mbagnet121' 
+ BACKBONE_NAME: "vgg16_bn"                                         #'densenet121'#'mbagnet121' 
  BASE_CLASSIFIER_COMBINE_TYPE: "fl-n"                               #"f-c","pl-c","fl-n"
  CLASSIFIER_NAME: "linear" 
  CLASSIFIER_OUTPUT_TYPE: "multi-label"                         #"single-label", "multi-label"       
@@ -156,7 +156,7 @@ VAL:
 # -----------------------------------------------------------------------------
 TEST:
  RE_RANKING: 'no'
- WEIGHT: "D:/Visualization/save_models/DDR-COLORMASK/semi-MCELoss+MSELoss/resnet/resnet50_model_20.pth" 
+ WEIGHT: "D:/Visualization/save_models/DDR-COLORMASK/semi-MCELoss+MSELoss/vgg-bn/vgg16_bn_model_20.pth"
  FEAT_NORM: 'yes'
 
  # Test Dataloader

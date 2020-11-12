@@ -42,7 +42,7 @@ MODEL:
  CLA_NUM_CLASSES: 4
  SEGMENTER_NAME: "none"                        #fc_mbagnet
  SEG_NUM_CLASSES: 4
- VISUALIZER_NAME: "guided-deconv-pgrad-cam"
+ VISUALIZER_NAME: "none"
  VISUAL_TARGET_LAYERS: "none"
 
  # "grad-cam", "pgrad-cam-GBP", "pgrad-cam", "pgrad-cam-GBP", "grad-cam++", "grad-cam++-GBP",
