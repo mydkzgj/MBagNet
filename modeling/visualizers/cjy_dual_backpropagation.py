@@ -88,7 +88,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
         self.multiply_input = 2
 
-        self.bias_back_type = 4#1  #1,2,3
+        self.bias_back_type = 1  #1,2,3
 
         self.guided_type = guided_type  #"grad", "cam"
 
@@ -266,9 +266,8 @@ class CJY_DUAL_BACKPROPAGATION():
             bias_overall = bias_output + bias_current * grad_output
 
             # new_bias_input计算
-            if self.bias_back_type == 1:
+            if self.bias_back_type == 4:
                 # 1
-
                 new_weight = torch.ones_like(module.weight)  # module.weight
                 new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
                 bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
@@ -290,7 +289,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_input = linear_in_sub[0] * z
-            elif self.bias_back_type == 4:
+            elif self.bias_back_type == 1:
                 # CJY at 2020.11.13  对1进行两点改进：（1）weight=0的部分是死的  （2）Padding是死的（linear无padding）
                 new_weight = module.weight.ne(0).float()
                 new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
@@ -332,7 +331,7 @@ class CJY_DUAL_BACKPROPAGATION():
             output_padding = grad_in[0].shape[3] - output_size
 
             # new_bias_input计算
-            if self.bias_back_type == 1:
+            if self.bias_back_type == 4:
                 # 1  均分
                 new_weight = torch.ones_like(module.weight)  # module.weight
                 new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
@@ -359,13 +358,13 @@ class CJY_DUAL_BACKPROPAGATION():
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
                                                          output_padding=output_padding)
                 bias_input = conv_in_sub[0] * z
-            elif self.bias_back_type == 4:
+            elif self.bias_back_type == 1:
                 # CJY at 2020.11.13  对1进行两点改进：（1）weight=0的部分是死的  （2）Padding是死的
                 new_weight = module.weight.ne(0).float()
                 new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
                 #提前计算padding bias的缩放比例
-                active_neuron = torch.nn.functional.conv_transpose2d(torch.ones_like(bias_overall), new_weight, stride=module.stride,
-                                                                     padding=new_padding, output_padding=output_padding)
+                active_neuron = torch.nn.functional.conv2d(torch.ones_like(conv_in_sub[0]), new_weight,
+                                                           stride=module.stride, padding=module.padding)
                 bias_input = torch.nn.functional.conv_transpose2d(bias_overall/active_neuron, new_weight, stride=module.stride,
                                                                   padding=new_padding, output_padding=output_padding)
 
