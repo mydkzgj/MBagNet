@@ -363,9 +363,9 @@ class CJY_DUAL_BACKPROPAGATION():
                 new_weight = module.weight.ne(0).float()
                 new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
                 #提前计算padding bias的缩放比例
-                active_neuron = torch.nn.functional.conv2d(torch.ones_like(conv_in_sub[0]), new_weight,
-                                                           stride=module.stride, padding=module.padding)
-                bias_input = torch.nn.functional.conv_transpose2d(bias_overall/active_neuron, new_weight, stride=module.stride,
+                #active_neuron = torch.nn.functional.conv2d(torch.ones_like(conv_in_sub[0]), new_weight,
+                #                                           stride=module.stride, padding=module.padding)
+                bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
                                                                   padding=new_padding, output_padding=output_padding)
 
 
