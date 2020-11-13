@@ -268,7 +268,9 @@ class CJY_DUAL_BACKPROPAGATION():
             # new_bias_input计算
             if self.bias_back_type == 1:
                 # 1
-                new_weight = torch.ones_like(module.weight)  # module.weight
+                # CJY at 2020.11.13  weight=0的部分是死的
+                #new_weight = torch.ones_like(module.weight)  # module.weight
+                new_weight = module.weight.ne(0).float()
                 new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
                 bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
             elif self.bias_back_type == 2:
@@ -328,7 +330,9 @@ class CJY_DUAL_BACKPROPAGATION():
             # new_bias_input计算
             if self.bias_back_type == 1:
                 # 1
-                new_weight = torch.ones_like(module.weight)  # module.weight
+                # CJY at 2020.11.13  weight=0的部分是死的
+                #new_weight = torch.ones_like(module.weight)  # module.weight
+                new_weight = module.weight.ne(0).float()
                 new_weight = new_weight / (
                     new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
                 bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
