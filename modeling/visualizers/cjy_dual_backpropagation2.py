@@ -272,10 +272,11 @@ class CJY_DUAL_BACKPROPAGATION():
             if self.bias_back_type == 1:
                 # 1 记录下bias 和 weight的改变
                 new_weight = module.weight.abs()
-                x = torch.nn.functional.linear(linear_input, new_weight)
-                y = bias_overall / x
+                x = torch.nn.functional.linear(linear_in_sub[0], new_weight)
+                x_nonzero = x.ne(0).float()
+                y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
-                bias_input = linear_input * z
+                bias_input = linear_in_sub[0] * z
 
             elif self.bias_back_type == 2:
                 # 2
@@ -343,12 +344,12 @@ class CJY_DUAL_BACKPROPAGATION():
             if self.bias_back_type == 1:
                 # 1  abs 分配
                 new_weight = weight.abs()
-                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+                x = torch.nn.functional.conv2d(conv_in_sub[0], new_weight, stride=module.stride, padding=module.padding)
                 x_nonzero = x.ne(0).float()
-                y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+                y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
                                                          output_padding=output_padding)
-                bias_input = conv_input * z
+                bias_input = conv_in_sub[0] * z
 
             elif self.bias_back_type == 2:
                 # 2
