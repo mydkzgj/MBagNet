@@ -40,7 +40,7 @@ from modeling.visualizers.discard.cjy_contrastive_guided_pgrad_cam_with_dual_exc
 from .visualizers.cjy_contrastive_guided_pgrad_cam_multiply_gcam import *
 from .visualizers.cjy_contrastive_guided_pgrad_cam_multiply_dbp import *
 
-from .visualizers.cjy_dual_backpropagation import *
+from .visualizers.cjy_dual_backpropagation2 import *
 from .visualizers.cjy_dual_backpropagation_with_contrastive_guided_pgrad_cam import *
 from .visualizers.cjy_dual_backpropagation_with_contrastive_exchangeable_guided_pgrad_cam import *
 

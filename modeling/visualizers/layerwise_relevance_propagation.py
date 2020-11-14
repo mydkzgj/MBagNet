@@ -356,9 +356,9 @@ class LRP():
     def adaptive_avgpool_backward_hook_fn(self, module, grad_in, grad_out):
         if self.guidedAVGPOOLstate == True:
             self.adaptive_avgpool_output_obtain_index = self.adaptive_avgpool_output_obtain_index - 1
-            adaptive_avgpool_intput = self.adaptive_avgpool_input[self.adaptive_avgpool_output_obtain_index]
+            adaptive_avgpool_input = self.adaptive_avgpool_input[self.adaptive_avgpool_output_obtain_index]
 
-            input_size = (adaptive_avgpool_intput.shape[2], adaptive_avgpool_intput.shape[3])
+            input_size = (adaptive_avgpool_input.shape[2], adaptive_avgpool_input.shape[3])
             channels = grad_out[0].shape[1]
 
             stride = ((input_size[0] // module.output_size[0]) if module.output_size[0] != 1 else 1) if hasattr(module,
@@ -369,7 +369,7 @@ class LRP():
 
             new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / (kernel_size * kernel_size)
             new_weight = new_weight.cuda()
-            x = torch.nn.functional.conv2d(adaptive_avgpool_intput, new_weight, stride=stride, padding=padding, groups=channels)
+            x = torch.nn.functional.conv2d(adaptive_avgpool_input, new_weight, stride=stride, padding=padding, groups=channels)
             if self.eps != 0:
                 x_eps = x + self.eps * (x.ge(0).float() - (1 - x.ge(0).float()))
             else:
@@ -377,10 +377,10 @@ class LRP():
             y = grad_out[0] / x_eps
 
             output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
-            output_padding = adaptive_avgpool_intput.shape[3] - output_size
+            output_padding = adaptive_avgpool_input.shape[3] - output_size
             z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding,
                                                      output_padding=output_padding, groups=channels)
-            new_grad_in = adaptive_avgpool_intput * z
+            new_grad_in = adaptive_avgpool_input * z
 
 
             return (new_grad_in,)

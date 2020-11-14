@@ -271,7 +271,7 @@ class CJY_DUAL_BACKPROPAGATION():
             # new_bias_input计算
             if self.bias_back_type == 1:
                 # 1 记录下bias 和 weight的改变
-                new_weight = module.weight.abs()
+                new_weight = module.weight.relu()
                 x = torch.nn.functional.linear(linear_in_sub[0], new_weight)
                 x_nonzero = x.ne(0).float()
                 y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero
@@ -342,14 +342,16 @@ class CJY_DUAL_BACKPROPAGATION():
 
             # new_bias_input计算
             if self.bias_back_type == 1:
+                #"""
                 # 1  abs 分配
-                new_weight = weight.abs()
+                new_weight = weight.relu()
                 x = torch.nn.functional.conv2d(conv_in_sub[0], new_weight, stride=module.stride, padding=module.padding)
                 x_nonzero = x.ne(0).float()
                 y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
                                                          output_padding=output_padding)
                 bias_input = conv_in_sub[0] * z
+                #"""
 
             elif self.bias_back_type == 2:
                 # 2
@@ -624,10 +626,32 @@ class CJY_DUAL_BACKPROPAGATION():
 
                 bias_overall = grad_out_sub[1]
 
-                bias_overall_sum = bias_overall.sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
 
-                new_bias = torch.ones_like(grad_in_sub[1]) * bias_overall_sum / (
-                            grad_in_sub[1].shape[2] * grad_in_sub[1].shape[3])
+                input_size = (adaptive_avgpool_input.shape[2], adaptive_avgpool_input.shape[3])
+                channels = grad_out[0].shape[1]
+
+                stride = ((input_size[0] // module.output_size[0]) if module.output_size[0] != 1 else 1) if hasattr(
+                    module,
+                    "stride") == False else module.stride
+                kernel_size = input_size[0] - (module.output_size[0] - 1) * stride if hasattr(module,
+                                                                                              "kernel_size") == False else module.kernel_size
+                padding = 0 if hasattr(module, "padding") == False else module.padding
+
+                new_weight = torch.ones((channels, 1, kernel_size, kernel_size)) / (kernel_size * kernel_size)
+                new_weight = new_weight.cuda()
+                x = torch.nn.functional.conv2d(adaptive_avgpool_in_sub[0], new_weight, stride=stride, padding=padding,
+                                               groups=channels)
+
+                x_nonzero = x.ne(0).float()
+                y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero
+
+                output_size = (y.shape[3] - 1) * stride - 2 * padding + (kernel_size - 1) + 1  # y.shape[3]为1是不是不适用
+                output_padding = adaptive_avgpool_input.shape[3] - output_size
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=stride, padding=padding,
+                                                         output_padding=output_padding, groups=channels)
+                new_bias = adaptive_avgpool_in_sub[0] * z
+
+
 
                 new_grad_in_sub = [grad_in_sub[0], new_bias]
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
