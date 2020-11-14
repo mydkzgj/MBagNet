@@ -343,7 +343,7 @@ class CJY_DUAL_BACKPROPAGATION():
             # new_bias_input计算
             if self.bias_back_type == 1:
                 #"""
-                # 1  abs 分配
+                # 1  relu 分配
                 new_weight = weight.relu()
                 x = torch.nn.functional.conv2d(conv_in_sub[0], new_weight, stride=module.stride, padding=module.padding)
                 x_nonzero = x.ne(0).float()
@@ -351,6 +351,30 @@ class CJY_DUAL_BACKPROPAGATION():
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
                                                          output_padding=output_padding)
                 bias_input = conv_in_sub[0] * z
+
+                if self.conv_input_obtain_index == 0:
+                    # pos
+                    new_weight_p = weight.relu()
+                    x_p = torch.nn.functional.conv2d(conv_in_sub[0].relu(), new_weight_p, stride=module.stride,
+                                                   padding=module.padding)
+
+                    new_weight_n = -(-weight).relu()
+                    x_n = torch.nn.functional.conv2d(-(-conv_in_sub[0]).relu(), new_weight_n, stride=module.stride,
+                                                   padding=module.padding)
+
+                    x = x_p + x_n
+                    x_nonzero = x.ne(0).float()
+                    y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+
+                    z_p = torch.nn.functional.conv_transpose2d(y, new_weight_p, stride=module.stride, padding=new_padding,
+                                                             output_padding=output_padding)
+
+                    z_n = torch.nn.functional.conv_transpose2d(y, new_weight_n, stride=module.stride, padding=new_padding,
+                                                             output_padding=output_padding)
+                    bias_input = conv_in_sub[0] * (z_p + z_n)
+
+
+
                 #"""
 
             elif self.bias_back_type == 2:
