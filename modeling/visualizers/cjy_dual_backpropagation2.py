@@ -353,6 +353,15 @@ class CJY_DUAL_BACKPROPAGATION():
                 bias_input = conv_in_sub[0] * z
 
                 if self.conv_input_obtain_index == 0:
+                    # 均匀分配
+                    # 1  均分
+                    new_weight = torch.ones_like(module.weight)  # module.weight
+                    new_weight = new_weight / (
+                        new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
+                    bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
+                                                                      padding=new_padding,
+                                                                      output_padding=output_padding)
+                    """
                     # pos
                     new_weight_p = weight.relu()
                     x_p = torch.nn.functional.conv2d(conv_in_sub[0].relu(), new_weight_p, stride=module.stride,
@@ -372,9 +381,7 @@ class CJY_DUAL_BACKPROPAGATION():
                     z_n = torch.nn.functional.conv_transpose2d(y, new_weight_n, stride=module.stride, padding=new_padding,
                                                              output_padding=output_padding)
                     bias_input = conv_in_sub[0] * (z_p + z_n)
-
-
-
+                    """
                 #"""
 
             elif self.bias_back_type == 2:
