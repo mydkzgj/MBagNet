@@ -10,13 +10,16 @@ from .draw_tool import draw_visualization
 from modeling.backbones.resnet import add_op
 
 
-class CJY_DUAL_BACKPROPAGATION():
+class CJY_DUAL_BACKPROPAGATION2():
     """
     说明：dual 包括 gradient 和 bias
 
     contribution = gradient * activation + bias
 
     比dual backpropagation写的更好
+
+    与 cjy_dual_backpropagation 相比, 其bias传递方式更加复杂
+
     """
     def __init__(self, model, num_classes, target_layer, guided_type="none", cam_guided_type=0):
         self.model = model
@@ -266,11 +269,14 @@ class CJY_DUAL_BACKPROPAGATION():
             bias_overall = bias_output + bias_current * grad_output
 
             # new_bias_input计算
-            if self.bias_back_type == 4:
-                # 1
-                new_weight = torch.ones_like(module.weight)  # module.weight
-                new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
-                bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
+            if self.bias_back_type == 1:
+                # 1 记录下bias 和 weight的改变
+                new_weight = module.weight.abs()
+                x = torch.nn.functional.linear(linear_input, new_weight)
+                y = bias_overall / x
+                z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
+                bias_input = linear_input * z
+
             elif self.bias_back_type == 2:
                 # 2
                 new_weight = torch.ones_like(module.weight)
@@ -330,13 +336,20 @@ class CJY_DUAL_BACKPROPAGATION():
             output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
+            weight = module.weight * self.current_bn_weight
+            self.current_bn_weight = 1
+
             # new_bias_input计算
-            if self.bias_back_type == 4:
-                # 1  均分
-                new_weight = torch.ones_like(module.weight)  # module.weight
-                new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
-                bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
-                                                                  padding=new_padding, output_padding=output_padding)
+            if self.bias_back_type == 1:
+                # 1  abs 分配
+                new_weight = weight.abs()
+                x = torch.nn.functional.conv2d(conv_input, new_weight, stride=module.stride, padding=module.padding)
+                x_nonzero = x.ne(0).float()
+                y = grad_out[0] / (x + (1 - x_nonzero)) * x_nonzero  # 文章中并没有说应该怎么处理分母为0的情况
+                z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
+                                                         output_padding=output_padding)
+                bias_input = conv_input * z
+
             elif self.bias_back_type == 2:
                 # 2
                 new_weight = torch.ones_like(module.weight)
@@ -707,6 +720,9 @@ class CJY_DUAL_BACKPROPAGATION():
             new_grad_in_sub = [grad_input, bias_input]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
+            self.current_bn_weight = module.weight / (module.running_var + module.eps).sqrt()
+            self.current_bn_weight = self.current_bn_weight.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+
             return (new_grad_in, grad_in[1], grad_in[2])
 
 
@@ -800,6 +816,11 @@ class CJY_DUAL_BACKPROPAGATION():
 
         self.rest = 0
         self.CAM = 1
+
+        self.bias_record = []
+        self.weight_record = []
+        self.stride_record = []
+        self.padding_record = []
 
         if self.multiply_input >= 1:
             #gcam_one_hot_labels = torch.cat([gcam_one_hot_labels] * self.multiply_input, dim=0)
