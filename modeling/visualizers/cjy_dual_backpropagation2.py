@@ -10,7 +10,7 @@ from .draw_tool import draw_visualization
 from modeling.backbones.resnet import add_op
 
 
-class CJY_DUAL_BACKPROPAGATION2():
+class CJY_DUAL_BACKPROPAGATION():
     """
     说明：dual 包括 gradient 和 bias
 
