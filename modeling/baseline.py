@@ -198,8 +198,9 @@ class Baseline(nn.Module):
 
         #"cjy-dual-backpropagation-with-contrastive-exchangeable-cam-guided-pgrad-cam"
 
-        # "cjy-cam-guided-pgrad-cam0", "cjy-cam-guided-pgrad-cam3"
-        # "cjy-dual-backpropagation-with-cam-guided-screen0",  "cjy-dual-backpropagation-with-cam-guided-screen3"
+        # "cjy-cam-guided-pgrad-cam0", "cjy-cam-guided-pgrad-cam1", "cjy-cam-guided-pgrad-cam3"
+        # "cjy-dual-backpropagation-with-cam-guided-screen0", "cjy-dual-backpropagation-with-cam-guided-screen1",
+        # "cjy-dual-backpropagation-with-cam-guided-screen3"
 
         self.visualizer_name = "cjy-dual-backpropagation"  #"cjy-dual-backpropagation"
         #"""

@@ -536,7 +536,6 @@ class CJY_DUAL_BACKPROPAGATION():
             grad_out_sub = [grad_out[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
             grad_in_sub = [grad_in[0][i * num_sub_batch: (i + 1) * num_sub_batch] for i in range(self.multiply_input)]
 
-
             # 以何种方式进行回传路径筛选
             if self.guided_type == "grad":
                 # 1.依据梯度gradient正负进行导向Guided
@@ -872,6 +871,7 @@ class CJY_DUAL_BACKPROPAGATION():
 
         self.rest = 0
         self.CAM = 1
+        self.current_bn_weight = 1
 
         self.bias_record = []
         self.weight_record = []
