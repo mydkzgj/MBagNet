@@ -206,7 +206,7 @@ class Baseline(nn.Module):
 
         # "cjy-mwp-l2"
 
-        self.visualizer_name = "cjy-mwp-l2"  #"cjy-dual-backpropagation"
+        self.visualizer_name = "cjy-dual-backpropagation"  #"cjy-dual-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
