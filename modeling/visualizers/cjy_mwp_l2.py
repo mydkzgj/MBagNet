@@ -250,7 +250,7 @@ class CJY_MWP_L2():
 
             contribution_upper = grad_out[0]
             new_weight = module.weight.pow(2)
-            new_weight = new_weight / new_weight.sum(dim=1, keepdim=True)
+            new_weight = new_weight / new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)
             contribution_lower = torch.nn.functional.conv_transpose2d(contribution_upper, new_weight, stride=module.stride, padding=new_padding,
                                                                       output_padding=output_padding)
             new_grad_in = contribution_lower
