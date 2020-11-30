@@ -273,8 +273,7 @@ class CJY_MWP_L2():
             self.relu_output_obtain_index = self.relu_output_obtain_index - 1
             relu_output = self.relu_output[self.relu_output_obtain_index]
 
-            pos_grad_out = grad_out[0].gt(0).float()
-            new_grad_in = pos_grad_out * grad_in[0]
+            new_grad_in = grad_out[0]
 
             return (new_grad_in,)
 
