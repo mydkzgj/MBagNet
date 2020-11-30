@@ -8,7 +8,10 @@ import torch
 from .draw_tool import draw_visualization
 
 
-class Template():
+class CJY_MWP_L2():
+    """
+    MWP 按照weight的pow归一化传递。最后一层由于不经过ReLU就是直接计算线性分量即可
+    """
     def __init__(self, model, num_classes, target_layer):
         self.model = model
         self.num_classes = num_classes
@@ -214,8 +217,14 @@ class Template():
             self.linear_input_obtain_index = self.linear_input_obtain_index - 1
             linear_input = self.linear_input[self.linear_input_obtain_index]
 
-            new_weight = module.weight
-            new_grad_in = torch.nn.functional.linear(grad_out[0], new_weight.permute(1, 0))
+            contribution_upper = grad_out[0]
+            new_weight = module.weight.pow(2)
+            contribution_lower = torch.nn.functional.linear(contribution_upper, new_weight.permute(1, 0))
+            new_grad_in = contribution_lower
+
+            if self.firstCAM == True:
+                contribution_lower = torch.nn.functional.linear(contribution_upper, module.weight.permute(1, 0))
+                new_grad_in = contribution_lower
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
@@ -235,13 +244,14 @@ class Template():
 
             # prepare for transposed conv
             new_padding = (module.kernel_size[0] - module.padding[0] - 1, module.kernel_size[1] - module.padding[1] - 1)
-            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (
-                    module.kernel_size[0] - 1) + 1
+            output_size = (grad_out[0].shape[3] - 1) * module.stride[0] - 2 * new_padding[0] + module.dilation[0] * (module.kernel_size[0] - 1) + 1
             output_padding = grad_in[0].shape[3] - output_size
 
-            new_weight = module.weight
-            new_grad_in = torch.nn.functional.conv_transpose2d(grad_out[0], new_weight, stride=module.stride,
-                                                               padding=new_padding, output_padding=output_padding)
+            contribution_upper = grad_out[0]
+            new_weight = module.weight.pow(2)
+            contribution_lower = torch.nn.functional.conv_transpose2d(contribution_upper, new_weight, stride=module.stride, padding=new_padding,
+                                                                      output_padding=output_padding)
+            new_grad_in = contribution_lower
 
             return (new_grad_in, grad_in[1], grad_in[2])
 

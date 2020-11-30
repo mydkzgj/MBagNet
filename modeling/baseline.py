@@ -46,6 +46,8 @@ from .visualizers.cjy_dual_backpropagation_with_contrastive_exchangeable_guided_
 
 from .visualizers.layerwise_relevance_propagation import *
 
+from .visualizers.cjy_mwp_l2 import *
+
 
 
 
@@ -600,6 +602,9 @@ class Baseline(nn.Module):
             self.visualizer = CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
         elif self.visualizer_name == "cjy-dual-backpropagation-with-contrastive-exchangeable-cam-guided-pgrad-cam":
             self.visualizer = CJY_DUAL_BACKPROPAGATION_WITH_CONTRASTIVE_EXCHANGEABLE_GUIDED_PGRAD_CAM(model=self, num_classes=self.num_classes, target_layer=self.target_layer, guided_type="cam")
+
+        elif self.visualizer_name == "cjy-mwp-l2":
+            self.visualizer = CJY_MWP_L2(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
 
 
 
