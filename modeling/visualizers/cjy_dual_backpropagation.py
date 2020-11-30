@@ -295,6 +295,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
                 bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
 
+
             new_grad_in_sub = [grad_input, bias_input]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
 
@@ -367,7 +368,6 @@ class CJY_DUAL_BACKPROPAGATION():
                 #                                           stride=module.stride, padding=module.padding)
                 bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
                                                                   padding=new_padding, output_padding=output_padding)
-
 
 
             self.rest = self.rest + bias_overall.sum() - bias_input.sum()

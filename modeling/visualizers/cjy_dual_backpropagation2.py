@@ -269,7 +269,7 @@ class CJY_DUAL_BACKPROPAGATION():
             bias_overall = bias_output + bias_current * grad_output
 
             # new_bias_input计算
-            if self.bias_back_type == 1:
+            if self.bias_back_type == 5:  #1
                 # 1 记录下bias 和 weight的改变
                 new_weight = module.weight.relu()
                 x = torch.nn.functional.linear(linear_in_sub[0], new_weight)
@@ -296,11 +296,18 @@ class CJY_DUAL_BACKPROPAGATION():
                 y = bias_overall / (x + (1 - x_nonzero)) * x_nonzero
                 z = torch.nn.functional.linear(y, new_weight.permute(1, 0))
                 bias_input = linear_in_sub[0] * z
-            elif self.bias_back_type == 1:
+            elif self.bias_back_type == 4:
                 # CJY at 2020.11.13  对1进行两点改进：（1）weight=0的部分是死的  （2）Padding是死的（linear无padding）
                 new_weight = module.weight.ne(0).float()
                 new_weight = new_weight / (torch.sum(new_weight, dim=1, keepdim=True))
                 bias_input = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
+            elif self.bias_back_type == 1:
+                # bias weight l2
+                new_weight = module.weight.pow(2)
+                new_weight = new_weight / new_weight.sum(dim=1, keepdim=True)
+                contribution_lower = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
+                bias_input = contribution_lower
+
 
             new_grad_in_sub = [grad_input, bias_input]
             new_grad_in = torch.cat(new_grad_in_sub, dim=0)
@@ -341,7 +348,7 @@ class CJY_DUAL_BACKPROPAGATION():
             self.current_bn_weight = 1
 
             # new_bias_input计算
-            if self.bias_back_type == 1:
+            if self.bias_back_type == 5:  #1
                 #"""
                 # 1  relu 分配
                 new_weight = weight.relu()
@@ -405,7 +412,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 z = torch.nn.functional.conv_transpose2d(y, new_weight, stride=module.stride, padding=new_padding,
                                                          output_padding=output_padding)
                 bias_input = conv_in_sub[0] * z
-            elif self.bias_back_type == 1:
+            elif self.bias_back_type == 4:
                 # CJY at 2020.11.13  对1进行两点改进：（1）weight=0的部分是死的  （2）Padding是死的
                 new_weight = module.weight.ne(0).float()
                 new_weight = new_weight / (new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True))
@@ -414,6 +421,13 @@ class CJY_DUAL_BACKPROPAGATION():
                 #                                           stride=module.stride, padding=module.padding)
                 bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
                                                                   padding=new_padding, output_padding=output_padding)
+            elif self.bias_back_type == 1:
+                new_weight = module.weight.pow(2)
+                new_weight = new_weight / new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3,
+                                                                                                           keepdim=True)
+                bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight,
+                                                                  stride=module.stride, padding=new_padding,
+                                                                  output_padding=output_padding)
 
 
 
@@ -456,6 +470,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 new_grad_in = torch.cat(new_grad_in_sub, dim=0)
             elif self.bias_back_type == 2:
                 new_grad_in = grad_in[0]
+
 
             # 以何种方式进行回传路径筛选
             #if self.relu_output_obtain_index not in self.stem_relu_index_list: return (new_grad_in,)
