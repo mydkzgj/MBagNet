@@ -304,6 +304,9 @@ class CJY_DUAL_BACKPROPAGATION():
             elif self.bias_back_type == 1:
                 # bias weight l2
                 new_weight = module.weight.pow(2)
+                if self.firstCAM == True:
+                    new_weight = torch.ones_like(module.weight)
+                    self.firstCAM = 0
                 new_weight = new_weight / new_weight.sum(dim=1, keepdim=True)
                 contribution_lower = torch.nn.functional.linear(bias_overall, new_weight.permute(1, 0))
                 bias_input = contribution_lower
@@ -422,7 +425,7 @@ class CJY_DUAL_BACKPROPAGATION():
                 bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight, stride=module.stride,
                                                                   padding=new_padding, output_padding=output_padding)
             elif self.bias_back_type == 1:
-                new_weight = module.weight.pow(2)
+                new_weight = weight.pow(2)
                 new_weight = new_weight / new_weight.sum(dim=1, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3,
                                                                                                            keepdim=True)
                 bias_input = torch.nn.functional.conv_transpose2d(bias_overall, new_weight,
