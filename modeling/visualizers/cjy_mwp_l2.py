@@ -227,6 +227,7 @@ class CJY_MWP_L2():
                 contribution_lower = torch.nn.functional.linear(contribution_upper, module.weight.permute(1, 0))
                 contribution_lower = contribution_lower * linear_input
                 new_grad_in = contribution_lower
+                self.firstCAM = 0
 
             return (grad_in[0], new_grad_in, grad_in[2])  # bias input weight
 
