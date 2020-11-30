@@ -219,6 +219,7 @@ class CJY_MWP_L2():
 
             contribution_upper = grad_out[0]
             new_weight = module.weight.pow(2)
+            new_weight = new_weight / new_weight.sum(dim=1, keepdim=True)
             contribution_lower = torch.nn.functional.linear(contribution_upper, new_weight.permute(1, 0))
             new_grad_in = contribution_lower
 
@@ -249,6 +250,7 @@ class CJY_MWP_L2():
 
             contribution_upper = grad_out[0]
             new_weight = module.weight.pow(2)
+            new_weight = new_weight / new_weight.sum(dim=1, keepdim=True)
             contribution_lower = torch.nn.functional.conv_transpose2d(contribution_upper, new_weight, stride=module.stride, padding=new_padding,
                                                                       output_padding=output_padding)
             new_grad_in = contribution_lower
@@ -470,7 +472,7 @@ class CJY_MWP_L2():
         #gcam = inter_output[:, 435:436,]
         #gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
         #gcam = gcam * (gcam.shape[-1] * gcam.shape[-2])  # 如此，形式上与最后一层计算的gcam量级就相同了  （由于最后loss使用mean，所以此处就不mean了）
-        gcam = torch.sum(inter_gradient * inter_output, dim=1, keepdim=True)
+        gcam = torch.sum(inter_gradient, dim=1, keepdim=True)
 
         if self.reservePos == True:
             gcam = torch.relu(gcam)
