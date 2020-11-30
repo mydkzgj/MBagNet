@@ -204,7 +204,9 @@ class Baseline(nn.Module):
         # "cjy-dual-backpropagation-with-cam-guided-screen0", "cjy-dual-backpropagation-with-cam-guided-screen1",
         # "cjy-dual-backpropagation-with-cam-guided-screen3"
 
-        self.visualizer_name = "cjy-dual-backpropagation"  #"cjy-dual-backpropagation"
+        # "cjy-mwp-l2"
+
+        self.visualizer_name = "cjy-mwp-l2"  #"cjy-dual-backpropagation"
         #"""
         if self.visualizer_name != "none" and self.target_layer == []:
             self.target_layer = []
@@ -605,8 +607,6 @@ class Baseline(nn.Module):
 
         elif self.visualizer_name == "cjy-mwp-l2":
             self.visualizer = CJY_MWP_L2(model=self, num_classes=self.num_classes, target_layer=self.target_layer)
-
-
 
         elif self.visualizer_name == "none":
             self.visualizer = None
